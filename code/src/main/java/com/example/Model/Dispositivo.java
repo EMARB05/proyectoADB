@@ -1,0 +1,71 @@
+package com.example.Model;
+
+public class Dispositivo {
+    private int idDispositivo;
+    private Modelo modelo; // Objeto completo con toda la ficha técnica
+    private String serialNumber; // Clave de búsqueda al conectar por ADB
+    private String estado;
+    private String notas;
+    private String fechaRegistro;
+
+    public Dispositivo() {
+    }
+
+    public Dispositivo(Modelo modelo, String serialNumber) {
+        this.modelo = modelo;
+        this.serialNumber = serialNumber;
+    }
+
+    public int getIdDispositivo() {
+        return idDispositivo;
+    }
+
+    public void setIdDispositivo(int id) {
+        this.idDispositivo = id;
+    }
+
+    public Modelo getModelo() {
+        return modelo;
+    }
+
+    public void setModelo(Modelo m) {
+        this.modelo = m;
+    }
+
+    public String getSerialNumber() {
+        return serialNumber;
+    }
+
+    public void setSerialNumber(String s) {
+        this.serialNumber = s;
+    }
+
+    public String getEstado() {
+        return estado;
+    }
+
+    public void setEstado(String e) {
+        this.estado = e;
+    }
+
+    public String getNotas() {
+        return notas;
+    }
+
+    public void setNotas(String n) {
+        this.notas = n;
+    }
+
+    public String getFechaRegistro() {
+        return fechaRegistro;
+    }
+
+    public void setFechaRegistro(String f) {
+        this.fechaRegistro = f;
+    }
+
+    @Override
+    public String toString() {
+        return serialNumber + " — " + modelo.toString();
+    }
+}
