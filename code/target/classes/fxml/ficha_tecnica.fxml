@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane fitToWidth="true"
+            style="-fx-background-color: transparent; -fx-background: transparent;"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.View.FichaTecnicaController">
+
+    <VBox spacing="20" style="-fx-padding: 24;">
+
+        <!-- Cabecera: foto + nombre + serial -->
+        <HBox spacing="24" alignment="CENTER_LEFT"
+              style="-fx-background-color: #181825; -fx-background-radius: 12;
+                     -fx-padding: 20;">
+
+            <ImageView fx:id="imgDispositivo"
+                       fitWidth="120" fitHeight="120"
+                       preserveRatio="true"/>
+
+            <VBox spacing="8" HBox.hgrow="ALWAYS">
+                <Label fx:id="lblNombreModelo"
+                       text="—"
+                       style="-fx-text-fill: #cdd6f4; -fx-font-size: 24px;
+                              -fx-font-weight: bold;"/>
+                <Label fx:id="lblMarca"
+                       text="—"
+                       style="-fx-text-fill: #89b4fa; -fx-font-size: 14px;"/>
+                <Label fx:id="lblSerial"
+                       text="Serial: —"
+                       style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+                <Label fx:id="lblFechaRegistro"
+                       text="Registrado: —"
+                       style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+            </VBox>
+
+        </HBox>
+
+        <!-- Tarjetas de specs -->
+        <GridPane hgap="12" vgap="12">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="50"/>
+                <ColumnConstraints percentWidth="50"/>
+            </columnConstraints>
+
+            <!-- SoC -->
+            <VBox GridPane.columnIndex="0" GridPane.rowIndex="0"
+                  spacing="4"
+                  style="-fx-background-color: #181825; -fx-background-radius: 10;
+                         -fx-padding: 16;">
+                <Label text="PROCESADOR"
+                       style="-fx-text-fill: #6c7086; -fx-font-size: 11px;
+                              -fx-font-weight: bold;"/>
+                <Label fx:id="lblSoc"
+                       text="—"
+                       style="-fx-text-fill: #cdd6f4; -fx-font-size: 15px;"/>
+                <Label fx:id="lblSocFabricante"
+                       text="—"
+                       style="-fx-text-fill: #89b4fa; -fx-font-size: 12px;"/>
+            </VBox>
+
+            <!-- RAM -->
+            <VBox GridPane.columnIndex="1" GridPane.rowIndex="0"
+                  spacing="4"
+                  style="-fx-background-color: #181825; -fx-background-radius: 10;
+                         -fx-padding: 16;">
+                <Label text="MEMORIA RAM"
+                       style="-fx-text-fill: #6c7086; -fx-font-size: 11px;
+                              -fx-font-weight: bold;"/>
+                <Label fx:id="lblRam"
+                       text="—"
+                       style="-fx-text-fill: #cdd6f4; -fx-font-size: 15px;"/>
+            </VBox>
+
+            <!-- Almacenamiento -->
+            <VBox GridPane.columnIndex="0" GridPane.rowIndex="1"
+                  spacing="4"
+                  style="-fx-background-color: #181825; -fx-background-radius: 10;
+                         -fx-padding: 16;">
+                <Label text="ALMACENAMIENTO"
+                       style="-fx-text-fill: #6c7086; -fx-font-size: 11px;
+                              -fx-font-weight: bold;"/>
+                <Label fx:id="lblAlmacenamiento"
+                       text="—"
+                       style="-fx-text-fill: #cdd6f4; -fx-font-size: 15px;"/>
+            </VBox>
+
+            <!-- Android -->
+            <VBox GridPane.columnIndex="1" GridPane.rowIndex="1"
+                  spacing="4"
+                  style="-fx-background-color: #181825; -fx-background-radius: 10;
+                         -fx-padding: 16;">
+                <Label text="VERSIÓN ANDROID"
+                       style="-fx-text-fill: #6c7086; -fx-font-size: 11px;
+                              -fx-font-weight: bold;"/>
+                <Label fx:id="lblAndroid"
+                       text="—"
+                       style="-fx-text-fill: #cdd6f4; -fx-font-size: 15px;"/>
+            </VBox>
+
+            <!-- Pantalla -->
+            <VBox GridPane.columnIndex="0" GridPane.rowIndex="2"
+                  spacing="4"
+                  style="-fx-background-color: #181825; -fx-background-radius: 10;
+                         -fx-padding: 16;">
+                <Label text="PANTALLA"
+                       style="-fx-text-fill: #6c7086; -fx-font-size: 11px;
+                              -fx-font-weight: bold;"/>
+                <Label fx:id="lblPantalla"
+                       text="—"
+                       style="-fx-text-fill: #cdd6f4; -fx-font-size: 15px;"/>
+            </VBox>
+
+            <!-- Cámara -->
+            <VBox GridPane.columnIndex="1" GridPane.rowIndex="2"
+                  spacing="4"
+                  style="-fx-background-color: #181825; -fx-background-radius: 10;
+                         -fx-padding: 16;">
+                <Label text="CÁMARA"
+                       style="-fx-text-fill: #6c7086; -fx-font-size: 11px;
+                              -fx-font-weight: bold;"/>
+                <Label fx:id="lblCamara"
+                       text="—"
+                       style="-fx-text-fill: #cdd6f4; -fx-font-size: 15px;"/>
+            </VBox>
+
+        </GridPane>
+
+        <!-- Bandas soportadas -->
+        <VBox spacing="8"
+              style="-fx-background-color: #181825; -fx-background-radius: 10;
+                     -fx-padding: 16;">
+            <Label text="BANDAS SOPORTADAS"
+                   style="-fx-text-fill: #6c7086; -fx-font-size: 11px;
+                          -fx-font-weight: bold;"/>
+            <FlowPane fx:id="panelBandas" hgap="8" vgap="8"/>
+        </VBox>
+
+        <!-- Notas -->
+        <VBox spacing="8"
+              style="-fx-background-color: #181825; -fx-background-radius: 10;
+                     -fx-padding: 16;">
+            <Label text="NOTAS"
+                   style="-fx-text-fill: #6c7086; -fx-font-size: 11px;
+                          -fx-font-weight: bold;"/>
+            <Label fx:id="lblNotas"
+                   text="—"
+                   wrapText="true"
+                   style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+        </VBox>
+
+    </VBox>
+</ScrollPane>
