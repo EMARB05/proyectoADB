@@ -3,7 +3,6 @@ package com.example.Model;
 public class Foto {
     private int idFoto;
     private int idModelo;
-    private byte[] datosImagen; // BLOB
     private String urlExterna;
     private String descripcion;
 
@@ -24,14 +23,6 @@ public class Foto {
 
     public void setIdModelo(int id) {
         this.idModelo = id;
-    }
-
-    public byte[] getDatosImagen() {
-        return datosImagen;
-    }
-
-    public void setDatosImagen(byte[] d) {
-        this.datosImagen = d;
     }
 
     public String getUrlExterna() {

@@ -1,0 +1,83 @@
+package com.example.Controller;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+import com.example.Model.DatabaseManager;
+import com.example.Model.Dispositivo;
+
+public class DispositivoDAO {
+    private final ModeloDAO modeloDAO = new ModeloDAO();
+
+    // LA consulta clave del Bloque 1: buscar por Serial Number
+    // Devuelve null si el dispositivo no está registrado todavía
+    public Dispositivo buscarPorSerial(String serial) throws SQLException {
+        String sql = "SELECT * FROM dispositivo WHERE serial_number = ?";
+
+        try (Connection conn = DatabaseManager.getInstance().getConexion();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, serial);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next())
+                return mapear(rs);
+            return null; // El dispositivo es nuevo, hay que darlo de alta
+        }
+    }
+
+    public int insertar(Dispositivo dispositivo) throws SQLException {
+        String sql = """
+                INSERT INTO dispositivo (id_modelo, serial_number, estado, notas)
+                VALUES (?, ?, ?, ?)
+                """;
+
+        try (Connection conn = DatabaseManager.getInstance().getConexion();
+                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            ps.setInt(1, dispositivo.getModelo().getIdModelo());
+            ps.setString(2, dispositivo.getSerialNumber());
+            ps.setString(3, dispositivo.getEstado());
+            ps.setString(4, dispositivo.getNotas());
+            ps.executeUpdate();
+
+            ResultSet keys = ps.getGeneratedKeys();
+            if (keys.next())
+                return keys.getInt(1);
+            throw new SQLException("No se obtuvo ID tras insertar dispositivo");
+        }
+    }
+
+    public void actualizar(Dispositivo dispositivo) throws SQLException {
+        String sql = """
+                UPDATE dispositivo
+                SET id_modelo = ?, estado = ?, notas = ?
+                WHERE serial_number = ?
+                """;
+
+        try (Connection conn = DatabaseManager.getInstance().getConexion();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, dispositivo.getModelo().getIdModelo());
+            ps.setString(2, dispositivo.getEstado());
+            ps.setString(3, dispositivo.getNotas());
+            ps.setString(4, dispositivo.getSerialNumber());
+            ps.executeUpdate();
+        }
+    }
+
+    Dispositivo mapear(ResultSet rs) throws SQLException {
+        Dispositivo d = new Dispositivo();
+        d.setIdDispositivo(rs.getInt("id_dispositivo"));
+        d.setSerialNumber(rs.getString("serial_number"));
+        d.setEstado(rs.getString("estado"));
+        d.setNotas(rs.getString("notas"));
+        d.setFechaRegistro(rs.getString("fecha_registro"));
+
+        // Resolvemos la FK al modelo completo (con su marca y SoC incluidos)
+        d.setModelo(modeloDAO.buscarPorId(rs.getInt("id_modelo")));
+        return d;
+    }
+}

@@ -64,7 +64,6 @@ CREATE TABLE IF NOT EXISTS modelo_banda (
 CREATE TABLE IF NOT EXISTS foto (
     id_foto         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_modelo       INTEGER NOT NULL REFERENCES modelo(id_modelo),
-    datos_imagen    BLOB,            -- Imagen en binario (opcional)
     url_externa     TEXT,            -- O ruta relativa: "img/samsung_s22.png"
     descripcion     TEXT             -- "Vista frontal", "Vista trasera"...
 );
