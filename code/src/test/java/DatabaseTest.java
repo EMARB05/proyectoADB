@@ -4,13 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
+import com.example.Controller.ADBService;
 import com.example.Controller.BandaDAO;
 import com.example.Controller.DispositivoDAO;
 import com.example.Controller.MarcaDAO;
@@ -22,13 +26,12 @@ import com.example.Model.Marca;
 import com.example.Model.Modelo;
 import com.example.Model.Soc;
 
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.TestMethodOrder;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DatabaseTest {
 
     private static MarcaDAO      marcaDAO;
+    private static ADBService adbService;
     private static SocDAO        socDAO;
     private static ModeloDAO     modeloDAO;
     private static DispositivoDAO dispositivoDAO;
@@ -47,6 +50,7 @@ public class DatabaseTest {
         modeloDAO      = new ModeloDAO();
         dispositivoDAO = new DispositivoDAO();
         bandaDAO       = new BandaDAO();
+        adbService = new ADBService();
     }
 
     // ------------------------------------------------------------------
@@ -158,5 +162,14 @@ public class DatabaseTest {
 
         assertNull(dispositivo, "Debe devolver null si el serial no está registrado");
         System.out.println("✓ Serial desconocido devuelve null correctamente");
+    }
+    @Test
+    @Order(8)
+    void obtenerProps() throws IOException {
+        List<String> lista= adbService.obtenerDispositivosConectados();
+        for (String string : lista) {
+            Dispositivo di= adbService.obtenerProps(string);
+            System.out.println(di);
+        }
     }
 }
