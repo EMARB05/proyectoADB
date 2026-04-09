@@ -6,10 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.SQLException;
 import java.util.List;
+
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-
+import org.junit.jupiter.api.TestMethodOrder;
 
 import com.example.Controller.BandaDAO;
 import com.example.Controller.DispositivoDAO;
@@ -21,6 +23,7 @@ import com.example.Model.Dispositivo;
 import com.example.Model.Marca;
 import com.example.Model.Modelo;
 import com.example.Model.Soc;
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DatabaseTest {
 
     private static MarcaDAO      marcaDAO;
