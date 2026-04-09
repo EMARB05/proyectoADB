@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import com.example.Controller.ADBService;
 import com.example.Controller.BandaDAO;
 import com.example.Controller.DispositivoDAO;
 import com.example.Controller.MarcaDAO;
@@ -23,10 +25,13 @@ import com.example.Model.Dispositivo;
 import com.example.Model.Marca;
 import com.example.Model.Modelo;
 import com.example.Model.Soc;
+
+
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DatabaseTest {
 
     private static MarcaDAO      marcaDAO;
+    private static ADBService adbService;
     private static SocDAO        socDAO;
     private static ModeloDAO     modeloDAO;
     private static DispositivoDAO dispositivoDAO;
@@ -45,6 +50,7 @@ public class DatabaseTest {
         modeloDAO      = new ModeloDAO();
         dispositivoDAO = new DispositivoDAO();
         bandaDAO       = new BandaDAO();
+        adbService = new ADBService();
     }
 
     // ------------------------------------------------------------------
@@ -58,7 +64,7 @@ public class DatabaseTest {
         idMarca = marcaDAO.insertar(marca);
 
         assertTrue(idMarca > 0, "El ID generado debe ser mayor que 0");
-        System.out.println("✓ Marca insertada con ID: " + idMarca);
+        System.out.println("Marca insertada con ID: " + idMarca);
     }
 
     @Test
@@ -71,7 +77,7 @@ public class DatabaseTest {
 
         idSoc = socDAO.insertar(soc);
         assertTrue(idSoc > 0, "El ID generado debe ser mayor que 0");
-        System.out.println("✓ SoC insertado con ID: " + idSoc);
+        System.out.println("SoC insertado con ID: " + idSoc);
     }
 
     @Test
@@ -90,7 +96,7 @@ public class DatabaseTest {
 
         idModelo = modeloDAO.insertar(modelo);
         assertTrue(idModelo > 0, "El ID generado debe ser mayor que 0");
-        System.out.println("✓ Modelo insertado con ID: " + idModelo);
+        System.out.println("Modelo insertado con ID: " + idModelo);
     }
 
     @Test
@@ -110,7 +116,7 @@ public class DatabaseTest {
         assertFalse(bandas.isEmpty(), "El modelo debe tener al menos una banda");
         assertEquals("B3", bandas.get(0).getNumeroBanda());
 
-        System.out.println("✓ Banda insertada y asociada al modelo");
+        System.out.println("Banda insertada y asociada al modelo");
     }
 
     // ------------------------------------------------------------------
@@ -128,7 +134,7 @@ public class DatabaseTest {
 
         int id = dispositivoDAO.insertar(dispositivo);
         assertTrue(id > 0, "El ID generado debe ser mayor que 0");
-        System.out.println("✓ Dispositivo insertado con ID: " + id);
+        System.out.println("Dispositivo insertado con ID: " + id);
     }
 
     @Test
@@ -143,7 +149,7 @@ public class DatabaseTest {
         assertNotNull(dispositivo.getModelo().getMarca(), "La marca no debe ser null");
         assertEquals("Samsung", dispositivo.getModelo().getMarca().getNombre());
 
-        System.out.println("✓ Dispositivo encontrado: " + dispositivo);
+        System.out.println("Dispositivo encontrado: " + dispositivo);
         System.out.println("  Modelo : " + dispositivo.getModelo());
         System.out.println("  Marca  : " + dispositivo.getModelo().getMarca());
         System.out.println("  SoC    : " + dispositivo.getModelo().getSoc());
@@ -156,5 +162,14 @@ public class DatabaseTest {
 
         assertNull(dispositivo, "Debe devolver null si el serial no está registrado");
         System.out.println("✓ Serial desconocido devuelve null correctamente");
+    }
+    @Test
+    @Order(8)
+    void obtenerProps() throws IOException {
+        List<String> lista= adbService.obtenerDispositivosConectados();
+        for (String string : lista) {
+            Dispositivo di= adbService.obtenerProps(string);
+            System.out.println(di);
+        }
     }
 }
