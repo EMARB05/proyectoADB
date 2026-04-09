@@ -60,7 +60,7 @@ public class DatabaseTest {
         idMarca = marcaDAO.insertar(marca);
 
         assertTrue(idMarca > 0, "El ID generado debe ser mayor que 0");
-        System.out.println("✓ Marca insertada con ID: " + idMarca);
+        System.out.println("Marca insertada con ID: " + idMarca);
     }
 
     @Test
@@ -73,7 +73,7 @@ public class DatabaseTest {
 
         idSoc = socDAO.insertar(soc);
         assertTrue(idSoc > 0, "El ID generado debe ser mayor que 0");
-        System.out.println("✓ SoC insertado con ID: " + idSoc);
+        System.out.println("SoC insertado con ID: " + idSoc);
     }
 
     @Test
@@ -92,7 +92,7 @@ public class DatabaseTest {
 
         idModelo = modeloDAO.insertar(modelo);
         assertTrue(idModelo > 0, "El ID generado debe ser mayor que 0");
-        System.out.println("✓ Modelo insertado con ID: " + idModelo);
+        System.out.println("Modelo insertado con ID: " + idModelo);
     }
 
     @Test
@@ -112,7 +112,7 @@ public class DatabaseTest {
         assertFalse(bandas.isEmpty(), "El modelo debe tener al menos una banda");
         assertEquals("B3", bandas.get(0).getNumeroBanda());
 
-        System.out.println("✓ Banda insertada y asociada al modelo");
+        System.out.println("Banda insertada y asociada al modelo");
     }
 
     // ------------------------------------------------------------------
@@ -130,7 +130,7 @@ public class DatabaseTest {
 
         int id = dispositivoDAO.insertar(dispositivo);
         assertTrue(id > 0, "El ID generado debe ser mayor que 0");
-        System.out.println("✓ Dispositivo insertado con ID: " + id);
+        System.out.println("Dispositivo insertado con ID: " + id);
     }
 
     @Test
@@ -145,7 +145,7 @@ public class DatabaseTest {
         assertNotNull(dispositivo.getModelo().getMarca(), "La marca no debe ser null");
         assertEquals("Samsung", dispositivo.getModelo().getMarca().getNombre());
 
-        System.out.println("✓ Dispositivo encontrado: " + dispositivo);
+        System.out.println("Dispositivo encontrado: " + dispositivo);
         System.out.println("  Modelo : " + dispositivo.getModelo());
         System.out.println("  Marca  : " + dispositivo.getModelo().getMarca());
         System.out.println("  SoC    : " + dispositivo.getModelo().getSoc());
