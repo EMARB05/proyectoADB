@@ -22,6 +22,10 @@ import com.example.Model.Marca;
 import com.example.Model.Modelo;
 import com.example.Model.Soc;
 
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.TestMethodOrder;
+
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DatabaseTest {
 
     private static MarcaDAO      marcaDAO;
