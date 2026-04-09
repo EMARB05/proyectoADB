@@ -66,6 +66,8 @@ public class Dispositivo {
 
     @Override
     public String toString() {
-        return serialNumber + " — " + modelo.toString();
+        String nombreModelo = (modelo != null) ? modelo.getNombreModelo() : "Modelo no asignado";
+        return serialNumber + " [" + nombreModelo + "]";
     }
+
 }
