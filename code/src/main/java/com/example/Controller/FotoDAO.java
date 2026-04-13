@@ -57,7 +57,7 @@ public void insertar(int idModelo, Foto foto) throws SQLException {
     Foto mapear(ResultSet rs) throws SQLException {
         Foto f = new Foto();
         f.setIdFoto(rs.getInt("id_foto"));
-        f.setUrl(rs.getString("url_externa"));
+        f.setUrl(rs.getString("url"));
         f.setDescripcion(rs.getString("descripcion"));
         return f;
     }
