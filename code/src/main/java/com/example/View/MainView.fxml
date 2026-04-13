@@ -6,81 +6,108 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="500.0" prefWidth="700.0" style="-fx-background-color: #f4f4f4;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.Controller.MainController">
-   
-   <top>
-      <VBox alignment="CENTER" spacing="10.0" style="-fx-background-color: #2c3e50; -fx-padding: 20;">
+<AnchorPane prefHeight="600.0" prefWidth="900.0" style="-fx-background-color: #1e272e;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.Controller.MainController">
+   <children>
+      <VBox alignment="TOP_CENTER" spacing="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
-            <Label text="AEA MOBILE SUITE" textFill="WHITE">
-               <font>
-                  <Font name="System Bold" size="24.0" />
-               </font>
-            </Label>
-            <HBox alignment="CENTER" spacing="10.0">
+            
+            <HBox alignment="CENTER_LEFT" prefHeight="80.0" style="-fx-background-color: #2f3640; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 10, 0, 0, 5);">
+               <padding>
+                  <Insets left="30.0" right="30.0" />
+               </padding>
                <children>
-                  <Button fx:id="btnEscanear" onAction="#handleEscanear" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-cursor: hand;" text="DETECTAR EQUIPO (ADB)" />
+                  <VBox alignment="CENTER_LEFT" HBox.hgrow="ALWAYS">
+                     <children>
+                        <Label text="AEA MOBILE SUITE" textFill="#dcdde1">
+                           <font>
+                              <Font name="System Bold" size="26.0" />
+                           </font>
+                        </Label>
+                        <Label text="Ingeniería y Gestión de Dispositivos" textFill="#7f8c8d" />
+                     </children>
+                  </VBox>
+                  <Button fx:id="btnEscanear" onAction="#handleEscanear" prefHeight="40.0" prefWidth="200.0" style="-fx-background-color: #44bd32; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand;" text="ESCANEAR DISPOSITIVO">
+                     <font>
+                        <Font size="14.0" />
+                     </font>
+                  </Button>
+               </children>
+            </HBox>
+
+            <HBox alignment="CENTER" spacing="50.0" VBox.vgrow="ALWAYS">
+               <padding>
+                  <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+               </padding>
+               <children>
+                  
+                  <VBox alignment="CENTER" prefWidth="350.0" style="-fx-background-color: #353b48; -fx-background-radius: 15; -fx-border-color: #718093; -fx-border-radius: 15; -fx-border-width: 0.5;">
+                     <children>
+                        <ImageView fx:id="imgDispositivo" fitHeight="300.0" fitWidth="300.0" pickOnBounds="true" preserveRatio="true" />
+                        <Label text="VISTA PREVIA DEL HARDWARE" textFill="#7f8c8d">
+                           <VBox.margin>
+                              <Insets top="15.0" />
+                           </VBox.margin>
+                        </Label>
+                     </children>
+                  </VBox>
+
+                  <VBox alignment="CENTER_LEFT" prefWidth="450.0" spacing="20.0" style="-fx-background-color: #353b48; -fx-background-radius: 15; -fx-padding: 30;">
+                     <children>
+                        <Label text="ESPECIFICACIONES TÉCNICAS" textFill="#00a8ff">
+                           <font>
+                              <Font name="System Bold" size="18.0" />
+                           </font>
+                        </Label>
+                        
+                        <Separator opacity="0.1" />
+
+                        <GridPane vgap="20.0">
+                          <columnConstraints>
+                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="120.0" />
+                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="200.0" />
+                          </columnConstraints>
+                          <rowConstraints>
+                            <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                            <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                            <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                            <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                              <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                          </rowConstraints>
+                           <children>
+                              <Label text="SERIAL" textFill="#dcdde1" GridPane.rowIndex="0"> <font><Font name="System Bold" size="14.0" /></font></Label>
+                              <Label fx:id="lblSerial" text="---" textFill="#fbc531" GridPane.columnIndex="1" GridPane.rowIndex="0"> <font><Font name="System Italic" size="14.0" /></font></Label>
+                              
+                              <Label text="MARCA" textFill="#dcdde1" GridPane.rowIndex="1"> <font><Font name="System Bold" size="14.0" /></font></Label>
+                              <Label fx:id="lblMarca" text="---" textFill="WHITE" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                              
+                              <Label text="MODELO" textFill="#dcdde1" GridPane.rowIndex="2"> <font><Font name="System Bold" size="14.0" /></font></Label>
+                              <Label fx:id="lblModelo" text="---" textFill="WHITE" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                              
+                              <Label text="PROCESADOR" textFill="#dcdde1" GridPane.rowIndex="3"> <font><Font name="System Bold" size="14.0" /></font></Label>
+                              <Label fx:id="lblSoC" text="---" textFill="WHITE" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                              
+                              <Label text="ESTADO" textFill="#dcdde1" GridPane.rowIndex="4"> <font><Font name="System Bold" size="14.0" /></font></Label>
+                              <Label fx:id="lblEstado" text="DESCONECTADO" textFill="#e84118" GridPane.columnIndex="1" GridPane.rowIndex="4">
+                                 <font>
+                                    <Font name="System Bold" size="14.0" />
+                                 </font>
+                              </Label>
+                           </children>
+                        </GridPane>
+                     </children>
+                  </VBox>
+               </children>
+            </HBox>
+
+            <HBox alignment="CENTER_RIGHT" prefHeight="40.0" style="-fx-background-color: #2f3640;">
+               <padding>
+                  <Insets left="20.0" right="20.0" />
+               </padding>
+               <children>
+                  <Label text="Database Engine: SQLite 3.45 | ADB Connector Active" textFill="#7f8c8d" />
                </children>
             </HBox>
          </children>
       </VBox>
-   </top>
-
-   <center>
-      <HBox alignment="CENTER" spacing="40.0" BorderPane.alignment="CENTER">
-         <padding>
-            <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-         </padding>
-         <children>
-            <VBox alignment="TOP_CENTER" spacing="10.0" style="-fx-background-color: white; -fx-border-color: #ddd; -fx-padding: 15;">
-               <children>
-                  <ImageView fx:id="imgDispositivo" fitHeight="200.0" fitWidth="200.0" pickOnBounds="true" preserveRatio="true" />
-                  <Label text="Fotografía del Modelo" textFill="#7f8c8d" />
-               </children>
-            </VBox>
-
-            <GridPane hgap="15.0" vgap="15.0">
-              <columnConstraints>
-                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="200.0" />
-              </columnConstraints>
-              <rowConstraints>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-              </rowConstraints>
-               <children>
-                  <Label text="SERIAL:" GridPane.rowIndex="0">
-                     <font> <Font name="System Bold" size="13.0" /> </font></Label>
-                  <Label fx:id="lblSerial" text="Esperando..." textFill="#2980b9" GridPane.columnIndex="1" GridPane.rowIndex="0" />
-                  
-                  <Label text="MARCA:" GridPane.rowIndex="1">
-                     <font> <Font name="System Bold" size="13.0" /> </font></Label>
-                  <Label fx:id="lblMarca" text="---" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                  
-                  <Label text="MODELO:" GridPane.rowIndex="2">
-                     <font> <Font name="System Bold" size="13.0" /> </font></Label>
-                  <Label fx:id="lblModelo" text="---" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                  
-                  <Label text="PROCESADOR:" GridPane.rowIndex="3">
-                     <font> <Font name="System Bold" size="13.0" /> </font></Label>
-                  <Label fx:id="lblSoC" text="---" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                  
-                  <Label text="ESTADO:" GridPane.rowIndex="4">
-                     <font> <Font name="System Bold" size="13.0" /> </font></Label>
-                  <Label fx:id="lblEstado" text="Desconectado" textFill="#e74c3c" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-               </children>
-            </GridPane>
-         </children>
-      </HBox>
-   </center>
-   
-   <bottom>
-      <HBox alignment="CENTER_RIGHT" style="-fx-background-color: #ecf0f1; -fx-padding: 10;">
-         <children>
-            <Label text="Sistema de Ingeniería v1.0 - Bloque 1" textFill="#95a5a6" />
-         </children>
-      </HBox>
-   </bottom>
-</BorderPane>
+   </children>
+</AnchorPane>
