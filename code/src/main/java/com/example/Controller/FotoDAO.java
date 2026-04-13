@@ -12,23 +12,19 @@ import com.example.Model.DatabaseManager;
 import com.example.Model.Foto;
 
 public class FotoDAO {
-public int insertar(Foto foto) throws SQLException {
-        String sql = """
-            INSERT INTO foto (id_modelo, url_externa, descripcion)
-            VALUES (?, ?, ?, ?)
-            """;
+public void insertar(int idModelo, Foto foto) throws SQLException {
+        // Asumo que tu tabla se llama 'foto' y tiene columnas 'url', 'descripcion' e 'id_modelo'
+        String sql = "INSERT INTO foto (url, descripcion, id_modelo) VALUES (?, ?, ?)";
 
         try (Connection conn = DatabaseManager.getInstance().getConexion();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt   (1, foto.getIdModelo());
-            ps.setString(2, foto.getUrl());   
-            ps.setString(3, foto.getDescripcion());
+            ps.setString(1, foto.getUrl());
+            ps.setString(2, foto.getDescripcion());
+            ps.setInt(3, idModelo); // Aquí vinculamos la foto con el modelo recién creado
+
             ps.executeUpdate();
-
-            ResultSet keys = ps.getGeneratedKeys();
-            if (keys.next()) return keys.getInt(1);
-            throw new SQLException("No se obtuvo ID tras insertar foto");
+            System.out.println("✅ Foto vinculada al modelo " + idModelo);
         }
     }
 

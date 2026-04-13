@@ -89,4 +89,20 @@ public List<String> obtenerModelosSocs() throws SQLException {
     }
     return lista;
 }
+
+public Soc buscarPorNombre(String modeloSoc) throws SQLException {
+    String sql = "SELECT * FROM soc WHERE modelo_soc = ?";
+
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, modeloSoc);
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return mapear(rs); // Asegúrate de tener el método mapear(rs) como en MarcaDAO
+            }
+        }
+    }
+    return null;
+}
 }

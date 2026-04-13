@@ -70,7 +70,7 @@ public class BandaDAO {
     }
 
     // Asociar una banda a un modelo (tabla intermedia modelo_banda)
-    public void asociarAModelo(int idModelo, int idBanda) throws SQLException {
+    public void vincularModeloBanda(int idModelo, int idBanda) throws SQLException {
         String sql = "INSERT OR IGNORE INTO modelo_banda (id_modelo, id_banda) VALUES (?, ?)";
 
         try (Connection conn = DatabaseManager.getInstance().getConexion();
@@ -103,4 +103,26 @@ public class BandaDAO {
         b.setTecnologia(rs.getString("tecnologia"));
         return b;
     }
+    // Este método es oro puro para evitar duplicados
+public int obtenerOCrear(String nombreBanda) throws SQLException {
+    // 1. Intentamos buscarla primero
+    String sqlBuscar = "SELECT id_banda FROM banda WHERE numero_banda = ?";
+    
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+         PreparedStatement psBusca = conn.prepareStatement(sqlBuscar)) {
+        
+        psBusca.setString(1, nombreBanda);
+        try (ResultSet rs = psBusca.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt("id_banda"); // Ya existía, devolvemos el ID
+            }
+        }
+    }
+
+    // 2. Si no existía, la insertamos con datos genéricos
+    Banda nueva = new Banda();
+    nueva.setNumeroBanda(nombreBanda);
+    nueva.setTipo("Desconocido"); // El técnico podrá editarlo luego
+    return insertar(nueva); // Usamos tu método insertar que ya devuelve el ID
+}
 }
