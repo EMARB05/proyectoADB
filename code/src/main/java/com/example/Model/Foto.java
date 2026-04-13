@@ -3,7 +3,7 @@ package com.example.Model;
 public class Foto {
     private int idFoto;
     private int idModelo;
-    private String urlExterna;
+    private String url;
     private String descripcion;
 
     public Foto() {
@@ -25,12 +25,12 @@ public class Foto {
         this.idModelo = id;
     }
 
-    public String getUrlExterna() {
-        return urlExterna;
+    public String getUrl() {
+        return url;
     }
 
-    public void setUrlExterna(String u) {
-        this.urlExterna = u;
+    public void setUrl(String u) {
+        this.url = u;
     }
 
     public String getDescripcion() {

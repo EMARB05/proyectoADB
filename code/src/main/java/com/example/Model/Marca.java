@@ -12,6 +12,12 @@ public class Marca {
         this.nombre = nombre;
         this.paisOrigen = paisOrigen;
     }
+    // Dentro de la clase Marca
+
+    // Constructor para cuando solo sabemos el nombre (ADB no suele dar el país)
+    public Marca(String nombre) {
+        this.nombre = nombre;
+    }
 
     public int getIdMarca() {
         return idMarca;

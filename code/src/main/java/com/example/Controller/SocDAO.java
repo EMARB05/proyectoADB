@@ -73,4 +73,20 @@ public class SocDAO {
         s.setFrecuenciaMhz(rs.getString("frecuencia_mhz"));
         return s;
     }
+
+    // Nuevo método para que el ComboBox reciba solo el nombre del procesador
+public List<String> obtenerModelosSocs() throws SQLException {
+    String sql = "SELECT modelo_soc FROM soc ORDER BY modelo_soc";
+    List<String> lista = new ArrayList<>();
+
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+            Statement st = conn.createStatement();
+            ResultSet rs = st.executeQuery(sql)) {
+
+        while (rs.next()) {
+            lista.add(rs.getString("modelo_soc"));
+        }
+    }
+    return lista;
+}
 }

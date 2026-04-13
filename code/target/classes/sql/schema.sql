@@ -67,3 +67,23 @@ CREATE TABLE IF NOT EXISTS foto (
     url_externa     TEXT,            -- O ruta relativa: "img/samsung_s22.png"
     descripcion     TEXT             -- "Vista frontal", "Vista trasera"...
 );
+
+-- SEMILLA DE DATOS PARA VIMBIOCORP --
+
+-- 1. Marcas corporativas
+INSERT OR IGNORE INTO marca (id_marca, nombre, pais_origen) 
+VALUES (1, 'COCOM', 'Vimbio Global');
+INSERT OR IGNORE INTO marca (id_marca, nombre, pais_origen) 
+VALUES (2, 'ADOC', 'Vimbio Global');
+
+-- 2. Procesadores estándar de la empresa
+INSERT OR IGNORE INTO soc (id_soc, fabricante, modelo_soc, arquitectura, nucleos) 
+VALUES (1, 'Mediatek', 'MediaTek 6739', 'ARMv8-A', 4);
+INSERT OR IGNORE INTO soc (id_soc, fabricante, modelo_soc, arquitectura, nucleos) 
+VALUES (2, 'UNISOC', 'UNISOCT T107', 'ARM Cortex-A53', 1);
+
+-- 3. Un par de modelos base para que la App no esté vacía
+INSERT OR IGNORE INTO modelo (id_modelo, id_marca, id_soc, nombre_modelo) 
+VALUES (1, 1, 1, 'F740');
+INSERT OR IGNORE INTO modelo (id_modelo, id_marca, id_soc, nombre_modelo) 
+VALUES (2, 2, 2, 'S4');

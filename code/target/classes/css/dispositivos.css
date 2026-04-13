@@ -1,0 +1,45 @@
+/* Contenedor tipo Tarjeta */
+.card-container {
+    -fx-background-color: #262e35;
+    -fx-background-radius: 15;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 5);
+}
+
+/* Títulos de sección */
+.section-title {
+    -fx-text-fill: #8a8e94;
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+}
+
+/* Título del Modelo (Grande y Azul) */
+.model-title {
+    -fx-text-fill: #00a8ff;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+}
+
+/* Estilo de las etiquetas de propiedad (Izquierda) */
+.label-prop {
+    -fx-text-fill: #8a8e94;
+    -fx-font-size: 13px;
+}
+
+/* Estilo de los valores (Derecha) */
+.label-value {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+/* Botón secundario */
+.action-button-secondary {
+    -fx-background-color: #353b48;
+    -fx-text-fill: white;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+
+.action-button-secondary:hover {
+    -fx-background-color: #4b5563;
+}

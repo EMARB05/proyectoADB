@@ -22,7 +22,7 @@ public int insertar(Foto foto) throws SQLException {
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setInt   (1, foto.getIdModelo());
-            ps.setString(2, foto.getUrlExterna());   
+            ps.setString(2, foto.getUrl());   
             ps.setString(3, foto.getDescripcion());
             ps.executeUpdate();
 
@@ -62,7 +62,7 @@ public int insertar(Foto foto) throws SQLException {
         Foto f = new Foto();
         f.setIdFoto(rs.getInt("id_foto"));
         f.setIdModelo(rs.getInt("id_modelo"));
-        f.setUrlExterna(rs.getString("url_externa"));
+        f.setUrl(rs.getString("url_externa"));
         f.setDescripcion(rs.getString("descripcion"));
         return f;
     }

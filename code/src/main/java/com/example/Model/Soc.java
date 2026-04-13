@@ -15,6 +15,9 @@ public class Soc {
         this.fabricante = fabricante;
         this.modeloSoc = modeloSoc;
     }
+    public Soc(String modeloSoc) {
+    this.modeloSoc = modeloSoc;
+}
 
     public int getIdSoc() {
         return idSoc;

@@ -58,11 +58,18 @@ public class ADBService {
 
     // Obtiene el valor de una propiedad concreta del dispositivo
     // Ejemplo: getprop("R5CT103ABCD", "ro.product.model") → "Galaxy S22"
-    public String getProp(String serial, String propiedad) throws IOException {
-        List<String> salida = ejecutarComando(
-                "adb", "-s", serial, "shell", "getprop", propiedad);
-        return salida.isEmpty() ? "" : salida.get(0).trim();
+   public String getProp(String serial, String propiedad) {
+    try {
+        List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "getprop", propiedad);
+        if (salida != null && !salida.isEmpty()) {
+            String valor = salida.get(0).trim();
+            return valor.isEmpty() ? "Desconocido" : valor;
+        }
+    } catch (IOException e) {
+        System.err.println("Error leyendo propiedad " + propiedad + ": " + e.getMessage());
     }
+    return "N/A";
+}
 
     // Construye un Dispositivo con los datos leídos directamente por ADB
     // Si el serial no está en la BBDD, este objeto se usa para pre-rellenar el

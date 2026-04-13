@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.Label?>
+
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <Label text="BIENVENIDO AL SISTEMA VIMBIOCORP" style="-fx-text-fill: white; -fx-font-size: 20px;"/>
+   </children>
+</StackPane>

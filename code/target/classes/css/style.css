@@ -1,0 +1,71 @@
+/* El fondo principal del Dashboard */
+.main-container {
+    -fx-background-color: #1e272e; /* Un gris azulado muy oscuro */
+}
+
+/* El Sidebar lateral */
+.sidebar {
+    -fx-background-color: #12171e; /* Casi negro para contraste */
+    -fx-pref-width: 250;
+    -fx-padding: 20;
+    -fx-spacing: 10;
+}
+
+/* Texto del Logo */
+.logo-text {
+    -fx-text-fill: #00a8ff;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-padding: 0 0 30 0;
+}
+
+/* Estilo de los botones del menú */
+.menu-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #8a8e94;
+    -fx-background-radius: 10;
+    -fx-padding: 12 15;
+    -fx-alignment: BASELINE_LEFT;
+}
+
+.menu-button:hover {
+    -fx-background-color: #1e272e;
+    -fx-text-fill: white;
+}
+
+/* El botón que está seleccionado (como el verde de tu imagen, pero en azul) */
+.menu-button-active {
+    -fx-background-color: #00a8ff;
+    -fx-text-fill: white;
+    -fx-background-radius: 10;
+    -fx-padding: 12 15;
+    -fx-font-weight: bold;
+    -fx-alignment: BASELINE_LEFT;
+}
+/* Quitar el fondo blanco y bordes de la lista */
+.device-list {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-color: transparent;
+}
+
+/* Estilo de cada fila (celda) de la lista */
+.device-list .list-cell {
+    -fx-background-color: transparent; /* Fondo transparente */
+    -fx-text-fill: #00a8ff;            /* Texto azul Vimbiocorp */
+    -fx-font-family: "Courier New";    /* Fuente tipo terminal */
+    -fx-font-weight: bold;
+    -fx-padding: 10 5;                 /* Espaciado para que no estén pegados */
+}
+
+/* Cuando pasas el ratón por encima de un serial */
+.device-list .list-cell:hover {
+    -fx-background-color: #1e272e;
+}
+
+/* Cuando seleccionas un serial de la lista */
+.device-list .list-cell:selected {
+    -fx-background-color: #00a8ff;
+    -fx-text-fill: white;
+}

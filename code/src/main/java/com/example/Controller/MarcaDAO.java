@@ -68,4 +68,18 @@ public class MarcaDAO {
         m.setPaisOrigen(rs.getString("pais_origen"));
         return m;
     }
+    public List<String> obtenerNombres() throws SQLException {
+    String sql = "SELECT nombre FROM marca ORDER BY nombre";
+    List<String> nombres = new ArrayList<>();
+
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+         Statement st = conn.createStatement();
+         ResultSet rs = st.executeQuery(sql)) {
+
+        while (rs.next()) {
+            nombres.add(rs.getString("nombre"));
+        }
+    }
+    return nombres;
+}
 }
