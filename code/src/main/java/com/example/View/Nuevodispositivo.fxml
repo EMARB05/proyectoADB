@@ -35,6 +35,17 @@
             
             <Label text="PROCESADOR:" textFill="WHITE" GridPane.rowIndex="3" />
             <ComboBox fx:id="cbSoc" prefWidth="250.0" promptText="Seleccione SoC..." GridPane.rowIndex="3" GridPane.columnIndex="1" />
+            <Label text="FOTO:" textFill="WHITE" GridPane.rowIndex="4" />
+              <HBox spacing="10.0" GridPane.columnIndex="1" GridPane.rowIndex="4">
+                <children>
+                <TextField fx:id="txtRutaFoto" editable="false" promptText="No seleccionada..." HBox.hgrow="ALWAYS" />
+                 <Button onAction="#handleSeleccionarFoto" text="📁" />
+   </children>
+</HBox>
+
+<Label text="BANDAS:" textFill="WHITE" GridPane.rowIndex="5" />
+<TextField fx:id="txtBandas" promptText="Ej: 5G, LTE, B3 (Separadas por comas)" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+
          </children>
       </GridPane>
 

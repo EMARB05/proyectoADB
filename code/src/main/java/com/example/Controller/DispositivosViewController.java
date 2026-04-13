@@ -129,10 +129,7 @@ private void handleRegistrarEquipo() {
         
         Dispositivo temp = new Dispositivo();
         
-        // 1. EL SERIAL: Asegúrate de pasar el serial que detectó ADB originalmente
-        // Si no tienes la variable 'serial' a mano, podemos usar el ID del dispositivo 
-        // o la lógica que usaste en cargarDatos(String serial)
-        temp.setSerialNumber(ultimoSerialDetectado); // <--- Usa la variable que guarda el serial real
+        temp.setSerialNumber(ultimoSerialDetectado); 
         
         com.example.Model.Modelo m = new com.example.Model.Modelo();
         // 2. EL MODELO: Este sí sale de lblModelo

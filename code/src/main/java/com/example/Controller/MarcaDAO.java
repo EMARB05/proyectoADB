@@ -82,4 +82,19 @@ public class MarcaDAO {
     }
     return nombres;
 }
+public Marca buscarPorNombre(String nombre) throws SQLException {
+    String sql = "SELECT * FROM marca WHERE nombre = ?";
+
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, nombre);
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return mapear(rs);
+            }
+        }
+    }
+    return null; // Si no existe la marca en la BBDD
+}
 }
