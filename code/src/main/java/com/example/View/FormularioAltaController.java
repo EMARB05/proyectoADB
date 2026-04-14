@@ -11,14 +11,20 @@ import com.example.Model.Marca;
 import com.example.Model.Modelo;
 import com.example.Model.Soc;
 
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
+import javafx.animation.SequentialTransition;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.stage.FileChooser;
+import javafx.scene.layout.StackPane;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.sql.SQLException;
+import java.util.function.Consumer;
 
 public class FormularioAltaController implements DispositivoAware {
 
@@ -45,13 +51,31 @@ public class FormularioAltaController implements DispositivoAware {
     @FXML
     private TextField txtRutaFoto;
 
-    private final MarcaDAO marcaDAO = new MarcaDAO();
-    private final SocDAO socDAO = new SocDAO();
-    private final ModeloDAO modeloDAO = new ModeloDAO();
+    // Referencia al panel raíz de la app para anclar el Toast
+    private StackPane rootPane;
+
+    // Callback que MainController inyecta: recibe el Dispositivo guardado
+    // y lo muestra en la ficha técnica
+    private Consumer<Dispositivo> onGuardadoExitoso;
+
+    private final MarcaDAO       marcaDAO       = new MarcaDAO();
+    private final SocDAO         socDAO         = new SocDAO();
+    private final ModeloDAO      modeloDAO      = new ModeloDAO();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
     private final FotoDAO fotoDAO = new FotoDAO();
 
     private String serial;
+
+    // MainController llama a este método justo después de cargar el FXML
+    public void setOnGuardadoExitoso(Consumer<Dispositivo> callback) {
+        this.onGuardadoExitoso = callback;
+    }
+
+    // MainController llama a este método para que el Toast se ancle
+    // en el StackPane raíz de la ventana (por encima de todo)
+    public void setRootPane(StackPane rootPane) {
+        this.rootPane = rootPane;
+    }
 
     @Override
     public void setDispositivo(Dispositivo dispositivo) {
@@ -62,13 +86,9 @@ public class FormularioAltaController implements DispositivoAware {
 
         lblSerial.setText(serial);
 
-        // Pre-rellenamos con los datos que ADB nos dio
-        if (marca != null)
-            txtMarca.setText(marca.getNombre());
-        if (modelo != null)
-            txtModelo.setText(modelo.getNombreModelo());
-        if (soc != null)
-            txtSoc.setText(soc.getModeloSoc());
+        if (marca  != null) txtMarca.setText(marca.getNombre());
+        if (modelo != null) txtModelo.setText(modelo.getNombreModelo());
+        if (soc    != null) txtSoc.setText(soc.getModeloSoc());
 
         txtRam.setText(modelo.getRamGb() > 0 ? String.valueOf(modelo.getRamGb()) : "");
         txtAndroid.setText(modelo.getSoVersion() != null ? modelo.getSoVersion() : "");
@@ -122,21 +142,64 @@ public class FormularioAltaController implements DispositivoAware {
             dispositivo.setNotas(txtNotas.getText().trim());
             dispositivoDAO.insertar(dispositivo);
 
-            mostrarExito();
+            // 5. Toast de confirmación (no bloquea)
+            mostrarToast("✓ Dispositivo registrado correctamente");
+
+            // 6. Navegar a la ficha técnica tras un breve delay
+            //    (el mismo tiempo que tarda el Toast en aparecer, ~400 ms)
+            PauseTransition espera = new PauseTransition(Duration.millis(400));
+            Dispositivo dispositivoFinal = dispositivo;
+            espera.setOnFinished(e -> {
+                if (onGuardadoExitoso != null) {
+                    onGuardadoExitoso.accept(dispositivoFinal);
+                }
+            });
+            espera.play();
 
         } catch (SQLException e) {
-            mostrarError(e.getMessage());
+            mostrarToast("✗ Error: " + e.getMessage());
         }
     }
 
-    private void mostrarExito() {
-        lblSerial.setText("✓ Dispositivo registrado correctamente");
-        lblSerial.setStyle("-fx-text-fill: #a6e3a1; -fx-font-size: 15px;");
-    }
+    /**
+     * Muestra un Toast flotante en la parte inferior del rootPane.
+     * Si rootPane no está disponible, cae de vuelta al label original.
+     */
+    private void mostrarToast(String mensaje) {
+        if (rootPane == null) {
+            // Fallback: comportamiento anterior
+            lblSerial.setText(mensaje);
+            return;
+        }
 
-    private void mostrarError(String mensaje) {
-        lblSerial.setText("✗ Error: " + mensaje);
-        lblSerial.setStyle("-fx-text-fill: #f38ba8; -fx-font-size: 13px;");
+        Label toast = new Label(mensaje);
+        toast.setStyle(
+            "-fx-background-color: #313244;" +
+            "-fx-text-fill: #cdd6f4;" +
+            "-fx-padding: 12 24 12 24;" +
+            "-fx-background-radius: 24;" +
+            "-fx-font-size: 13px;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 12, 0, 0, 4);"
+        );
+        toast.setOpacity(0);
+
+        // Anclamos el Toast en la parte inferior, centrado
+        StackPane.setAlignment(toast, javafx.geometry.Pos.BOTTOM_CENTER);
+        StackPane.setMargin(toast, new javafx.geometry.Insets(0, 0, 32, 0));
+
+        rootPane.getChildren().add(toast);
+
+        // Animación: fade-in → pausa → fade-out → eliminar nodo
+        FadeTransition fadeIn  = new FadeTransition(Duration.millis(300), toast);
+        fadeIn.setFromValue(0); fadeIn.setToValue(1);
+
+        PauseTransition pausa  = new PauseTransition(Duration.seconds(2));
+
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(400), toast);
+        fadeOut.setFromValue(1); fadeOut.setToValue(0);
+        fadeOut.setOnFinished(e -> rootPane.getChildren().remove(toast));
+
+        new SequentialTransition(fadeIn, pausa, fadeOut).play();
     }
 
     // NUEVO MÉTODO para el botón de la carpetita en el FXML

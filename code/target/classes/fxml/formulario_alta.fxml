@@ -142,11 +142,11 @@
 
         <VBox spacing="6">
             <Label text="Notas"
-                   style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+                   style=" -fx-font-size: 13px;"/>
             <TextArea fx:id="txtNotas"
                       promptText="Observaciones sobre el dispositivo..."
                       prefRowCount="3"
-                      style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
+                      style="-fx-background-color: #181825; 
                              -fx-border-color: #313244; -fx-border-radius: 6;
                              -fx-background-radius: 6; -fx-padding: 8;"/>
         </VBox>
