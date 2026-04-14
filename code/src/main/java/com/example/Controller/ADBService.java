@@ -137,15 +137,25 @@ public class ADBService {
         }
         return 0;
     }
-    public void setModoAvion(String serial, boolean activar) throws IOException {
-        String estado = activar ? "1" : "0";
-        String estadoBoolean = activar ? "true" : "false";
-
-        // Cambiamos el ajuste interno
-        ejecutarComando("adb", "-s", serial, "shell", "settings", "put", "global", "airplane_mode_on", estado);
-        
-        // Forzamos al sistema a aplicar el cambio (el broadcast)
-        ejecutarComando("adb", "-s", serial, "shell", "am", "broadcast", "-a", "android.intent.action.AIRPLANE_MODE", "--ez", "state", estadoBoolean);
+// Consulta si el modo avión está activo (devuelve true o false)
+public boolean isModoAvionActivo(String serial) throws IOException {
+    List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "settings", "get", "global", "airplane_mode_on");
+    
+    if (!salida.isEmpty()) {
+        String resultado = salida.get(0).trim();
+        return "1".equals(resultado);
     }
+    return false;
+}
+
+// Método mejorado para cambiar el estado
+public void setModoAvion(String serial, boolean activar) throws IOException {
+    String valor = activar ? "1" : "0";
+    String broadcastValor = activar ? "true" : "false";
+
+    ejecutarComando("adb", "-s", serial, "shell", "settings", "put", "global", "airplane_mode_on", valor);
+    // Este broadcast es vital para que el icono de la barra de estado cambie
+    ejecutarComando("adb", "-s", serial, "shell", "am", "broadcast", "-a", "android.intent.action.AIRPLANE_MODE", "--ez", "state", broadcastValor);
+}
     
 }

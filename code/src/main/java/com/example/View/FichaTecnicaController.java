@@ -14,8 +14,6 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.StackPane;
-import javafx.scene.control.ListView;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,6 +52,8 @@ public class FichaTecnicaController implements DispositivoAware {
     private FlowPane panelBandas;
     @FXML
     private Button btnScrcpy;
+    @FXML
+    private Button btnModoAvion;
 
     private final ADBService     adbService     = new ADBService();
     private final ScrcpyService scrcpyService = new ScrcpyService();
@@ -148,18 +148,30 @@ public class FichaTecnicaController implements DispositivoAware {
         }
     }
 
-    @FXML
-    private void onToggleModoAvion() {
-        try {
-            // Suponiendo que tienes el serial del dispositivo seleccionado
-            String serial = listaDispositivos.getSelectionModel().getSelectedItem();
-            if (serial != null) {
-                // Aquí podrías verificar el estado actual antes de cambiar, 
-                // o simplemente alternarlo (toggle)
-                adbService.setModoAvion(serial, true); 
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+@FXML
+private void onToggleModoAvion() {
+    String serial = lblSerial.getText().replace("Serial: ", "").trim();
+    if (serial == null) return;
+
+    try {
+        // 1. Checkeamos el estado actual
+        boolean actualmenteActivo = adbService.isModoAvionActivo(serial);
+        
+        // 2. Aplicamos el opuesto (Toggle)
+        boolean nuevoEstado = !actualmenteActivo;
+        adbService.setModoAvion(serial, nuevoEstado);
+
+        // 3. Feedback visual opcional
+        if (nuevoEstado) {
+            btnModoAvion.setStyle("-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-cursor: hand;-fx-background-radius: 8; -fx-padding: 10 18 10 18;");
+            btnModoAvion.setText("✈  Modo Avión: ON");
+        } else {
+            btnModoAvion.setStyle("-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-cursor: hand;-fx-background-radius: 8; -fx-padding: 10 18 10 18;");
+            btnModoAvion.setText("✈  Modo Avión: OFF");
         }
+
+    } catch (IOException e) {
+        e.printStackTrace();
     }
+}
 }
