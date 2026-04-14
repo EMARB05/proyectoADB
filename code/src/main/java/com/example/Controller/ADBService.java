@@ -137,4 +137,15 @@ public class ADBService {
         }
         return 0;
     }
+    public void setModoAvion(String serial, boolean activar) throws IOException {
+        String estado = activar ? "1" : "0";
+        String estadoBoolean = activar ? "true" : "false";
+
+        // Cambiamos el ajuste interno
+        ejecutarComando("adb", "-s", serial, "shell", "settings", "put", "global", "airplane_mode_on", estado);
+        
+        // Forzamos al sistema a aplicar el cambio (el broadcast)
+        ejecutarComando("adb", "-s", serial, "shell", "am", "broadcast", "-a", "android.intent.action.AIRPLANE_MODE", "--ez", "state", estadoBoolean);
+    }
+    
 }

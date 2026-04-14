@@ -1,5 +1,6 @@
 package com.example.View;
 
+import com.example.Controller.ADBService;
 import com.example.Controller.BandaDAO;
 import com.example.Controller.FotoDAO;
 import com.example.Controller.ScrcpyService;
@@ -13,8 +14,11 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.control.ListView;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -51,6 +55,7 @@ public class FichaTecnicaController implements DispositivoAware {
     @FXML
     private Button btnScrcpy;
 
+    private final ADBService     adbService     = new ADBService();
     private final ScrcpyService scrcpyService = new ScrcpyService();
 
     private final BandaDAO bandaDAO = new BandaDAO();
@@ -140,6 +145,21 @@ public class FichaTecnicaController implements DispositivoAware {
         String serial = lblSerial.getText().replace("Serial: ", "").trim();
         if (!serial.isEmpty() && !serial.equals("—")) {
             scrcpyService.launch(serial);
+        }
+    }
+
+    @FXML
+    private void onToggleModoAvion() {
+        try {
+            // Suponiendo que tienes el serial del dispositivo seleccionado
+            String serial = listaDispositivos.getSelectionModel().getSelectedItem();
+            if (serial != null) {
+                // Aquí podrías verificar el estado actual antes de cambiar, 
+                // o simplemente alternarlo (toggle)
+                adbService.setModoAvion(serial, true); 
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

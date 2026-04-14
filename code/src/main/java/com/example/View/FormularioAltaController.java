@@ -23,6 +23,7 @@ import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.function.Consumer;
 
@@ -215,4 +216,6 @@ public class FormularioAltaController implements DispositivoAware {
             txtRutaFoto.setText(selectedFile.getAbsolutePath());
         }
     }
+
+
 }
