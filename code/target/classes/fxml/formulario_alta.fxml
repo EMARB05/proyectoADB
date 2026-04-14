@@ -148,7 +148,8 @@
                     onAction="#onGuardar"
                     style="-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e;
                            -fx-font-weight: bold; -fx-font-size: 14px;
-                           -fx-background-radius: 8; -fx-padding: 10 24 10 24;"/>
+                           -fx-background-radius: 8; -fx-padding: 10 24 10 24;
+                           -fx-cursor:hand;"/>
         </HBox>
 
     </VBox>

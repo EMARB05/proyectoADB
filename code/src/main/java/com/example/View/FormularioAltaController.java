@@ -53,6 +53,7 @@ public class FormularioAltaController implements DispositivoAware {
 
         txtRam.setText(modelo.getRamGb() > 0 ? String.valueOf(modelo.getRamGb()) : "");
         txtAndroid.setText(modelo.getSoVersion() != null ? modelo.getSoVersion() : "");
+        txtAlmacenamiento.setText(modelo.getAlmacenamientoGb() > 0 ? String.valueOf(modelo.getAlmacenamientoGb()) : "");
     }
 
     @FXML

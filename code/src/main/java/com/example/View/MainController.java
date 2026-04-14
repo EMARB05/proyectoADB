@@ -15,7 +15,9 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
@@ -62,6 +64,20 @@ public class MainController {
             lblEstadoAdb.setText("● " + seriales.size() + " dispositivo(s) conectado(s)");
         }
         listaDispositivos.setItems(FXCollections.observableArrayList(seriales));
+        // Override de setCellFactory, para cambiar el estilo del cursor para los dispositivos cargados
+        listaDispositivos.setCellFactory(lv -> new ListCell<String>() {
+        @Override
+        protected void updateItem(String item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty || item == null) {
+                setText(null);
+                setCursor(javafx.scene.Cursor.DEFAULT); // Flecha normal si está vacío
+            } else {
+                setText(item);
+                setCursor(javafx.scene.Cursor.HAND);    // Mano si hay un dispositivo
+            }
+        }
+    });
     }
 
     @FXML
@@ -99,10 +115,9 @@ public class MainController {
     }
 
     // Carga un fxml en el panel central y le pasa el dispositivo al controlador
-    private void cargarPanel(String fxmlPath, Dispositivo dispositivo)
-            throws IOException {
+    private void cargarPanel(String fxmlPath, Dispositivo dispositivo) throws IOException {
         FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
-        Pane panel = loader.load();
+        Node panel = loader.load();
 
         // El controlador de cada panel implementa esta interfaz
         DispositivoAware controller = loader.getController();

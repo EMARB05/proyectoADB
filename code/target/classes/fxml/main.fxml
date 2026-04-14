@@ -22,7 +22,8 @@
                     onAction="#onRefrescar"
                     style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e;
                            -fx-font-weight: bold; -fx-background-radius: 6;
-                           -fx-padding: 6 14 6 14;"/>
+                           -fx-padding: 6 14 6 14;
+                           -fx-cursor:hand;"/>
         </HBox>
     </top>
 

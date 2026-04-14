@@ -79,7 +79,7 @@ public class ADBService {
         modelo.setSoc(soc);
         modelo.setSoVersion("Android " + getProp(serial, "ro.build.version.release"));
         modelo.setRamGb((int) Math.round(obtenerRamTotalGb(serial)));
-        modelo.setPantallaPulgadas(""); // ADB no expone esto directamente
+        modelo.setAlmacenamientoGb((int) Math.round(obtenerAlmacenamientoTotalGb(serial)));
 
         return new Dispositivo(modelo, serial);
     }
@@ -97,6 +97,42 @@ public class ADBService {
                     long kb = Long.parseLong(partes[1]);
                     return kb / 1024.0 / 1024.0;
                 }
+            }
+        }
+        return 0;
+    }
+    private int obtenerAlmacenamientoTotalGb(String serial) throws IOException {
+        List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "df", "-k", "/data");
+
+        for (String linea : salida) {
+            String limpia = linea.trim();
+            if (limpia.startsWith("Filesystem") || limpia.isEmpty()) continue;
+
+            String[] partes = limpia.split("\\s+");
+
+            try {
+                long kbTotal;
+                if (partes.length >= 6) {
+                    kbTotal = Long.parseLong(partes[1]);
+                } else if (partes.length >= 1) {
+                    kbTotal = Long.parseLong(partes[0]);
+                } else {
+                    continue;
+                }
+
+                double gbDetectados = kbTotal / 1024.0 / 1024.0;
+                // (Normalización)
+                int[] capacidadesComerciales = {8, 16, 32, 64, 128, 256, 512, 1024};
+                
+                for (int capacidad : capacidadesComerciales) {
+                    if (gbDetectados > (capacidad * 0.65) && gbDetectados <= capacidad) {
+                        return capacidad;
+                    }
+                }
+                return (int) Math.round(gbDetectados);
+
+            } catch (NumberFormatException e) {
+                continue;
             }
         }
         return 0;
