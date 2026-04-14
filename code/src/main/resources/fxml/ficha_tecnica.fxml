@@ -16,9 +16,12 @@
               style="-fx-background-color: #181825; -fx-background-radius: 12;
                      -fx-padding: 20;">
 
-            <ImageView fx:id="imgDispositivo"
-                       fitWidth="220" fitHeight="220"
-                       preserveRatio="true"/>
+              <StackPane minWidth="300" minHeight="300" style="-fx-background-color: #313244;"> 
+              <ImageView fx:id="imgDispositivo"
+                            fitWidth="300" 
+                            fitHeight="300"
+                            preserveRatio="true"/>
+              </StackPane>
 
             <VBox spacing="8" HBox.hgrow="ALWAYS">
                 <Label fx:id="lblNombreModelo"

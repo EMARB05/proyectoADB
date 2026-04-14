@@ -128,4 +128,6 @@ public class FichaTecnicaController implements DispositivoAware {
             e.printStackTrace();
         }
     }
+
+    
 }
