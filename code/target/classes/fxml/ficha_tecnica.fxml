@@ -39,7 +39,19 @@
                        style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
             </VBox>
 
+             <!-- Botón scrcpy alineado a la derecha -->
+    <Region HBox.hgrow="ALWAYS"/>
+    <Button fx:id="btnScrcpy"
+            text="▶  Espejo de Pantalla"
+            onAction="#onLanzarScrcpy"
+            style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e;
+                   -fx-font-weight: bold; -fx-font-size: 13px;
+                   -fx-background-radius: 8; -fx-padding: 10 18 10 18;
+                   -fx-cursor: hand;"/>
+
         </HBox>
+
+
 
         <!-- Tarjetas de specs -->
         <GridPane hgap="12" vgap="12">
