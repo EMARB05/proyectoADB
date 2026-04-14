@@ -17,7 +17,7 @@
                      -fx-padding: 20;">
 
             <ImageView fx:id="imgDispositivo"
-                       fitWidth="120" fitHeight="120"
+                       fitWidth="220" fitHeight="220"
                        preserveRatio="true"/>
 
             <VBox spacing="8" HBox.hgrow="ALWAYS">

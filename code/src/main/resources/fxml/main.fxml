@@ -55,7 +55,8 @@
                 Dentro, un StackPane centra el panel y le aplica maxWidth.
             -->
             <StackPane HBox.hgrow="ALWAYS"
-                       style="-fx-background-color: #1e1e2e;">
+                       style="-fx-background-color: #1e1e2e;"
+                       fx:id="rootPane">
 
                 <!-- Panel central limitado a XXXpx y centrado -->
                 <StackPane fx:id="panelCentral"

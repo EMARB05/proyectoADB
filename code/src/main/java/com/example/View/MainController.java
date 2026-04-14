@@ -34,17 +34,18 @@ public class MainController {
     @FXML
     private javafx.scene.layout.VBox panelLista;
 
-    private final ADBService adbService = new ADBService();
+    // referencia al StackPane raíz de la escena para los Toasts
+    @FXML
+    private StackPane rootPane;
+
+    private final ADBService     adbService     = new ADBService();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
 
-    // Hilo que comprueba dispositivos conectados cada 3 segundos
     private ScheduledExecutorService scheduler;
 
     @FXML
     public void initialize() {
-        // Usamos runLater para esperar a que la UI esté montada
         Platform.runLater(() -> {
-            // Obtenemos el Stage a partir de cualquier nodo (el panelLista, por ejemplo)
             Stage stage = (Stage) panelLista.getScene().getWindow();
             if (stage != null) {
                 setupResponsive(stage);
@@ -55,43 +56,35 @@ public class MainController {
     }
 
     public void setupResponsive(Stage stage) {
-        // 1. Definir una función que compruebe ambos estados
         Runnable checkState = () -> {
             boolean expandido = stage.isFullScreen() || stage.isMaximized();
             actualizarMargen(expandido);
         };
 
-        // 2. Escuchar cambios en FullScreen
         stage.fullScreenProperty().addListener((obs, old, isNowFull) -> checkState.run());
-
-        // 3. Escuchar cambios en Maximized
         stage.maximizedProperty().addListener((obs, old, isNowMax) -> checkState.run());
-
-        // 4. Aplicar estado inicial
         checkState.run();
     }
 
     private void actualizarMargen(boolean esPantallaCompleta) {
         if (esPantallaCompleta) {
             HBox.setMargin(panelLista, new Insets(0, 0, 0, 50));
-            panelLista.setPadding(new Insets(30, 24, 30, 24)); 
-            panelLista.setMinWidth(320); 
+            panelLista.setPadding(new Insets(30, 24, 30, 24));
+            panelLista.setMinWidth(320);
             panelLista.setMaxWidth(320);
         } else {
             HBox.setMargin(panelLista, new Insets(0, 0, 0, 0));
-            panelLista.setPadding(new Insets(16)); // Padding estándar
+            panelLista.setPadding(new Insets(16));
             panelLista.setMinWidth(240);
             panelLista.setMaxWidth(240);
         }
     }
 
-    // Arranca un hilo que refresca la lista cada 3 segundos
     private void iniciarDeteccionAutomatica() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 List<String> seriales = adbService.obtenerDispositivosConectados();
-                // Actualizamos la UI siempre en el hilo de JavaFX
                 Platform.runLater(() -> actualizarLista(seriales));
             } catch (IOException e) {
                 Platform.runLater(() -> lblEstadoAdb.setText("● Error al ejecutar ADB"));
@@ -108,18 +101,16 @@ public class MainController {
             lblEstadoAdb.setText("● " + seriales.size() + " dispositivo(s) conectado(s)");
         }
         listaDispositivos.setItems(FXCollections.observableArrayList(seriales));
-        // Override de setCellFactory, para cambiar el estilo del cursor para los
-        // dispositivos cargados
         listaDispositivos.setCellFactory(lv -> new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
-                    setCursor(javafx.scene.Cursor.DEFAULT); // Flecha normal si está vacío
+                    setCursor(javafx.scene.Cursor.DEFAULT);
                 } else {
                     setText(item);
-                    setCursor(javafx.scene.Cursor.HAND); // Mano si hay un dispositivo
+                    setCursor(javafx.scene.Cursor.HAND);
                 }
             }
         });
@@ -147,7 +138,7 @@ public class MainController {
             if (dispositivo == null) {
                 // Serial desconocido → formulario de alta con datos de ADB
                 Dispositivo desdeAdb = adbService.obtenerProps(serial);
-                cargarPanel("/fxml/formulario_alta.fxml", desdeAdb);
+                cargarFormularioAlta(desdeAdb);
             } else {
                 // Serial conocido → ficha técnica desde la BBDD
                 cargarPanel("/fxml/ficha_tecnica.fxml", dispositivo);
@@ -159,19 +150,46 @@ public class MainController {
         }
     }
 
-    // Carga un fxml en el panel central y le pasa el dispositivo al controlador
+    /**
+     * Carga el formulario de alta e inyecta:
+     *  - el Dispositivo con los datos de ADB
+     *  - el rootPane para mostrar el Toast
+     *  - el callback que, al guardar, navega automáticamente a la ficha técnica
+     */
+    private void cargarFormularioAlta(Dispositivo desdeAdb) throws IOException {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/formulario_alta.fxml"));
+        Node panel = loader.load();
+
+        FormularioAltaController controller = loader.getController();
+        controller.setDispositivo(desdeAdb);
+
+        // Inyectamos el rootPane para que el Toast flote sobre toda la UI
+        controller.setRootPane(rootPane);
+
+        // Al guardar con éxito, navegamos a la ficha técnica del dispositivo guardado
+        controller.setOnGuardadoExitoso(dispositivoGuardado -> {
+            try {
+                cargarPanel("/fxml/ficha_tecnica.fxml", dispositivoGuardado);
+            } catch (IOException e) {
+                lblEstadoAdb.setText("● Error al cargar la ficha técnica");
+                e.printStackTrace();
+            }
+        });
+
+        panelCentral.getChildren().setAll(panel);
+    }
+
+    /** Carga cualquier panel genérico (DispositivoAware) en el centro. */
     private void cargarPanel(String fxmlPath, Dispositivo dispositivo) throws IOException {
         FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
         Node panel = loader.load();
 
-        // El controlador de cada panel implementa esta interfaz
         DispositivoAware controller = loader.getController();
         controller.setDispositivo(dispositivo);
 
         panelCentral.getChildren().setAll(panel);
     }
 
-    // Detenemos el scheduler al cerrar la ventana para no dejar hilos huérfanos
     public void detener() {
         if (scheduler != null)
             scheduler.shutdown();
