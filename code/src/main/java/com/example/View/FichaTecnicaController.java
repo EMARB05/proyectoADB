@@ -1,8 +1,10 @@
 package com.example.View;
 
 import com.example.Controller.BandaDAO;
+import com.example.Controller.FotoDAO;
 import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
+import com.example.Model.Foto;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -10,6 +12,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 
+import java.io.File;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -45,6 +48,7 @@ public class FichaTecnicaController implements DispositivoAware {
     private FlowPane panelBandas;
 
     private final BandaDAO bandaDAO = new BandaDAO();
+    private final FotoDAO fotoDAO = new FotoDAO();
 
     @Override
     public void setDispositivo(Dispositivo dispositivo) {
@@ -72,19 +76,30 @@ public class FichaTecnicaController implements DispositivoAware {
     }
 
     private void cargarFoto(Dispositivo dispositivo) {
-        var modelo = dispositivo.getModelo();
-        if (modelo.getFotos() != null && !modelo.getFotos().isEmpty()) {
-            var foto = modelo.getFotos().get(0);
+        try {
+            // FORZAMOS la carga de la foto desde la DB usando el ID del modelo
+            List<Foto> fotos = fotoDAO.obtenerPorModelo(dispositivo.getModelo().getIdModelo());
 
-            if (foto.getUrlExterna() != null) {
-                // Foto como ruta de archivo
-                imgDispositivo.setImage(
-                        new Image("file:" + foto.getUrlExterna()));
+            if (fotos != null && !fotos.isEmpty()) {
+                String ruta = fotos.get(0).getUrlExterna();
+                
+                if (ruta != null && !ruta.isEmpty()) {
+                    File file = new File(ruta);
+                    if (file.exists()) {
+                        // Usamos la URI del archivo para evitar problemas de formato
+                        imgDispositivo.setImage(new Image(file.toURI().toString()));
+                        return; // Si todo sale bien, salimos del método
+                    }
+                }
             }
-        } else {
-            // Icono por defecto si no hay foto
-            imgDispositivo.setImage(
-                    new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg")));
+            
+            // Si llegamos aquí es porque no hay foto o el archivo no existe
+            imgDispositivo.setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg")));
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+            // En caso de error de DB, ponemos el placeholder
+            imgDispositivo.setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg")));
         }
     }
 

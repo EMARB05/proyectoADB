@@ -137,7 +137,6 @@
                           -fx-font-weight: bold;"/>
             <FlowPane fx:id="panelBandas" hgap="8" vgap="8"/>
         </VBox>
-
         <!-- Notas -->
         <VBox spacing="8"
               style="-fx-background-color: #181825; -fx-background-radius: 10;
@@ -149,6 +148,7 @@
                    text="—"
                    wrapText="true"
                    style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+              
         </VBox>
 
     </VBox>

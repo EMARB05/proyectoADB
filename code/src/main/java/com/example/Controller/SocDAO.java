@@ -13,27 +13,43 @@ import com.example.Model.Soc;
 
 public class SocDAO {
     public int insertar(Soc soc) throws SQLException {
-        String sql = """
-                INSERT INTO soc (fabricante, modelo_soc, arquitectura, nucleos, frecuencia_mhz)
-                VALUES (?, ?, ?, ?, ?)
-                """;
-
-        try (Connection conn = DatabaseManager.getInstance().getConexion();
-                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, soc.getFabricante());
-            ps.setString(2, soc.getModeloSoc());
-            ps.setString(3, soc.getArquitectura());
-            ps.setInt(4, soc.getNucleos());
-            ps.setString(5, soc.getFrecuenciaMhz());
-            ps.executeUpdate();
-
-            ResultSet keys = ps.getGeneratedKeys();
-            if (keys.next())
-                return keys.getInt(1);
-            throw new SQLException("No se obtuvo ID tras insertar SoC");
+    // 1. Buscamos si el modelo de SoC ya existe para no duplicarlo
+    String sqlBusqueda = "SELECT id_soc FROM soc WHERE modelo_soc = ?";
+    
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+         PreparedStatement psBusqueda = conn.prepareStatement(sqlBusqueda)) {
+        
+        psBusqueda.setString(1, soc.getModeloSoc());
+        ResultSet rs = psBusqueda.executeQuery();
+        
+        if (rs.next()) {
+            // Si ya existe en la base de datos, devolvemos su ID actual
+            return rs.getInt("id_soc");
         }
     }
+
+    // 2. Si no existe, lo insertamos normalmente
+    String sqlInsert = """
+        INSERT INTO soc (fabricante, modelo_soc, arquitectura, nucleos, frecuencia_mhz) 
+        VALUES (?, ?, ?, ?, ?)
+    """;
+    
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+         PreparedStatement psInsert = conn.prepareStatement(sqlInsert, Statement.RETURN_GENERATED_KEYS)) {
+        
+        psInsert.setString(1, soc.getFabricante());
+        psInsert.setString(2, soc.getModeloSoc());
+        psInsert.setString(3, soc.getArquitectura());
+        psInsert.setInt   (4, soc.getNucleos());
+        psInsert.setString(5, soc.getFrecuenciaMhz());
+        
+        psInsert.executeUpdate();
+
+        ResultSet keys = psInsert.getGeneratedKeys();
+        if (keys.next()) return keys.getInt(1);
+        throw new SQLException("Error al crear el nuevo SoC: no se obtuvo ID");
+    }
+}
 
     public List<Soc> obtenerTodos() throws SQLException {
         String sql = "SELECT * FROM soc ORDER BY fabricante, modelo_soc";

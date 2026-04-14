@@ -1,10 +1,12 @@
 package com.example.View;
 
 import com.example.Controller.DispositivoDAO;
+import com.example.Controller.FotoDAO;
 import com.example.Controller.MarcaDAO;
 import com.example.Controller.ModeloDAO;
 import com.example.Controller.SocDAO;
 import com.example.Model.Dispositivo;
+import com.example.Model.Foto;
 import com.example.Model.Marca;
 import com.example.Model.Modelo;
 import com.example.Model.Soc;
@@ -13,43 +15,60 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.stage.FileChooser;
 
+import java.io.File;
 import java.sql.SQLException;
-
 
 public class FormularioAltaController implements DispositivoAware {
 
-    @FXML private Label     lblSerial;
-    @FXML private TextField txtMarca;
-    @FXML private TextField txtModelo;
-    @FXML private TextField txtSoc;
-    @FXML private TextField txtRam;
-    @FXML private TextField txtAlmacenamiento;
-    @FXML private TextField txtAndroid;
-    @FXML private TextField txtPantalla;
-    @FXML private TextField txtCamara;
-    @FXML private TextArea  txtNotas;
+    @FXML
+    private Label lblSerial;
+    @FXML
+    private TextField txtMarca;
+    @FXML
+    private TextField txtModelo;
+    @FXML
+    private TextField txtSoc;
+    @FXML
+    private TextField txtRam;
+    @FXML
+    private TextField txtAlmacenamiento;
+    @FXML
+    private TextField txtAndroid;
+    @FXML
+    private TextField txtPantalla;
+    @FXML
+    private TextField txtCamara;
+    @FXML
+    private TextArea txtNotas;
+    @FXML
+    private TextField txtRutaFoto;
 
-    private final MarcaDAO      marcaDAO      = new MarcaDAO();
-    private final SocDAO        socDAO        = new SocDAO();
-    private final ModeloDAO     modeloDAO     = new ModeloDAO();
+    private final MarcaDAO marcaDAO = new MarcaDAO();
+    private final SocDAO socDAO = new SocDAO();
+    private final ModeloDAO modeloDAO = new ModeloDAO();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
+    private final FotoDAO fotoDAO = new FotoDAO();
 
     private String serial;
 
     @Override
     public void setDispositivo(Dispositivo dispositivo) {
         this.serial = dispositivo.getSerialNumber();
-        var modelo  = dispositivo.getModelo();
-        var marca   = modelo.getMarca();
-        var soc     = modelo.getSoc();
+        var modelo = dispositivo.getModelo();
+        var marca = modelo.getMarca();
+        var soc = modelo.getSoc();
 
         lblSerial.setText(serial);
 
         // Pre-rellenamos con los datos que ADB nos dio
-        if (marca  != null) txtMarca.setText(marca.getNombre());
-        if (modelo != null) txtModelo.setText(modelo.getNombreModelo());
-        if (soc    != null) txtSoc.setText(soc.getModeloSoc());
+        if (marca != null)
+            txtMarca.setText(marca.getNombre());
+        if (modelo != null)
+            txtModelo.setText(modelo.getNombreModelo());
+        if (soc != null)
+            txtSoc.setText(soc.getModeloSoc());
 
         txtRam.setText(modelo.getRamGb() > 0 ? String.valueOf(modelo.getRamGb()) : "");
         txtAndroid.setText(modelo.getSoVersion() != null ? modelo.getSoVersion() : "");
@@ -86,6 +105,18 @@ public class FormularioAltaController implements DispositivoAware {
             int idModelo = modeloDAO.insertar(modelo);
             modelo.setIdModelo(idModelo);
 
+            // --- NUEVO: INSERTAR FOTO ---
+
+            String ruta = txtRutaFoto.getText();
+            if (ruta != null && !ruta.trim().isEmpty()) {
+                Foto foto = new Foto();
+                foto.setIdModelo(idModelo); // Vinculamos con el ID recién creado
+                foto.setUrlExterna(ruta.trim()); // Usamos el nombre url_externa
+                foto.setDescripcion("Foto principal");
+
+                fotoDAO.insertar(foto);
+            }
+
             // 4. Dispositivo
             Dispositivo dispositivo = new Dispositivo(modelo, serial);
             dispositivo.setNotas(txtNotas.getText().trim());
@@ -106,5 +137,19 @@ public class FormularioAltaController implements DispositivoAware {
     private void mostrarError(String mensaje) {
         lblSerial.setText("✗ Error: " + mensaje);
         lblSerial.setStyle("-fx-text-fill: #f38ba8; -fx-font-size: 13px;");
+    }
+
+    // NUEVO MÉTODO para el botón de la carpetita en el FXML
+    @FXML
+    private void onSeleccionarFoto() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Seleccionar Imagen del Dispositivo");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Imágenes", "*.png", "*.jpg", "*.jpeg"));
+
+        File selectedFile = fileChooser.showOpenDialog(lblSerial.getScene().getWindow());
+        if (selectedFile != null) {
+            txtRutaFoto.setText(selectedFile.getAbsolutePath());
+        }
     }
 }

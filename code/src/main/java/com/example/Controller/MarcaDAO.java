@@ -14,21 +14,35 @@ import com.example.Model.Marca;
 public class MarcaDAO {
     // Insertar una marca nueva, devuelve el ID generado
     public int insertar(Marca marca) throws SQLException {
-        String sql = "INSERT INTO marca (nombre, pais_origen) VALUES (?, ?)";
-
-        try (Connection conn = DatabaseManager.getInstance().getConexion();
-                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, marca.getNombre());
-            ps.setString(2, marca.getPaisOrigen());
-            ps.executeUpdate();
-
-            ResultSet keys = ps.getGeneratedKeys();
-            if (keys.next())
-                return keys.getInt(1);
-            throw new SQLException("No se obtuvo ID tras insertar marca");
+    // 1. Primero intentamos buscar si la marca ya existe
+    String sqlBusqueda = "SELECT id_marca FROM marca WHERE nombre = ?";
+    
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+         PreparedStatement psBusqueda = conn.prepareStatement(sqlBusqueda)) {
+        
+        psBusqueda.setString(1, marca.getNombre());
+        ResultSet rs = psBusqueda.executeQuery();
+        
+        if (rs.next()) {
+            // Si existe, retornamos el ID que ya tiene
+            return rs.getInt("id_marca");
         }
     }
+
+    // 2. Si no existe, procedemos con el INSERT original
+    String sqlInsert = "INSERT INTO marca (nombre, pais_origen) VALUES (?, ?)";
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+         PreparedStatement psInsert = conn.prepareStatement(sqlInsert, Statement.RETURN_GENERATED_KEYS)) {
+        
+        psInsert.setString(1, marca.getNombre());
+        psInsert.setString(2, marca.getPaisOrigen());
+        psInsert.executeUpdate();
+
+        ResultSet keys = psInsert.getGeneratedKeys();
+        if (keys.next()) return keys.getInt(1);
+        throw new SQLException("No se pudo obtener el ID de la nueva marca");
+    }
+}
 
     // Obtener todas las marcas (útil para poblar un ComboBox en la UI)
     public List<Marca> obtenerTodas() throws SQLException {
