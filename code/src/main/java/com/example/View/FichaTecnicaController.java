@@ -2,11 +2,13 @@ package com.example.View;
 
 import com.example.Controller.BandaDAO;
 import com.example.Controller.FotoDAO;
+import com.example.Controller.ScrcpyService;
 import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
 import com.example.Model.Foto;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -46,6 +48,10 @@ public class FichaTecnicaController implements DispositivoAware {
     private Label lblNotas;
     @FXML
     private FlowPane panelBandas;
+    @FXML
+    private Button btnScrcpy;
+
+    private final ScrcpyService scrcpyService = new ScrcpyService();
 
     private final BandaDAO bandaDAO = new BandaDAO();
     private final FotoDAO fotoDAO = new FotoDAO();
@@ -82,7 +88,7 @@ public class FichaTecnicaController implements DispositivoAware {
 
             if (fotos != null && !fotos.isEmpty()) {
                 String ruta = fotos.get(0).getUrlExterna();
-                
+
                 if (ruta != null && !ruta.isEmpty()) {
                     File file = new File(ruta);
                     if (file.exists()) {
@@ -92,10 +98,10 @@ public class FichaTecnicaController implements DispositivoAware {
                     }
                 }
             }
-            
+
             // Si llegamos aquí es porque no hay foto o el archivo no existe
             imgDispositivo.setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg")));
-            
+
         } catch (SQLException e) {
             e.printStackTrace();
             // En caso de error de DB, ponemos el placeholder
@@ -126,6 +132,14 @@ public class FichaTecnicaController implements DispositivoAware {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void onLanzarScrcpy() {
+        String serial = lblSerial.getText().replace("Serial: ", "").trim();
+        if (!serial.isEmpty() && !serial.equals("—")) {
+            scrcpyService.launch(serial);
         }
     }
 }
