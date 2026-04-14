@@ -101,12 +101,14 @@ public class ADBService {
         }
         return 0;
     }
+
     private int obtenerAlmacenamientoTotalGb(String serial) throws IOException {
         List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "df", "-k", "/data");
 
         for (String linea : salida) {
             String limpia = linea.trim();
-            if (limpia.startsWith("Filesystem") || limpia.isEmpty()) continue;
+            if (limpia.startsWith("Filesystem") || limpia.isEmpty())
+                continue;
 
             String[] partes = limpia.split("\\s+");
 
@@ -122,8 +124,8 @@ public class ADBService {
 
                 double gbDetectados = kbTotal / 1024.0 / 1024.0;
                 // (Normalización)
-                int[] capacidadesComerciales = {8, 16, 32, 64, 128, 256, 512, 1024};
-                
+                int[] capacidadesComerciales = { 8, 16, 32, 64, 128, 256, 512, 1024 };
+
                 for (int capacidad : capacidadesComerciales) {
                     if (gbDetectados > (capacidad * 0.65) && gbDetectados <= capacidad) {
                         return capacidad;
@@ -137,25 +139,39 @@ public class ADBService {
         }
         return 0;
     }
-// Consulta si el modo avión está activo (devuelve true o false)
-public boolean isModoAvionActivo(String serial) throws IOException {
-    List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "settings", "get", "global", "airplane_mode_on");
-    
-    if (!salida.isEmpty()) {
-        String resultado = salida.get(0).trim();
-        return "1".equals(resultado);
+
+    // Consulta si el modo avión está activo (devuelve true o false)
+    public boolean isModoAvionActivo(String serial) throws IOException {
+        List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "settings", "get", "global",
+                "airplane_mode_on");
+
+        if (!salida.isEmpty()) {
+            String resultado = salida.get(0).trim();
+            return "1".equals(resultado);
+        }
+        return false;
     }
-    return false;
-}
 
-// Método mejorado para cambiar el estado
-public void setModoAvion(String serial, boolean activar) throws IOException {
-    String valor = activar ? "1" : "0";
-    String broadcastValor = activar ? "true" : "false";
+    public void setModoAvion(String serial, boolean activar) throws IOException {
+        String valor = activar ? "1" : "0";
+        String broadcastValor = activar ? "true" : "false";
 
-    ejecutarComando("adb", "-s", serial, "shell", "settings", "put", "global", "airplane_mode_on", valor);
-    // Este broadcast es vital para que el icono de la barra de estado cambie
-    ejecutarComando("adb", "-s", serial, "shell", "am", "broadcast", "-a", "android.intent.action.AIRPLANE_MODE", "--ez", "state", broadcastValor);
-}
+        // Usamos 'su -c' para ejecutar los comandos como superusuario
+        String comandoRoot = String.format(
+                "settings put global airplane_mode_on %s && am broadcast -a android.intent.action.AIRPLANE_MODE --ez state %s",
+                valor,
+                broadcastValor);
+
+        ejecutarComando("adb", "-s", serial, "shell", "su", "-c", comandoRoot);
+    }
     
+    public boolean tieneRoot(String serial) {
+    try {
+        List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "which", "su");
+        return !salida.isEmpty() && salida.get(0).contains("/su");
+    } catch (Exception e) {
+        return false;
+    }
+}
+
 }

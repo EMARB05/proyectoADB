@@ -84,6 +84,13 @@ public class FichaTecnicaController implements DispositivoAware {
 
         cargarFoto(dispositivo);
         cargarBandas(modelo.getIdModelo());
+
+        try {
+            boolean estadoInicial = adbService.isModoAvionActivo(dispositivo.getSerialNumber());
+            actualizarBotonModoAvion(estadoInicial);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void cargarFoto(Dispositivo dispositivo) {
@@ -148,30 +155,36 @@ public class FichaTecnicaController implements DispositivoAware {
         }
     }
 
-@FXML
-private void onToggleModoAvion() {
-    String serial = lblSerial.getText().replace("Serial: ", "").trim();
-    if (serial == null) return;
+    @FXML
+    private void onToggleModoAvion() {
+        String serial = lblSerial.getText().replace("Serial: ", "").trim();
+        if (serial == null) return;
 
-    try {
-        // 1. Checkeamos el estado actual
-        boolean actualmenteActivo = adbService.isModoAvionActivo(serial);
-        
-        // 2. Aplicamos el opuesto (Toggle)
-        boolean nuevoEstado = !actualmenteActivo;
-        adbService.setModoAvion(serial, nuevoEstado);
+        try {
+            // 1. Checkeamos el estado actual
+            boolean actualmenteActivo = adbService.isModoAvionActivo(serial);
+            
+            // 2. Aplicamos el opuesto (Toggle)
+            boolean nuevoEstado = !actualmenteActivo;
+            adbService.setModoAvion(serial, nuevoEstado);
 
-        // 3. Feedback visual opcional
-        if (nuevoEstado) {
-            btnModoAvion.setStyle("-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-cursor: hand;-fx-background-radius: 8; -fx-padding: 10 18 10 18;");
+            // 3. Feedback visual
+            actualizarBotonModoAvion(nuevoEstado);
+
+            System.out.println(adbService.tieneRoot(serial));
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void actualizarBotonModoAvion(boolean activo) {
+        if (activo) {
+            btnModoAvion.setStyle("-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 18 10 18; -fx-cursor: hand;");
             btnModoAvion.setText("✈  Modo Avión: ON");
         } else {
-            btnModoAvion.setStyle("-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-cursor: hand;-fx-background-radius: 8; -fx-padding: 10 18 10 18;");
+            btnModoAvion.setStyle("-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 18 10 18; -fx-cursor: hand;");
             btnModoAvion.setText("✈  Modo Avión: OFF");
         }
-
-    } catch (IOException e) {
-        e.printStackTrace();
     }
-}
 }
