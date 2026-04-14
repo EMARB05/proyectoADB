@@ -18,22 +18,39 @@ public class AjustesController {
 
     @FXML private Slider sliderBrillo;
     @FXML private Slider sliderVolumen;
+    private double ultimoValorEntero = 0;
 
-    @FXML
-    public void initialize() {
-        // Listener para el Brillo (se ejecuta al soltar el ratón o mover)
-        sliderBrillo.valueProperty().addListener((obs, oldVal, newVal) -> {
-            int valor = newVal.intValue();
-            adbService.ejecutarAccionHilo(serial, "shell settings put system screen_brightness " + valor);
-        });
+   @FXML
+public void initialize() {
+    // --- BRILLO (Rango 0-255) ---
+    sliderBrillo.setMin(0);
+    sliderBrillo.setMax(255);
+    sliderBrillo.valueProperty().addListener((obs, oldVal, newVal) -> {
+        int valor = newVal.intValue();
+        adbService.ejecutarAccionHilo(serial, "shell settings put system screen_brightness " + valor);
+    });
 
-        // Listener para el Volumen
-        sliderVolumen.valueProperty().addListener((obs, oldVal, newVal) -> {
-            int valor = newVal.intValue();
-            // El stream 3 suele ser el de música/multimedia
-            adbService.ejecutarAccionHilo(serial, "shell media volume --set " + valor);
-        });
-    }
+    // --- VOLUMEN (Rango 0-15) ---
+    sliderVolumen.setMin(0);
+    sliderVolumen.setMax(15);
+    sliderVolumen.setBlockIncrement(1);
+
+    sliderVolumen.valueProperty().addListener((obs, oldVal, newVal) -> {
+        int actual = newVal.intValue();
+        
+        // Solo actuamos si el valor ha cambiado de unidad (evita ráfagas)
+        if (actual != ultimoValorEntero) {
+            if (actual > ultimoValorEntero) {
+                // El usuario subió el slider -> Mandamos tecla de subir
+                adbService.ejecutarAccionHilo(serial, "shell input keyevent 24");
+            } else {
+                // El usuario bajó el slider -> Mandamos tecla de bajar
+                adbService.ejecutarAccionHilo(serial, "shell input keyevent 25");
+            }
+            ultimoValorEntero = actual;
+        }
+    });
+}
 
     @FXML
     private void toggleBluetooth(ActionEvent event) {
