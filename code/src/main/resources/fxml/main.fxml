@@ -27,31 +27,50 @@
         </HBox>
     </top>
 
-    <!-- Panel izquierdo: lista de dispositivos -->
-    <left>
-        <VBox spacing="8" minWidth="260"
-              style="-fx-background-color: #181825; -fx-padding: 16;">
-            <Label text="DISPOSITIVOS CONECTADOS"
-                   style="-fx-text-fill: #6c7086; -fx-font-size: 11px; -fx-font-weight: bold;"/>
-            <ListView fx:id="listaDispositivos"
-                      VBox.vgrow="ALWAYS"
-                      onMouseClicked="#onSeleccionarDispositivo"
-                      style="-fx-background-color: #1e1e2e; -fx-border-color: #313244;
-                             -fx-border-radius: 8; -fx-background-radius: 8;"/>
-        </VBox>
-    </left>
-
-    <!-- Panel central: ficha técnica o mensaje de bienvenida -->
+    <!-- Contenido principal -->
     <center>
-        <StackPane fx:id="panelCentral"
-                   style="-fx-background-color: #1e1e2e; -fx-padding: 24;">
-            <VBox alignment="CENTER" spacing="12">
-                <Label text="📱"
-                       style="-fx-font-size: 48px;"/>
-                <Label text="Conecta un dispositivo o selecciona uno de la lista"
-                       style="-fx-text-fill: #6c7086; -fx-font-size: 14px;"/>
+        <HBox style="-fx-background-color: #1e1e2e;">
+            <!-- Panel izquierdo: lista de dispositivos (ancho fijo, nunca se encoge) -->
+            <VBox fx:id="panelLista" spacing="8"
+                minWidth="240" maxWidth="240" prefWidth="240"
+                HBox.hgrow="NEVER"
+                style="-fx-background-color: #181825; -fx-padding: 16;">
+
+                <Label text="DISPOSITIVOS CONECTADOS"
+                    style="-fx-text-fill: #6c7086; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                
+                <!-- Separador izquierdo dinámico -->
+                <HBox VBox.vgrow="ALWAYS" spacing="8">
+                    <ListView fx:id="listaDispositivos"
+                            HBox.hgrow="ALWAYS"
+                            minWidth="140"
+                            onMouseClicked="#onSeleccionarDispositivo"
+                            style="-fx-background-color: #1e1e2e; -fx-border-color: #313244;
+                                    -fx-border-radius: 8; -fx-background-radius: 8;"/>
+                </HBox>
             </VBox>
-        </StackPane>
+
+            <!--
+                Zona de contenido: ocupa todo el espacio restante (hgrow=ALWAYS).
+                Dentro, un StackPane centra el panel y le aplica maxWidth.
+            -->
+            <StackPane HBox.hgrow="ALWAYS"
+                       style="-fx-background-color: #1e1e2e;">
+
+                <!-- Panel central limitado a XXXpx y centrado -->
+                <StackPane fx:id="panelCentral"
+                           maxWidth="1000"
+                           style="-fx-background-color: #1e1e2e; -fx-padding: 24;">
+                    <VBox alignment="CENTER" spacing="12">
+                        <Label text="📱" style="-fx-font-size: 48px;"/>
+                        <Label text="Conecta un dispositivo o selecciona uno de la lista"
+                               style="-fx-text-fill: #6c7086; -fx-font-size: 14px;"/>
+                    </VBox>
+                </StackPane>
+
+            </StackPane>
+
+        </HBox>
     </center>
 
 </BorderPane>

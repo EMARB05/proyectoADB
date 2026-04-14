@@ -15,12 +15,14 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.layout.Pane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
 
 public class MainController {
     @FXML
@@ -29,6 +31,8 @@ public class MainController {
     private ListView<String> listaDispositivos;
     @FXML
     private StackPane panelCentral;
+    @FXML
+    private javafx.scene.layout.VBox panelLista;
 
     private final ADBService adbService = new ADBService();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
@@ -38,7 +42,47 @@ public class MainController {
 
     @FXML
     public void initialize() {
+        // Usamos runLater para esperar a que la UI esté montada
+        Platform.runLater(() -> {
+            // Obtenemos el Stage a partir de cualquier nodo (el panelLista, por ejemplo)
+            Stage stage = (Stage) panelLista.getScene().getWindow();
+            if (stage != null) {
+                setupResponsive(stage);
+            }
+        });
+
         iniciarDeteccionAutomatica();
+    }
+
+    public void setupResponsive(Stage stage) {
+        // 1. Definir una función que compruebe ambos estados
+        Runnable checkState = () -> {
+            boolean expandido = stage.isFullScreen() || stage.isMaximized();
+            actualizarMargen(expandido);
+        };
+
+        // 2. Escuchar cambios en FullScreen
+        stage.fullScreenProperty().addListener((obs, old, isNowFull) -> checkState.run());
+
+        // 3. Escuchar cambios en Maximized
+        stage.maximizedProperty().addListener((obs, old, isNowMax) -> checkState.run());
+
+        // 4. Aplicar estado inicial
+        checkState.run();
+    }
+
+    private void actualizarMargen(boolean esPantallaCompleta) {
+        if (esPantallaCompleta) {
+            HBox.setMargin(panelLista, new Insets(0, 0, 0, 50));
+            panelLista.setPadding(new Insets(30, 24, 30, 24)); 
+            panelLista.setMinWidth(320); 
+            panelLista.setMaxWidth(320);
+        } else {
+            HBox.setMargin(panelLista, new Insets(0, 0, 0, 0));
+            panelLista.setPadding(new Insets(16)); // Padding estándar
+            panelLista.setMinWidth(240);
+            panelLista.setMaxWidth(240);
+        }
     }
 
     // Arranca un hilo que refresca la lista cada 3 segundos
@@ -64,20 +108,21 @@ public class MainController {
             lblEstadoAdb.setText("● " + seriales.size() + " dispositivo(s) conectado(s)");
         }
         listaDispositivos.setItems(FXCollections.observableArrayList(seriales));
-        // Override de setCellFactory, para cambiar el estilo del cursor para los dispositivos cargados
+        // Override de setCellFactory, para cambiar el estilo del cursor para los
+        // dispositivos cargados
         listaDispositivos.setCellFactory(lv -> new ListCell<String>() {
-        @Override
-        protected void updateItem(String item, boolean empty) {
-            super.updateItem(item, empty);
-            if (empty || item == null) {
-                setText(null);
-                setCursor(javafx.scene.Cursor.DEFAULT); // Flecha normal si está vacío
-            } else {
-                setText(item);
-                setCursor(javafx.scene.Cursor.HAND);    // Mano si hay un dispositivo
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setCursor(javafx.scene.Cursor.DEFAULT); // Flecha normal si está vacío
+                } else {
+                    setText(item);
+                    setCursor(javafx.scene.Cursor.HAND); // Mano si hay un dispositivo
+                }
             }
-        }
-    });
+        });
     }
 
     @FXML
