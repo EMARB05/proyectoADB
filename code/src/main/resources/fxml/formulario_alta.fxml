@@ -30,104 +30,59 @@
                           -fx-font-family: monospace;"/>
         </VBox>
 
-        <GridPane hgap="16" vgap="16">
-            <columnConstraints>
-                <ColumnConstraints percentWidth="50"/>
-                <ColumnConstraints percentWidth="50"/>
-            </columnConstraints>
+       <GridPane hgap="16" vgap="16">
+    <columnConstraints>
+        <ColumnConstraints percentWidth="50"/>
+        <ColumnConstraints percentWidth="50"/>
+    </columnConstraints>
 
-            <children>
-                <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" spacing="6">
-                    <Label text="Marca"
-                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-                    <TextField fx:id="txtMarca"
-                               promptText="Ej: Samsung"
-                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                                      -fx-border-color: #313244; -fx-border-radius: 6;
-                                      -fx-background-radius: 6; -fx-padding: 8;"/>
-                </VBox>
+    <children>
+        <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" spacing="6">
+            <Label text="Marca" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+            <TextField fx:id="txtMarca" promptText="Ej: Samsung" style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8;"/>
+        </VBox>
 
-                <VBox GridPane.columnIndex="1" GridPane.rowIndex="0" spacing="6">
-                    <Label text="Modelo"
-                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-                    <TextField fx:id="txtModelo"
-                               promptText="Ej: Galaxy S22"
-                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                                      -fx-border-color: #313244; -fx-border-radius: 6;
-                                      -fx-background-radius: 6; -fx-padding: 8;"/>
-                </VBox>
+        <VBox GridPane.columnIndex="1" GridPane.rowIndex="0" spacing="6">
+            <Label text="Modelo" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+            <TextField fx:id="txtModelo" promptText="Ej: Galaxy S22" style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8;"/>
+        </VBox>
 
-                <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" spacing="6">
-                    <Label text="Android ID"
-                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-                    <TextField fx:id="txtAndroidID"
-                               promptText="Ej: 0000000"
-                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                                      -fx-border-color: #313244; -fx-border-radius: 6;
-                                      -fx-background-radius: 6; -fx-padding: 8;"/>
-                </VBox>
+        <VBox GridPane.columnIndex="0" GridPane.rowIndex="1" spacing="6">
+            <Label text="Android ID" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+            <TextField fx:id="txtAndroidID" promptText="Ej: 8d3b7..." style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8;"/>
+        </VBox>
 
-                <VBox GridPane.columnIndex="0" GridPane.rowIndex="1" spacing="6">
-                    <Label text="Procesador (SoC)"
-                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-                    <TextField fx:id="txtSoc"
-                               promptText="Ej: Snapdragon 8 Gen 2"
-                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                                      -fx-border-color: #313244; -fx-border-radius: 6;
-                                      -fx-background-radius: 6; -fx-padding: 8;"/>
-                </VBox>
+        <VBox GridPane.columnIndex="1" GridPane.rowIndex="1" spacing="6">
+            <Label text="Procesador (SoC)" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+            <TextField fx:id="txtSoc" promptText="Ej: mt6739" style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8;"/>
+        </VBox>
 
-                <VBox GridPane.columnIndex="1" GridPane.rowIndex="1" spacing="6">
-                    <Label text="RAM (GB)"
-                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-                    <TextField fx:id="txtRam"
-                               promptText="Ej: 8"
-                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                                      -fx-border-color: #313244; -fx-border-radius: 6;
-                                      -fx-background-radius: 6; -fx-padding: 8;"/>
-                </VBox>
+        <VBox GridPane.columnIndex="0" GridPane.rowIndex="2" spacing="6">
+            <Label text="RAM (GB)" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+            <TextField fx:id="txtRam" promptText="Ej: 1" style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8;"/>
+        </VBox>
 
-                <VBox GridPane.columnIndex="0" GridPane.rowIndex="2" spacing="6">
-                    <Label text="Almacenamiento (GB)"
-                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-                    <TextField fx:id="txtAlmacenamiento"
-                               promptText="Ej: 128"
-                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                                      -fx-border-color: #313244; -fx-border-radius: 6;
-                                      -fx-background-radius: 6; -fx-padding: 8;"/>
-                </VBox>
+        <VBox GridPane.columnIndex="1" GridPane.rowIndex="2" spacing="6">
+            <Label text="Almacenamiento (GB)" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+            <TextField fx:id="txtAlmacenamiento" promptText="Ej: 3" style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8;"/>
+        </VBox>
 
-                <VBox GridPane.columnIndex="1" GridPane.rowIndex="2" spacing="6">
-                    <Label text="Versión Android"
-                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-                    <TextField fx:id="txtAndroid"
-                               promptText="Ej: Android 13"
-                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                                      -fx-border-color: #313244; -fx-border-radius: 6;
-                                      -fx-background-radius: 6; -fx-padding: 8;"/>
-                </VBox>
+        <VBox GridPane.columnIndex="0" GridPane.rowIndex="3" spacing="6">
+            <Label text="Versión Android" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+            <TextField fx:id="txtAndroid" promptText="Ej: Android 12" style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8;"/>
+        </VBox>
 
-                <VBox GridPane.columnIndex="0" GridPane.rowIndex="3" spacing="6">
-                    <Label text="Pantalla (pulgadas)"
-                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-                    <TextField fx:id="txtPantalla"
-                               promptText="Ej: 6.1"
-                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                                      -fx-border-color: #313244; -fx-border-radius: 6;
-                                      -fx-background-radius: 6; -fx-padding: 8;"/>
-                </VBox>
+        <VBox GridPane.columnIndex="1" GridPane.rowIndex="3" spacing="6">
+            <Label text="Pantalla (pulgadas)" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+            <TextField fx:id="txtPantalla" promptText="Ej: 6.1" style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8;"/>
+        </VBox>
 
-                <VBox GridPane.columnIndex="1" GridPane.rowIndex="3" spacing="6">
-                    <Label text="Cámara (MP)"
-                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-                    <TextField fx:id="txtCamara"
-                               promptText="Ej: 50"
-                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                                      -fx-border-color: #313244; -fx-border-radius: 6;
-                                      -fx-background-radius: 6; -fx-padding: 8;"/>
-                </VBox>
-            </children>
-        </GridPane>
+        <VBox GridPane.columnIndex="0" GridPane.rowIndex="4" spacing="6">
+            <Label text="Cámara (MP)" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+            <TextField fx:id="txtCamara" promptText="Ej: 50" style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8;"/>
+        </VBox>
+    </children>
+</GridPane>
 
         <VBox spacing="6">
             <Label text="Foto del dispositivo"
