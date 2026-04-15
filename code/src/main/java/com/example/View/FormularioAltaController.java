@@ -162,7 +162,7 @@ public class FormularioAltaController implements DispositivoAware {
 
         } catch (SQLException e) {
             mostrarToast("✗ Error: " + e.getMessage());
-            System.out.println(e.getMessage());
+            e.printStackTrace();
         }
     }
 

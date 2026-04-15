@@ -30,8 +30,8 @@ public class DispositivoDAO {
 
     public int insertar(Dispositivo dispositivo) throws SQLException {
         String sql = """
-                INSERT INTO dispositivo (id_modelo, serial_number, estado, notas)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO dispositivo (id_modelo, serial_number, android_id, estado, notas)
+                VALUES (?, ?, ?, ?, ?)
                 """;
 
         try (Connection conn = DatabaseManager.getInstance().getConexion();
@@ -39,8 +39,9 @@ public class DispositivoDAO {
 
             ps.setInt(1, dispositivo.getModelo().getIdModelo());
             ps.setString(2, dispositivo.getSerialNumber());
-            ps.setString(3, dispositivo.getEstado());
-            ps.setString(4, dispositivo.getNotas());
+            ps.setString(3, dispositivo.getAndroid_id());
+            ps.setString(4, dispositivo.getEstado());
+            ps.setString(5, dispositivo.getNotas());
             ps.executeUpdate();
 
             ResultSet keys = ps.getGeneratedKeys();
