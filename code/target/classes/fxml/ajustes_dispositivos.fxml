@@ -3,66 +3,67 @@
 <?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
 
-<VBox spacing="20" style="-fx-background-color: #1e1e2e; -fx-padding: 24;" 
-      xmlns:fx="http://javafx.com/fxml" 
+<VBox spacing="0" style="-fx-background-color: #1e1e2e; -fx-padding: 0;"
+      xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.example.View.AjustesController">
 
-    <HBox alignment="CENTER_LEFT" spacing="15">
-        <Button text="←" onAction="#onVolver" 
-                style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-cursor: hand; -fx-background-radius: 5;"/>
-        <Label text="Gestión de Dispositivo" 
+    <!-- CABECERA -->
+    <HBox alignment="CENTER_LEFT" spacing="15"
+          style="-fx-padding: 16 24 12 24; -fx-background-color: #1e1e2e;">
+        <Button text="←" onAction="#onVolver"
+                style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
+                       -fx-cursor: hand; -fx-background-radius: 5;"/>
+        <Label fx:id="lblTitulo" text="Gestión de Dispositivo"
                style="-fx-text-fill: #cdd6f4; -fx-font-size: 18px; -fx-font-weight: bold;"/>
     </HBox>
 
-    <VBox spacing="10" alignment="CENTER">
-        <Button text="▶  Iniciar Espejo de Pantalla" 
-                onAction="#onLanzarScrcpy"
-                maxWidth="Infinity"
-                style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; 
-                       -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 15; 
-                       -fx-background-radius: 10; -fx-cursor: hand;"/>
-        <Separator opacity="0.1" />
-    </VBox>
+    <!-- BARRA DE PESTAÑAS -->
+    <HBox spacing="0" style="-fx-background-color: #181825;">
+        <ToggleButton fx:id="tabAjustes" text="AJUSTES RÁPIDOS"
+                      onAction="#onTabAjustes" selected="true"
+                      style="-fx-background-color: #1e1e2e; -fx-text-fill: #89b4fa;
+                             -fx-font-size: 11px; -fx-font-weight: bold;
+                             -fx-padding: 10 16; -fx-background-radius: 0; -fx-cursor: hand;"/>
+        <ToggleButton fx:id="tabGestion" text="GESTIÓN PANT."
+                      onAction="#onTabGestion"
+                      style="-fx-background-color: #181825; -fx-text-fill: #6c7086;
+                             -fx-font-size: 11px; -fx-font-weight: bold;
+                             -fx-padding: 10 16; -fx-background-radius: 0; -fx-cursor: hand;"/>
+        <ToggleButton fx:id="tabRed" text="RED E IMS"
+                      onAction="#onTabRed"
+                      style="-fx-background-color: #181825; -fx-text-fill: #6c7086;
+                             -fx-font-size: 11px; -fx-font-weight: bold;
+                             -fx-padding: 10 16; -fx-background-radius: 0; -fx-cursor: hand;"/>
+        <ToggleButton fx:id="tabWifi" text="ADB WIFI"
+                      onAction="#onTabWifi"
+                      style="-fx-background-color: #181825; -fx-text-fill: #6c7086;
+                             -fx-font-size: 11px; -fx-font-weight: bold;
+                             -fx-padding: 10 16; -fx-background-radius: 0; -fx-cursor: hand;"/>
+    </HBox>
 
-    <GridPane hgap="15" vgap="15">
-        <columnConstraints>
-            <ColumnConstraints percentWidth="50"/>
-            <ColumnConstraints percentWidth="50"/>
-        </columnConstraints>
-        
-        <children>
-            <ToggleButton fx:id="btnModoAvion" text="✈ Modo Avión" onAction="#toggleAirplane"
-                          maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0"
-                          style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
-            
-            <ToggleButton fx:id="btnBluetooth" text=" Bluetooth" onAction="#toggleBluetooth"
-                          maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0"
-                          style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
-            
-            <ToggleButton fx:id="btnGPS" text="📍 Ubicación (GPS)" onAction="#toggleGPS"
-                          maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1"
-                          style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
-        </children>
-    </GridPane>
+    <!-- CONTENIDO -->
+    <StackPane VBox.vgrow="ALWAYS">
 
-    <VBox spacing="15" style="-fx-background-color: #181825; -fx-padding: 15; -fx-background-radius: 10;">
-        
-        <VBox spacing="8">
-            <HBox spacing="10">
-                <Label text="🔅 Brillo Pantalla" style="-fx-text-fill: #cdd6f4;"/>
-                <Label fx:id="lblBrilloVal" text="128" style="-fx-text-fill: #6c7086;"/>
-            </HBox>
-            <Slider fx:id="sliderBrillo" min="0" max="255" value="128" />
+        <!-- PESTAÑA 1: Ajustes Rápidos -->
+        <VBox fx:id="paneAjustes" visible="true" managed="true">
+            <fx:include source="pane_ajustes_rapidos.fxml" fx:id="ajustesRapidos"/>
         </VBox>
 
-        <VBox spacing="8">
-            <HBox spacing="10">
-                <Label text="🔊 Volumen Multimedia" style="-fx-text-fill: #cdd6f4;"/>
-                <Label fx:id="lblVolVal" text="7" style="-fx-text-fill: #6c7086;"/>
-            </HBox>
-            <Slider fx:id="sliderVolumen" min="0" max="15" value="7" />
+        <!-- PESTAÑA 2: Gestión Pantalla -->
+        <VBox fx:id="paneGestion" visible="false" managed="false">
+            <fx:include source="pane_gestion_pantalla.fxml" fx:id="gestionPantalla"/>
         </VBox>
-        
-    </VBox>
+
+        <!-- PESTAÑA 3: Red e IMS -->
+        <VBox fx:id="paneRed" visible="false" managed="false">
+            <fx:include source="pane_red_ims.fxml" fx:id="redIms"/>
+        </VBox>
+
+        <!-- PESTAÑA 4: ADB WiFi -->
+        <VBox fx:id="paneWifi" visible="false" managed="false">
+            <fx:include source="pane_adb_wifi.fxml" fx:id="adbWifi"/>
+        </VBox>
+
+    </StackPane>
 
 </VBox>

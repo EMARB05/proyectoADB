@@ -1,4 +1,5 @@
 package com.example.View;
+
 import com.example.Controller.BandaDAO;
 import com.example.Controller.FotoDAO;
 import com.example.Model.Banda;
@@ -13,6 +14,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.stage.Modality;
+
 import javafx.stage.Stage;
 
 import java.io.File;

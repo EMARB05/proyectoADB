@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+
+<VBox spacing="20" style="-fx-background-color: #1e1e2e; -fx-padding: 24;"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.example.View.RedImsController">
+
+    <Label text="Red e IMS"
+           style="-fx-text-fill: #6c7086; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+
+    <!-- Contenido futuro -->
+
+</VBox>
