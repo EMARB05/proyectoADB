@@ -4,6 +4,7 @@ public class Dispositivo {
     private int idDispositivo;
     private Modelo modelo; // Objeto completo con toda la ficha técnica
     private String serialNumber; // Clave de búsqueda al conectar por ADB
+    private String android_id;
     private String estado;
     private String notas;
     private String fechaRegistro;
@@ -11,9 +12,10 @@ public class Dispositivo {
     public Dispositivo() {
     }
 
-    public Dispositivo(Modelo modelo, String serialNumber) {
+    public Dispositivo(Modelo modelo, String serialNumber, String android_id) {
         this.modelo = modelo;
         this.serialNumber = serialNumber;
+        this.android_id= android_id;
     }
 
     public int getIdDispositivo() {
@@ -26,6 +28,14 @@ public class Dispositivo {
 
     public Modelo getModelo() {
         return modelo;
+    }
+
+    public String getAndroid_id() {
+        return android_id;
+    }
+
+    public void setAndroid_id(String android_id) {
+        this.android_id = android_id;
     }
 
     public void setModelo(Modelo m) {

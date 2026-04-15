@@ -1,20 +1,14 @@
 package com.example.View;
-
-import com.example.Controller.ADBService;
 import com.example.Controller.BandaDAO;
 import com.example.Controller.FotoDAO;
-import com.example.Controller.ScrcpyService;
 import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
 import com.example.Model.Foto;
-
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;

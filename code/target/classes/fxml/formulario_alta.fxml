@@ -57,6 +57,16 @@
                                       -fx-background-radius: 6; -fx-padding: 8;"/>
                 </VBox>
 
+                <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" spacing="6">
+                    <Label text="Android ID"
+                           style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
+                    <TextField fx:id="txtAndroidID"
+                               promptText="Ej: 0000000"
+                               style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
+                                      -fx-border-color: #313244; -fx-border-radius: 6;
+                                      -fx-background-radius: 6; -fx-padding: 8;"/>
+                </VBox>
+
                 <VBox GridPane.columnIndex="0" GridPane.rowIndex="1" spacing="6">
                     <Label text="Procesador (SoC)"
                            style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>

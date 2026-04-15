@@ -50,6 +50,9 @@ public class FormularioAltaController implements DispositivoAware {
     @FXML
     private TextField txtRutaFoto;
 
+    @FXML
+    private TextField txtAndroidID;
+
     // Referencia al panel raíz de la app para anclar el Toast
     private StackPane rootPane;
 
@@ -82,12 +85,14 @@ public class FormularioAltaController implements DispositivoAware {
         var modelo = dispositivo.getModelo();
         var marca = modelo.getMarca();
         var soc = modelo.getSoc();
+        var android_id= dispositivo.getAndroid_id();
 
         lblSerial.setText(serial);
 
         if (marca  != null) txtMarca.setText(marca.getNombre());
         if (modelo != null) txtModelo.setText(modelo.getNombreModelo());
         if (soc    != null) txtSoc.setText(soc.getModeloSoc());
+        if(android_id != null) txtAndroidID.setText(android_id);
 
         txtRam.setText(modelo.getRamGb() > 0 ? String.valueOf(modelo.getRamGb()) : "");
         txtAndroid.setText(modelo.getSoVersion() != null ? modelo.getSoVersion() : "");
@@ -137,7 +142,7 @@ public class FormularioAltaController implements DispositivoAware {
             }
 
             // 4. Dispositivo
-            Dispositivo dispositivo = new Dispositivo(modelo, serial);
+            Dispositivo dispositivo = new Dispositivo(modelo, serial, txtAndroidID.getText());
             dispositivo.setNotas(txtNotas.getText().trim());
             dispositivoDAO.insertar(dispositivo);
 
@@ -157,6 +162,7 @@ public class FormularioAltaController implements DispositivoAware {
 
         } catch (SQLException e) {
             mostrarToast("✗ Error: " + e.getMessage());
+            System.out.println(e.getMessage());
         }
     }
 

@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS modelo (
 CREATE TABLE IF NOT EXISTS dispositivo (
     id_dispositivo  INTEGER PRIMARY KEY AUTOINCREMENT,
     id_modelo       INTEGER NOT NULL REFERENCES modelo(id_modelo),
-    serial_number   TEXT NOT NULL UNIQUE,   -- Clave de búsqueda al conectar por ADB
+    serial_number   TEXT NOT NULL, -- Clave de búsqueda al conectar por ADB
+    android_id TEXT NOT NULL UNIQUE,  
     estado          TEXT DEFAULT 'activo',  -- activo, baja, reparacion...
     notas           TEXT,
     fecha_registro  TEXT DEFAULT (DATE('now'))

@@ -128,7 +128,7 @@ public class DatabaseTest {
     void insertarDispositivo() throws SQLException {
         Modelo modelo = modeloDAO.buscarPorId(idModelo);
 
-        Dispositivo dispositivo = new Dispositivo(modelo, "R5CT103ABCD");
+        Dispositivo dispositivo = new Dispositivo(modelo, "R5CT103ABCD","1234456");
         dispositivo.setEstado("activo");
         dispositivo.setNotas("Dispositivo de prueba");
 

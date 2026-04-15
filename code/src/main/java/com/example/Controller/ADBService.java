@@ -108,10 +108,18 @@ public class ADBService {
         return seriales;
     }
 
+
+
     public String getProp(String serial, String propiedad) throws IOException {
         List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "getprop", propiedad);
         return salida.isEmpty() ? "" : salida.get(0).trim();
     }
+
+    public String getSecureSetting(String serial, String setting) throws IOException {
+    // Nota: Aquí quitamos "getprop" y usamos "settings get secure"
+    List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "secure", setting);
+    return salida.isEmpty() ? "" : salida.get(0).trim();
+}
 
     public Dispositivo obtenerProps(String serial) throws IOException {
         Marca marca = new Marca();
@@ -121,14 +129,20 @@ public class ADBService {
         soc.setModeloSoc(getProp(serial, "ro.board.platform"));
         soc.setFabricante(getProp(serial, "ro.product.manufacturer"));
 
+
+
         Modelo modelo = new Modelo(marca, getProp(serial, "ro.product.model"));
         modelo.setSoc(soc);
         modelo.setSoVersion("Android " + getProp(serial, "ro.build.version.release"));
         modelo.setRamGb((int) Math.round(obtenerRamTotalGb(serial)));
         modelo.setAlmacenamientoGb((int) Math.round(obtenerAlmacenamientoTotalGb(serial)));
 
-        return new Dispositivo(modelo, serial);
+        String android_id= getSecureSetting(serial, "android_id");
+
+        return new Dispositivo(modelo, serial, android_id);
     }
+
+    
 
     private double obtenerRamTotalGb(String serial) throws IOException {
         List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "cat", "/proc/meminfo");
