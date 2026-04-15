@@ -21,9 +21,7 @@ import javafx.scene.control.TextField;
 import javafx.stage.FileChooser;
 import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
-
 import java.io.File;
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.function.Consumer;
 

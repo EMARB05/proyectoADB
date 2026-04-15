@@ -9,11 +9,16 @@ import com.example.Model.Dispositivo;
 import com.example.Model.Foto;
 
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,7 +60,7 @@ public class FichaTecnicaController implements DispositivoAware {
     @FXML
     private Button btnModoAvion;
 
-    private final ADBService     adbService     = new ADBService();
+    private final ADBService adbService = new ADBService();
     private final ScrcpyService scrcpyService = new ScrcpyService();
 
     private final BandaDAO bandaDAO = new BandaDAO();
@@ -87,7 +92,7 @@ public class FichaTecnicaController implements DispositivoAware {
 
         try {
             boolean estadoInicial = adbService.isModoAvionActivo(dispositivo.getSerialNumber());
-            actualizarBotonModoAvion(estadoInicial);
+            actualizarBotonAvion(estadoInicial);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -157,34 +162,76 @@ public class FichaTecnicaController implements DispositivoAware {
 
     @FXML
     private void onToggleModoAvion() {
-        String serial = lblSerial.getText().replace("Serial: ", "").trim();
-        if (serial == null) return;
+        String serialLimpio = lblSerial.getText().replace("Serial: ", "").trim();
+        if (serialLimpio.isEmpty() || serialLimpio.equals("—"))
+            return;
 
         try {
-            // 1. Checkeamos el estado actual
-            boolean actualmenteActivo = adbService.isModoAvionActivo(serial);
-            
-            // 2. Aplicamos el opuesto (Toggle)
+            // 1. Consultamos el estado actual (este método es sincrónico, está bien así)
+            boolean actualmenteActivo = adbService.isModoAvionActivo(serialLimpio);
             boolean nuevoEstado = !actualmenteActivo;
-            adbService.setModoAvion(serial, nuevoEstado);
 
-            // 3. Feedback visual
-            actualizarBotonModoAvion(nuevoEstado);
+            // 2. Ejecutamos la acción usando el nuevo método de hilos del Service
+            String valor = nuevoEstado ? "1" : "0";
+            String broadcastValor = nuevoEstado ? "true" : "false";
 
-            System.out.println(adbService.tieneRoot(serial));
+            // Cambiamos el ajuste
+            adbService.ejecutarAccionHilo(serialLimpio, "shell settings put global airplane_mode_on " + valor);
+
+            // Enviamos el broadcast para refrescar la interfaz del móvil
+            adbService.ejecutarAccionHilo(serialLimpio,
+                    "shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state " + broadcastValor);
+
+            // 3. Feedback visual en tu botón
+            actualizarBotonAvion(nuevoEstado);
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Error al detectar estado del modo avión: " + e.getMessage());
         }
     }
 
-    private void actualizarBotonModoAvion(boolean activo) {
+    // Método auxiliar para no repetir código de estilos
+    private void actualizarBotonAvion(boolean activo) {
         if (activo) {
-            btnModoAvion.setStyle("-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 18 10 18; -fx-cursor: hand;");
+            btnModoAvion.setStyle(
+                    "-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 8; -fx-padding: 10 18 10 18;");
             btnModoAvion.setText("✈  Modo Avión: ON");
         } else {
-            btnModoAvion.setStyle("-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 18 10 18; -fx-cursor: hand;");
+            btnModoAvion.setStyle(
+                    "-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 8; -fx-padding: 10 18 10 18;");
             btnModoAvion.setText("✈  Modo Avión: OFF");
+        }
+    }
+
+    @FXML
+    private void onAbrirAjustes() {
+        try {
+            // 1. Cargamos el archivo FXML de la ventana de ajustes
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ajustes_dispositivos.fxml"));
+            Parent root = loader.load();
+
+            // 2. Obtenemos el controlador de la ventana de ajustes
+            AjustesController controller = loader.getController();
+
+            // 3. Le pasamos el SERIAL del dispositivo actual
+            // Limpiamos el texto del label por si tiene el prefijo "Serial: "
+            String serialLimpio = lblSerial.getText().replace("Serial: ", "").trim();
+            controller.setSerial(serialLimpio);
+
+            // 4. Creamos y configuramos la nueva ventana (Stage)
+            Stage stage = new Stage();
+            stage.setTitle("Gestión de Dispositivo - " + lblNombreModelo.getText());
+
+            // Esto hace que no se pueda interactuar con la ventana principal hasta cerrar
+            // esta
+            stage.initModality(Modality.APPLICATION_MODAL);
+
+            stage.setScene(new Scene(root));
+            stage.show();
+
+        } catch (IOException e) {
+            System.err.println("Error al cargar la ventana de ajustes: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

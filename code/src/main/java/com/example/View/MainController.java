@@ -123,6 +123,7 @@ public class MainController {
             actualizarLista(seriales);
         } catch (IOException e) {
             lblEstadoAdb.setText("● Error al ejecutar ADB");
+            e.printStackTrace();
         }
     }
 

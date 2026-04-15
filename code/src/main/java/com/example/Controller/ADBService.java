@@ -13,12 +13,14 @@ import com.example.Model.Soc;
 
 public class ADBService {
 
-    // Ejecuta cualquier comando ADB y devuelve la salida línea a línea
-    private List<String> ejecutarComando(String... comando) throws IOException {
+    /**
+     * MÉTODO MOTOR (Privado): Es el único que realmente toca el ProcessBuilder.
+     * Recibe un array de strings y devuelve la salida del comando.
+     */
+    private List<String> ejecutarADB(String... comando) throws IOException {
         List<String> resultado = new ArrayList<>();
-
         ProcessBuilder pb = new ProcessBuilder(comando);
-        pb.redirectErrorStream(true); // mezcla stdout y stderr
+        pb.redirectErrorStream(true);
         Process proceso = pb.start();
 
         try (BufferedReader reader = new BufferedReader(
@@ -28,45 +30,58 @@ public class ADBService {
                 resultado.add(linea);
             }
         }
-
         return resultado;
     }
 
-    // Devuelve los seriales de los dispositivos conectados y autorizados
+    /**
+     * MÉTODO PARA EL CONTROLADOR (Público): No bloquea la UI (usa hilos).
+     * Se usa así: adbService.ejecutarAccionHilo(serial, "shell settings put...");
+     */
+    public void ejecutarAccionHilo(String serial, String comandoShell) {
+        new Thread(() -> {
+            try {
+                String[] partes = comandoShell.split(" ");
+                List<String> fullCmd = new ArrayList<>();
+                fullCmd.add("adb");
+                fullCmd.add("-s");
+                fullCmd.add(serial);
+                
+                for (String p : partes) {
+                    fullCmd.add(p);
+                }
+
+                // Llamamos al motor
+                ejecutarADB(fullCmd.toArray(new String[0]));
+                System.out.println("ADB Ejecutado en hilo: " + comandoShell);
+                
+            } catch (IOException e) {
+                System.err.println("Error en hilo ADB: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    // --- MÉTODOS DE OBTENCIÓN DE DATOS (Sincrónicos) ---
+
     public List<String> obtenerDispositivosConectados() throws IOException {
         List<String> seriales = new ArrayList<>();
-        List<String> salida = ejecutarComando("adb", "devices");
+        List<String> salida = ejecutarADB("adb", "devices"); // Usamos el motor
 
         for (String linea : salida) {
-            // Filtramos la cabecera y las líneas que no sean dispositivos autorizados
-            if (linea.isEmpty() || linea.startsWith("List of devices"))
-                continue;
-            if (linea.contains("unauthorized"))
-                continue;
-            if (linea.contains("offline"))
-                continue;
+            if (linea.isEmpty() || linea.startsWith("List of devices")) continue;
+            if (linea.contains("unauthorized") || linea.contains("offline")) continue;
 
-            // Cada línea válida tiene formato: "SERIAL\tdevice"
             if (linea.contains("\tdevice")) {
-                String serial = linea.split("\t")[0].trim();
-                seriales.add(serial);
+                seriales.add(linea.split("\t")[0].trim());
             }
         }
-
         return seriales;
     }
 
-    // Obtiene el valor de una propiedad concreta del dispositivo
-    // Ejemplo: getprop("R5CT103ABCD", "ro.product.model") → "Galaxy S22"
     public String getProp(String serial, String propiedad) throws IOException {
-        List<String> salida = ejecutarComando(
-                "adb", "-s", serial, "shell", "getprop", propiedad);
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "getprop", propiedad);
         return salida.isEmpty() ? "" : salida.get(0).trim();
     }
 
-    // Construye un Dispositivo con los datos leídos directamente por ADB
-    // Si el serial no está en la BBDD, este objeto se usa para pre-rellenar el
-    // formulario de alta
     public Dispositivo obtenerProps(String serial) throws IOException {
         Marca marca = new Marca();
         marca.setNombre(getProp(serial, "ro.product.manufacturer"));
@@ -84,18 +99,13 @@ public class ADBService {
         return new Dispositivo(modelo, serial);
     }
 
-    // La RAM no es una prop directa, se lee de /proc/meminfo
     private double obtenerRamTotalGb(String serial) throws IOException {
-        List<String> salida = ejecutarComando(
-                "adb", "-s", serial, "shell", "cat", "/proc/meminfo");
-
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "cat", "/proc/meminfo");
         for (String linea : salida) {
             if (linea.startsWith("MemTotal:")) {
-                // Formato: "MemTotal: 7823456 kB"
                 String[] partes = linea.split("\\s+");
                 if (partes.length >= 2) {
-                    long kb = Long.parseLong(partes[1]);
-                    return kb / 1024.0 / 1024.0;
+                    return Long.parseLong(partes[1]) / 1024.0 / 1024.0;
                 }
             }
         }
@@ -103,25 +113,15 @@ public class ADBService {
     }
 
     private int obtenerAlmacenamientoTotalGb(String serial) throws IOException {
-        List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "df", "-k", "/data");
-
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "df", "-k", "/data");
         for (String linea : salida) {
             String limpia = linea.trim();
             if (limpia.startsWith("Filesystem") || limpia.isEmpty())
                 continue;
 
             String[] partes = limpia.split("\\s+");
-
             try {
-                long kbTotal;
-                if (partes.length >= 6) {
-                    kbTotal = Long.parseLong(partes[1]);
-                } else if (partes.length >= 1) {
-                    kbTotal = Long.parseLong(partes[0]);
-                } else {
-                    continue;
-                }
-
+                long kbTotal = (partes.length >= 6) ? Long.parseLong(partes[1]) : Long.parseLong(partes[0]);
                 double gbDetectados = kbTotal / 1024.0 / 1024.0;
                 // (Normalización)
                 int[] capacidadesComerciales = { 8, 16, 32, 64, 128, 256, 512, 1024 };
@@ -132,46 +132,13 @@ public class ADBService {
                     }
                 }
                 return (int) Math.round(gbDetectados);
-
-            } catch (NumberFormatException e) {
-                continue;
-            }
+            } catch (Exception e) { continue; }
         }
         return 0;
     }
 
-    // Consulta si el modo avión está activo (devuelve true o false)
     public boolean isModoAvionActivo(String serial) throws IOException {
-        List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "settings", "get", "global",
-                "airplane_mode_on");
-
-        if (!salida.isEmpty()) {
-            String resultado = salida.get(0).trim();
-            return "1".equals(resultado);
-        }
-        return false;
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "global", "airplane_mode_on");
+        return !salida.isEmpty() && "1".equals(salida.get(0).trim());
     }
-
-    public void setModoAvion(String serial, boolean activar) throws IOException {
-        String valor = activar ? "1" : "0";
-        String broadcastValor = activar ? "true" : "false";
-
-        // Usamos 'su -c' para ejecutar los comandos como superusuario
-        String comandoRoot = String.format(
-                "settings put global airplane_mode_on %s && am broadcast -a android.intent.action.AIRPLANE_MODE --ez state %s",
-                valor,
-                broadcastValor);
-
-        ejecutarComando("adb", "-s", serial, "shell", "su", "-c", comandoRoot);
-    }
-    
-    public boolean tieneRoot(String serial) {
-    try {
-        List<String> salida = ejecutarComando("adb", "-s", serial, "shell", "which", "su");
-        return !salida.isEmpty() && salida.get(0).contains("/su");
-    } catch (Exception e) {
-        return false;
-    }
-}
-
 }
