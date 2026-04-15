@@ -1,0 +1,24 @@
+/* Definir la fuente */
+@font-face {
+    font-family: 'Poppins';
+    src: url('../fonts/Poppins-Regular.ttf');
+}
+
+@font-face {
+    font-family: 'Poppins';
+    src: url('../fonts/Poppins-Bold.ttf');
+    font-weight: bold;
+}
+
+/* Aplicarla globalmente */
+.root {
+    -fx-font-family: "Poppins";
+}
+
+/* Estilo específico para etiquetas de datos (como el Android ID) */
+.label-datos {
+    -fx-font-family: "Poppins";
+    -fx-text-fill: #6c7086;
+    -fx-font-weight: bold;
+    -fx-letter-spacing: 0.5px; /* Mejora la legibilidad de códigos */
+}

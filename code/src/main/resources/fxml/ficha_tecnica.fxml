@@ -31,12 +31,15 @@
                 <Label fx:id="lblMarca"
                        text="—"
                        style="-fx-text-fill: #89b4fa; -fx-font-size: 14px;"/>
+              <Label fx:id="lblAndroidId"
+                      text="Android ID: —"
+                      styleClass="label-datos"/>
                 <Label fx:id="lblSerial"
                        text="Serial: —"
-                       style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+                        styleClass="label-datos"/>
                 <Label fx:id="lblFechaRegistro"
                        text="Registrado: —"
-                       style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+                        styleClass="label-datos"/>
             </VBox>
 
              <!-- Botón scrcpy alineado a la derecha -->
