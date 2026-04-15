@@ -17,6 +17,8 @@ public class Main extends Application {
             getClass().getResource("/fxml/main.fxml")
         );
         Scene scene = new Scene(loader.load(), 900, 600);
+
+        scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
         // stage.setMaximized(true);
         stage.setTitle("Android Engineering & Automation Suite");
         stage.setScene(scene);

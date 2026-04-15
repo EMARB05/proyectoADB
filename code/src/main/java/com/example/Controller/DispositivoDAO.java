@@ -73,6 +73,7 @@ public class DispositivoDAO {
         Dispositivo d = new Dispositivo();
         d.setIdDispositivo(rs.getInt("id_dispositivo"));
         d.setSerialNumber(rs.getString("serial_number"));
+        d.setAndroid_id(rs.getString("android_id"));
         d.setEstado(rs.getString("estado"));
         d.setNotas(rs.getString("notas"));
         d.setFechaRegistro(rs.getString("fecha_registro"));

@@ -92,29 +92,54 @@ public class MainController {
         }, 0, 3, TimeUnit.SECONDS);
     }
 
-    private void actualizarLista(List<String> seriales) {
-        if (seriales.isEmpty()) {
-            lblEstadoAdb.setStyle("-fx-text-fill: #f38ba8; -fx-font-size: 13px;");
-            lblEstadoAdb.setText("● Ningún dispositivo conectado");
-        } else {
-            lblEstadoAdb.setStyle("-fx-text-fill: #a6e3a1; -fx-font-size: 13px;");
-            lblEstadoAdb.setText("● " + seriales.size() + " dispositivo(s) conectado(s)");
-        }
-        listaDispositivos.setItems(FXCollections.observableArrayList(seriales));
-        listaDispositivos.setCellFactory(lv -> new ListCell<String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setCursor(javafx.scene.Cursor.DEFAULT);
-                } else {
-                    setText(item);
-                    setCursor(javafx.scene.Cursor.HAND);
-                }
-            }
-        });
+  private void actualizarLista(List<String> seriales) {
+    // 1. Actualización del estado visual superior
+    if (seriales.isEmpty()) {
+        lblEstadoAdb.setStyle("-fx-text-fill: #f38ba8; -fx-font-size: 13px;");
+        lblEstadoAdb.setText("● Ningún dispositivo conectado");
+    } else {
+        lblEstadoAdb.setStyle("-fx-text-fill: #a6e3a1; -fx-font-size: 13px;");
+        lblEstadoAdb.setText("● " + seriales.size() + " dispositivo(s) conectado(s)");
     }
+
+    // 2. Solo actualizamos los items si la lista ha cambiado (evita parpadeos)
+    if (!listaDispositivos.getItems().equals(seriales)) {
+        listaDispositivos.setItems(FXCollections.observableArrayList(seriales));
+    }
+
+    // 3. Celda personalizada para traducir Serial -> Android ID
+    listaDispositivos.setCellFactory(lv -> new ListCell<String>() {
+        @Override
+        protected void updateItem(String serial, boolean empty) {
+            super.updateItem(serial, empty);
+            
+            if (empty || serial == null) {
+                setText(null);
+                setGraphic(null);
+            } else {
+                try {
+                    // Intentamos buscar el dispositivo por serial para obtener su Android ID
+                    Dispositivo d = dispositivoDAO.buscarPorSerial(serial);
+                    
+                    if (d != null && d.getAndroid_id() != null && !d.getAndroid_id().isEmpty()) {
+                        // Si existe en la BD, mostramos el Android ID
+                        setText(d.getAndroid_id());
+                    } else {
+                        // Si es nuevo o no tiene ID en BD, mostramos el serial como respaldo
+                        setText(serial + " (Nuevo)");
+                    }
+                } catch (SQLException e) {
+                    // Si falla la BD, mostramos el serial para no dejar la celda vacía
+                    setText(serial);
+                }
+
+                // Estilo para asegurar que use Poppins y se vea limpio
+                setCursor(javafx.scene.Cursor.HAND);
+                setStyle("-fx-font-family: 'Poppins'; -fx-padding: 8 12;");
+            }
+        }
+    });
+}
 
     @FXML
     private void onRefrescar() {

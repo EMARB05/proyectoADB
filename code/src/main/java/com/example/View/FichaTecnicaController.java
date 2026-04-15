@@ -45,6 +45,8 @@ public class FichaTecnicaController implements DispositivoAware {
     @FXML
     private Label lblAndroid;
     @FXML
+    private Label lblAndroidId;
+    @FXML
     private Label lblPantalla;
     @FXML
     private Label lblCamara;
@@ -76,6 +78,7 @@ public class FichaTecnicaController implements DispositivoAware {
         lblPantalla.setText(modelo.getPantallaPulgadas() != null ? modelo.getPantallaPulgadas() + "\"" : "—");
         lblCamara.setText(modelo.getCamaraMp() != null ? modelo.getCamaraMp() + " MP" : "—");
         lblNotas.setText(dispositivo.getNotas() != null ? dispositivo.getNotas() : "—");
+        lblAndroidId.setText("Android ID: " + dispositivo.getAndroid_id());
 
         cargarFoto(dispositivo);
         cargarBandas(modelo.getIdModelo());
