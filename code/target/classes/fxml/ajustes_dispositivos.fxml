@@ -24,7 +24,7 @@
                       style="-fx-background-color: #1e1e2e; -fx-text-fill: #89b4fa;
                              -fx-font-size: 11px; -fx-font-weight: bold;
                              -fx-padding: 10 16; -fx-background-radius: 0; -fx-cursor: hand;"/>
-        <ToggleButton fx:id="tabGestion" text="GESTIÓN PANT."
+        <ToggleButton fx:id="tabGestion" text="GESTIÓN PANTALLA"
                       onAction="#onTabGestion"
                       style="-fx-background-color: #181825; -fx-text-fill: #6c7086;
                              -fx-font-size: 11px; -fx-font-weight: bold;

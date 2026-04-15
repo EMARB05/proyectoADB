@@ -1,14 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
 
 <VBox spacing="20" style="-fx-background-color: #1e1e2e; -fx-padding: 24;"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.example.View.GestionPantallaController">
 
-    <Label text="Gestión de Pantalla"
-           style="-fx-text-fill: #6c7086; -fx-font-size: 11px; -fx-font-weight: bold;"/>
 
-    <!-- Contenido futuro -->
+
+        <!-- Botón Scrcpy -->
+    <VBox spacing="10" alignment="CENTER">
+        <Button text="▶  Iniciar Espejo de Pantalla"
+                onAction="#onLanzarScrcpy"
+                maxWidth="Infinity"
+                style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e;
+                       -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 15;
+                       -fx-background-radius: 10; -fx-cursor: hand;"/>
+        <Separator opacity="0.1"/>
+    </VBox>
+       <!--Seleccionar resolución-->
+       <VBox spacing="10" alignment="CENTER_LEFT">
+       <Label text="Resolución del Dispositivo" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
+       <HBox spacing="10" alignment="CENTER">
+              <ComboBox fx:id="comboResolucion" 
+                     promptText="Seleccionar resolución..."
+                     maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                     style="-fx-background-color: #313244; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8;">
+                     <items>
+                            <FXCollections fx:factory="observableArrayList">
+                            <String fx:value="720x1280 (HD)" />
+                            <String fx:value="1080x1920 (FHD 16:9)" />
+                            <String fx:value="1080x2340 (FHD+ Moderno)" />
+                            <String fx:value="1440x2560 (QHD)" />
+                            <String fx:value="1440x3120 (WQHD+)" />
+                            <String fx:value="reset (Original)" />
+                            </FXCollections>
+                     </items>
+              </ComboBox>
+              <Button text="✓ Set" 
+                     
+                     style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"/>
+       </HBox>
+       <Separator opacity="0.1"/>
+       </VBox>
+
+       <VBox spacing="10" alignment="CENTER_LEFT">
+       <Label text="Orientación y Vista" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
+       <HBox spacing="10">
+              <Button text="🔄 Rotar 90°" 
+                     
+                     maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                     style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
+              
+              <Button text="↔ Simetría (Flip)" 
+                     
+                     maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                     style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
+       </HBox>
+       <Separator opacity="0.1"/>
+       </VBox>
 
 </VBox>

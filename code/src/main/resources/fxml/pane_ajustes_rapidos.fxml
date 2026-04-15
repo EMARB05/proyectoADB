@@ -7,17 +7,6 @@
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.example.View.AjustesRapidosController">
 
-    <!-- Botón Scrcpy -->
-    <VBox spacing="10" alignment="CENTER">
-        <Button text="▶  Iniciar Espejo de Pantalla"
-                onAction="#onLanzarScrcpy"
-                maxWidth="Infinity"
-                style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e;
-                       -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 15;
-                       -fx-background-radius: 10; -fx-cursor: hand;"/>
-        <Separator opacity="0.1"/>
-    </VBox>
-
     <!-- Toggles -->
     <GridPane hgap="15" vgap="15">
         <columnConstraints>
