@@ -37,7 +37,7 @@ public class ADBService {
      * MÉTODO PARA EL CONTROLADOR (Público): No bloquea la UI (usa hilos).
      * Se usa así: adbService.ejecutarAccionHilo(serial, "shell settings put...");
      */
-    public void ejecutarAccionHilo(String serial, String comandoShell) {
+    public String ejecutarAccionHilo(String serial, String comandoShell) {
         new Thread(() -> {
             try {
                 String[] partes = comandoShell.split(" ");
@@ -45,7 +45,7 @@ public class ADBService {
                 fullCmd.add("adb");
                 fullCmd.add("-s");
                 fullCmd.add(serial);
-                
+
                 for (String p : partes) {
                     fullCmd.add(p);
                 }
@@ -53,11 +53,40 @@ public class ADBService {
                 // Llamamos al motor
                 ejecutarADB(fullCmd.toArray(new String[0]));
                 System.out.println("ADB Ejecutado en hilo: " + comandoShell);
-                
+
             } catch (IOException e) {
                 System.err.println("Error en hilo ADB: " + e.getMessage());
             }
         }).start();
+        return comandoShell;
+    }
+
+    /**
+     * MÉTODO SÍNCRONO: Se usa para obtener datos (GET).
+     * Bloquea el hilo actual hasta que ADB responde.
+     */
+    public String ejecutarComandoSincrono(String serial, String comandoShell) {
+        try {
+            String[] partes = comandoShell.split(" ");
+            List<String> fullCmd = new ArrayList<>();
+            fullCmd.add("adb");
+            fullCmd.add("-s");
+            fullCmd.add(serial);
+            for (String p : partes)
+                fullCmd.add(p);
+
+            List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
+
+            // Retornamos la primera línea de la respuesta (ej: "1") o vacío si no hay nada
+            if (salida != null && !salida.isEmpty()) {
+                return String.join("\n", salida).trim();
+            }
+
+        } catch (IOException e) {
+            System.err.println("Error ADB Síncrono: " + e.getMessage());
+
+        }
+        return "";
     }
 
     // --- MÉTODOS DE OBTENCIÓN DE DATOS (Sincrónicos) ---
@@ -67,8 +96,10 @@ public class ADBService {
         List<String> salida = ejecutarADB("adb", "devices"); // Usamos el motor
 
         for (String linea : salida) {
-            if (linea.isEmpty() || linea.startsWith("List of devices")) continue;
-            if (linea.contains("unauthorized") || linea.contains("offline")) continue;
+            if (linea.isEmpty() || linea.startsWith("List of devices"))
+                continue;
+            if (linea.contains("unauthorized") || linea.contains("offline"))
+                continue;
 
             if (linea.contains("\tdevice")) {
                 seriales.add(linea.split("\t")[0].trim());
@@ -132,13 +163,16 @@ public class ADBService {
                     }
                 }
                 return (int) Math.round(gbDetectados);
-            } catch (Exception e) { continue; }
+            } catch (Exception e) {
+                continue;
+            }
         }
         return 0;
     }
 
     public boolean isModoAvionActivo(String serial) throws IOException {
-        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "global", "airplane_mode_on");
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "global",
+                "airplane_mode_on");
         return !salida.isEmpty() && "1".equals(salida.get(0).trim());
     }
 }

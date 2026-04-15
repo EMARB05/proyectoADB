@@ -14,6 +14,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
@@ -55,13 +56,6 @@ public class FichaTecnicaController implements DispositivoAware {
     private Label lblNotas;
     @FXML
     private FlowPane panelBandas;
-    @FXML
-    private Button btnScrcpy;
-    @FXML
-    private Button btnModoAvion;
-
-    private final ADBService adbService = new ADBService();
-    private final ScrcpyService scrcpyService = new ScrcpyService();
 
     private final BandaDAO bandaDAO = new BandaDAO();
     private final FotoDAO fotoDAO = new FotoDAO();
@@ -89,13 +83,6 @@ public class FichaTecnicaController implements DispositivoAware {
 
         cargarFoto(dispositivo);
         cargarBandas(modelo.getIdModelo());
-
-        try {
-            boolean estadoInicial = adbService.isModoAvionActivo(dispositivo.getSerialNumber());
-            actualizarBotonAvion(estadoInicial);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     private void cargarFoto(Dispositivo dispositivo) {
@@ -153,57 +140,6 @@ public class FichaTecnicaController implements DispositivoAware {
     }
 
     @FXML
-    private void onLanzarScrcpy() {
-        String serial = lblSerial.getText().replace("Serial: ", "").trim();
-        if (!serial.isEmpty() && !serial.equals("—")) {
-            scrcpyService.launch(serial);
-        }
-    }
-
-    @FXML
-    private void onToggleModoAvion() {
-        String serialLimpio = lblSerial.getText().replace("Serial: ", "").trim();
-        if (serialLimpio.isEmpty() || serialLimpio.equals("—"))
-            return;
-
-        try {
-            // 1. Consultamos el estado actual (este método es sincrónico, está bien así)
-            boolean actualmenteActivo = adbService.isModoAvionActivo(serialLimpio);
-            boolean nuevoEstado = !actualmenteActivo;
-
-            // 2. Ejecutamos la acción usando el nuevo método de hilos del Service
-            String valor = nuevoEstado ? "1" : "0";
-            String broadcastValor = nuevoEstado ? "true" : "false";
-
-            // Cambiamos el ajuste
-            adbService.ejecutarAccionHilo(serialLimpio, "shell settings put global airplane_mode_on " + valor);
-
-            // Enviamos el broadcast para refrescar la interfaz del móvil
-            adbService.ejecutarAccionHilo(serialLimpio,
-                    "shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state " + broadcastValor);
-
-            // 3. Feedback visual en tu botón
-            actualizarBotonAvion(nuevoEstado);
-
-        } catch (IOException e) {
-            System.err.println("Error al detectar estado del modo avión: " + e.getMessage());
-        }
-    }
-
-    // Método auxiliar para no repetir código de estilos
-    private void actualizarBotonAvion(boolean activo) {
-        if (activo) {
-            btnModoAvion.setStyle(
-                    "-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 8; -fx-padding: 10 18 10 18;");
-            btnModoAvion.setText("✈  Modo Avión: ON");
-        } else {
-            btnModoAvion.setStyle(
-                    "-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 8; -fx-padding: 10 18 10 18;");
-            btnModoAvion.setText("✈  Modo Avión: OFF");
-        }
-    }
-
-    @FXML
     private void onAbrirAjustes() {
         try {
             // 1. Cargamos el archivo FXML de la ventana de ajustes
@@ -227,6 +163,8 @@ public class FichaTecnicaController implements DispositivoAware {
             stage.initModality(Modality.APPLICATION_MODAL);
 
             stage.setScene(new Scene(root));
+            stage.setMinWidth(400);
+            stage.setMinHeight(300);
             stage.show();
 
         } catch (IOException e) {

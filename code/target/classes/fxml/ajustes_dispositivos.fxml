@@ -31,7 +31,7 @@
         </columnConstraints>
         
         <children>
-            <ToggleButton fx:id="btnAirplane" text="✈ Modo Avión" onAction="#toggleAirplane"
+            <ToggleButton fx:id="btnModoAvion" text="✈ Modo Avión" onAction="#toggleAirplane"
                           maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0"
                           style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
             

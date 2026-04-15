@@ -38,7 +38,7 @@ public class MainController {
     @FXML
     private StackPane rootPane;
 
-    private final ADBService     adbService     = new ADBService();
+    private final ADBService adbService = new ADBService();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
 
     private ScheduledExecutorService scheduler;
@@ -153,9 +153,9 @@ public class MainController {
 
     /**
      * Carga el formulario de alta e inyecta:
-     *  - el Dispositivo con los datos de ADB
-     *  - el rootPane para mostrar el Toast
-     *  - el callback que, al guardar, navega automáticamente a la ficha técnica
+     * - el Dispositivo con los datos de ADB
+     * - el rootPane para mostrar el Toast
+     * - el callback que, al guardar, navega automáticamente a la ficha técnica
      */
     private void cargarFormularioAlta(Dispositivo desdeAdb) throws IOException {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/formulario_alta.fxml"));
