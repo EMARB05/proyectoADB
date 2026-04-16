@@ -1,14 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Font?>
 
 <VBox spacing="20" style="-fx-background-color: #1e1e2e; -fx-padding: 24;"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.example.View.RedImsController">
 
-    <Label text="Red e IMS"
-           style="-fx-text-fill: #6c7086; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+    <VBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="APN activa" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold; -fx-font-size: 14px;"/>
+        <HBox spacing="10" alignment="CENTER">
+            <Button text="Leer"
+                    onAction="#leerApn" 
+                    style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 8; -fx-cursor: hand;"/>
+            <TextField fx:id="txtApn" editable="false" promptText="Esperando lectura..." 
+                       maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                       style="-fx-background-color: #313244; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8;"/>
+        </HBox>
+        <Separator opacity="0.1"/>
+    </VBox>
 
-    <!-- Contenido futuro -->
+    <VBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Operador de red" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold; -fx-font-size: 14px;"/>
+        <HBox spacing="10" alignment="CENTER">
+            <Button text="Leer"
+                    onAction="#leerOperador" 
+                    style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 8; -fx-cursor: hand;"/>
+            <TextField fx:id="txtOperador" editable="false" promptText="Esperando lectura..." 
+                       maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                       style="-fx-background-color: #313244; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8;"/>
+        </HBox>
+        <Separator opacity="0.1"/>
+    </VBox>
+
+    <VBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Estado de registro VoLTE" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold; -fx-font-size: 14px;"/>
+        <HBox spacing="10" alignment="CENTER">
+            <Button text="Leer"
+                    onAction="#leerVolte" 
+                    style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 8; -fx-cursor: hand;"/>
+            <TextField fx:id="txtVoLTE" editable="false" promptText="Esperando lectura..." 
+                       maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                       style="-fx-background-color: #313244; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8;"/>
+        </HBox>
+    </VBox>
 
 </VBox>

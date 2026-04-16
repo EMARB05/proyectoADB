@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.example.Model.Dispositivo;
 import com.example.Model.Marca;
@@ -67,15 +69,29 @@ public class ADBService {
      */
     public String ejecutarComandoSincrono(String serial, String comandoShell) {
         try {
-            String[] partes = comandoShell.split(" ");
+            // String[] partes = comandoShell.split(" ");
             List<String> fullCmd = new ArrayList<>();
             fullCmd.add("adb");
             fullCmd.add("-s");
             fullCmd.add(serial);
-            for (String p : partes)
-                fullCmd.add(p);
+            // for (String p : partes)
+            // fullCmd.add(p);
+
+            // TESTING
+            Matcher m = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)").matcher(comandoShell);
+            while (m.find()) {
+                if (m.group(1) != null)
+                    fullCmd.add(m.group(1));
+                else if (m.group(2) != null)
+                    fullCmd.add(m.group(2));
+                else
+                    fullCmd.add(m.group(3));
+            }
+            // TESTING
 
             List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
+            System.out.println("ADB Ejecutado Sincrono: " + comandoShell);
+            System.out.println("Resultado del comando: " + salida);
 
             // Retornamos la primera línea de la respuesta (ej: "1") o vacío si no hay nada
             if (salida != null && !salida.isEmpty()) {
@@ -88,6 +104,22 @@ public class ADBService {
         }
         return "";
     }
+
+    // Métodos lanzados desde el PC
+    public void ejecutarComandoDirecto(String... args) {
+    new Thread(() -> {
+        try {
+            List<String> fullCmd = new ArrayList<>();
+            fullCmd.add("adb");
+            for (String arg : args) fullCmd.add(arg);
+
+            ejecutarADB(fullCmd.toArray(new String[0]));
+            System.out.println("ADB Directo ejecutado: " + String.join(" ", fullCmd));
+        } catch (IOException e) {
+            System.err.println("Error ADB Directo: " + e.getMessage());
+        }
+    }).start();
+}
 
     // --- MÉTODOS DE OBTENCIÓN DE DATOS (Sincrónicos) ---
 
@@ -108,18 +140,16 @@ public class ADBService {
         return seriales;
     }
 
-
-
     public String getProp(String serial, String propiedad) throws IOException {
         List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "getprop", propiedad);
         return salida.isEmpty() ? "" : salida.get(0).trim();
     }
 
     public String getSecureSetting(String serial, String setting) throws IOException {
-    // Nota: Aquí quitamos "getprop" y usamos "settings get secure"
-    List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "secure", setting);
-    return salida.isEmpty() ? "" : salida.get(0).trim();
-}
+        // Nota: Aquí quitamos "getprop" y usamos "settings get secure"
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "secure", setting);
+        return salida.isEmpty() ? "" : salida.get(0).trim();
+    }
 
     public Dispositivo obtenerProps(String serial) throws IOException {
         Marca marca = new Marca();
@@ -129,20 +159,16 @@ public class ADBService {
         soc.setModeloSoc(getProp(serial, "ro.board.platform"));
         soc.setFabricante(getProp(serial, "ro.product.manufacturer"));
 
-
-
         Modelo modelo = new Modelo(marca, getProp(serial, "ro.product.model"));
         modelo.setSoc(soc);
         modelo.setSoVersion("Android " + getProp(serial, "ro.build.version.release"));
         modelo.setRamGb((int) Math.round(obtenerRamTotalGb(serial)));
         modelo.setAlmacenamientoGb((int) Math.round(obtenerAlmacenamientoTotalGb(serial)));
 
-        String android_id= getSecureSetting(serial, "android_id");
+        String android_id = getSecureSetting(serial, "android_id");
 
         return new Dispositivo(modelo, serial, android_id);
     }
-
-    
 
     private double obtenerRamTotalGb(String serial) throws IOException {
         List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "cat", "/proc/meminfo");

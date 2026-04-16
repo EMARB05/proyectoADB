@@ -1,14 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
 
-<VBox spacing="20" style="-fx-background-color: #1e1e2e; -fx-padding: 24;"
+<VBox spacing="30" style="-fx-background-color: #1e1e2e; -fx-padding: 24;"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.example.View.AdbWifiController">
 
-    <Label text="ADB WiFi"
-           style="-fx-text-fill: #6c7086; -fx-font-size: 11px; -fx-font-weight: bold;"/>
-
-    <!-- Contenido futuro -->
-
+    <VBox spacing="20" alignment="CENTER" VBox.vgrow="ALWAYS">
+        <HBox spacing="20" alignment="CENTER">
+            <Label text="WIFI" style="-fx-text-fill: #cdd6f4; -fx-font-size: 18px; -fx-font-weight: bold;"/>
+            
+            <ToggleButton fx:id="switchConexion" 
+                          prefWidth="70.0" prefHeight="34.0" alignment="CENTER_LEFT"
+                          style="-fx-background-color: #313244; 
+                                 -fx-border-color: #45475a; 
+                                 -fx-border-radius: 20; 
+                                 -fx-background-radius: 20; 
+                                 -fx-border-width: 2; 
+                                 -fx-cursor: hand; 
+                                 -fx-text-fill: #89b4fa; 
+                                 -fx-font-size: 18px; 
+                                 -fx-padding: 0 5 0 5;"
+                          text="⬤">
+            </ToggleButton>
+            
+            <Label text="USB" style="-fx-text-fill: #cdd6f4; -fx-font-size: 18px; -fx-font-weight: bold;"/>
+        </HBox>
+        
+        <Label fx:id="lblEstado" text="Modo actual: WIFI" 
+               style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+    </VBox>
 </VBox>
