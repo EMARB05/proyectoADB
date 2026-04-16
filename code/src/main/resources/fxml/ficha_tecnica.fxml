@@ -16,38 +16,49 @@
               style="-fx-background-color: #181825; -fx-background-radius: 12;
                      -fx-padding: 20;">
 
-              <StackPane minWidth="300" minHeight="300" style="-fx-background-color: #313244;"> 
+              <StackPane minWidth="180" minHeight="180" style="-fx-background-color: #313244;"> 
               <ImageView fx:id="imgDispositivo"
-                            fitWidth="300" 
-                            fitHeight="300"
+                            fitWidth="180" 
+                            fitHeight="180"
                             preserveRatio="true"/>
               </StackPane>
 
-            <VBox spacing="8" HBox.hgrow="ALWAYS">
-                <Label fx:id="lblNombreModelo"
-                       text="—"
-                       style="-fx-text-fill: #cdd6f4; -fx-font-size: 24px;
-                              -fx-font-weight: bold;"/>
-                <Label fx:id="lblMarca"
-                       text="—"
-                       style="-fx-text-fill: #89b4fa; -fx-font-size: 14px;"/>
-              <Label fx:id="lblAndroidId"
-                      text="Android ID: —"
-                      styleClass="label-datos"/>
-                <Label fx:id="lblSerial"
-                       text="Serial: —"
-                        styleClass="label-datos"/>
-                <Label fx:id="lblFechaRegistro"
-                       text="Registrado: —"
-                        styleClass="label-datos"/>
-            </VBox>
+            <VBox spacing="8" HBox.hgrow="ALWAYS" minWidth="0"> 
+    <Label fx:id="lblNombreModelo"
+           text="—"
+           maxWidth="Infinity"
+           minWidth="200"
+           style="-fx-text-fill: #cdd6f4; -fx-font-size: 24px; -fx-font-weight: bold;"/>
+    
+    <Label fx:id="lblMarca"
+           text="—"
+           maxWidth="Infinity"
+           minWidth="220"
+           style="-fx-text-fill: #89b4fa; -fx-font-size: 14px;"/>
+
+    <Label fx:id="lblAndroidId"
+           text="Android ID: —"
+           maxWidth="Infinity" 
+           minWidth="200"
+           styleClass="label-datos"
+           style="-fx-text-overrun: CLIP;"/> <Label fx:id="lblSerial"
+           text="Serial: —"
+           maxWidth="Infinity"
+           styleClass="label-datos"/>
+
+    <Label fx:id="lblFechaRegistro"
+           text="Registrado: —"
+           minWidth="200"
+           maxWidth="Infinity"
+           styleClass="label-datos"/>
+</VBox>
 
              <!-- Botón scrcpy alineado a la derecha -->
               <VBox alignment="TOP_RIGHT" spacing="10" prefHeight="100.0">
     <Button fx:id="btnGestionar"
             text="⚙  Gestionar Dispositivo"
             onAction="#onAbrirAjustes"
-            maxWidth="220.0"
+            minWidth="220"
             style="-fx-background-color: #cba6f7; -fx-text-fill: #1e1e2e;
                    -fx-font-weight: bold; -fx-font-size: 13px;
                    -fx-background-radius: 8; -fx-padding: 10 20 10 20;

@@ -142,7 +142,6 @@ public class ADBService {
         return new Dispositivo(modelo, serial, android_id);
     }
 
-    
 
     private double obtenerRamTotalGb(String serial) throws IOException {
         List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "cat", "/proc/meminfo");
@@ -189,4 +188,47 @@ public class ADBService {
                 "airplane_mode_on");
         return !salida.isEmpty() && "1".equals(salida.get(0).trim());
     }
+
+    public boolean ejecutarPasoSync(String serial, String comandoShell) {
+    try {
+        String comandoLimpio = comandoShell.replace("adb shell ", "").replace("shell ", "");
+        String[] partes = comandoLimpio.split(" ");
+        
+        List<String> fullCmd = new ArrayList<>();
+        fullCmd.add("adb");
+        fullCmd.add("-s");
+        fullCmd.add(serial);
+        fullCmd.add("shell");
+        for (String p : partes) fullCmd.add(p);
+
+        // AQUÍ USAMOS LA LISTA:
+        List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
+        
+       // --- LÓGICA DE ESPERA INTELIGENTE PARA WIFI ---
+        if (comandoShell.contains("wifi enable")) {
+            int intentos = 0;
+            boolean conectado = false;
+            while (intentos < 10 && !conectado) { // Reintenta durante 10 segundos máximo
+                Thread.sleep(1000);
+                // Consultamos si el wifi ya está activo
+                List<String> check = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "global", "wifi_on");
+                if (!check.isEmpty() && check.get(0).trim().equals("1")) {
+                    conectado = true;
+                }
+                intentos++;
+            }
+            return conectado;
+        }
+
+        // --- LÓGICA PARA PING (Validación real de respuesta) ---
+        if (comandoShell.contains("ping")) {
+            String respuesta = String.join(" ", salida).toLowerCase();
+            return respuesta.contains("bytes from") && !respuesta.contains("100% packet loss");
+        }
+
+        return true; 
+    } catch (Exception e) {
+        return false;
+    }
+}
 }

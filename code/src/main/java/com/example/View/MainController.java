@@ -68,7 +68,7 @@ public class MainController {
 
     private void actualizarMargen(boolean esPantallaCompleta) {
         if (esPantallaCompleta) {
-            HBox.setMargin(panelLista, new Insets(0, 0, 0, 50));
+            HBox.setMargin(panelLista, new Insets(0, 0, 0, 0));
             panelLista.setPadding(new Insets(30, 24, 30, 24));
             panelLista.setMinWidth(320);
             panelLista.setMaxWidth(320);
@@ -167,7 +167,7 @@ public class MainController {
                 cargarFormularioAlta(desdeAdb);
             } else {
                 // Serial conocido → ficha técnica desde la BBDD
-                cargarPanel("/fxml/ficha_tecnica.fxml", dispositivo);
+                cargarPanel("/fxml/vista_diagnostico.fxml", dispositivo);
             }
 
         } catch (IOException | SQLException e) {

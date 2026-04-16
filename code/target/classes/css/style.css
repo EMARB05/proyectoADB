@@ -20,5 +20,72 @@
     -fx-font-family: "Poppins";
     -fx-text-fill: #6c7086;
     -fx-font-weight: bold;
-    -fx-letter-spacing: 0.5px; /* Mejora la legibilidad de códigos */
+}
+
+.card-container {
+    -fx-background-color: #313244; /* Fondo oscuro de la tarjeta */
+    -fx-padding: 15;
+    -fx-background-radius: 12;
+    -fx-border-color: #45475a;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+}
+
+
+.btn-modern {
+    -fx-background-color: #313244;
+    -fx-background-radius: 10;
+    -fx-min-width: 70;
+    -fx-min-height: 70;
+    -fx-cursor: hand;
+    -fx-transition: 0.3s;
+}
+
+.btn-network:hover {
+    -fx-background-color: rgba(166, 227, 161, 0.1); /* Fondo muy sutil */
+    -fx-border-color: #a6e3a1; /* Borde verde brillante */
+}
+
+/* Hover para botones de Hardware (Morado/Naranja/Amarillo sutil) */
+.btn-hw:hover {
+    -fx-background-color: rgba(203, 166, 247, 0.1); /* Fondo muy sutil */
+    -fx-border-color: #cba6f7; /* Borde morado brillante */
+}
+
+.btn-modern .label {
+    -fx-text-fill: #cdd6f4;
+}
+
+/* Estos necesitan un estilo más formal para contrastar */
+#btnEjecutar {
+    -fx-font-family: "Poppins";
+    -fx-background-color: #3d91f1; /* Verde brillante para acción principal */
+    -fx-text-fill: #11111b;
+    -fx-background-radius: 5;
+    -fx-font-weight: bold;
+    
+}
+
+#btnInforme {
+    -fx-font-family: "Poppins";
+    -fx-background-color:#cba6f7; /* Gris oscuro para acción secundaria */
+    -fx-text-fill: #1e1d3a;
+    -fx-background-radius: 5;
+}
+
+
+/* --- Botones inferiores (Informe, Limpiar) --- */
+.btn-footer {
+    -fx-background-color: #313244; /* Fondo oscuro sutil */
+    -fx-text-fill: #cdd6f4;
+    -fx-background-radius: 5;
+    -fx-padding: 8 15;
+    -fx-cursor: hand;
+    -fx-font-weight: bold;
+    -fx-transition: 0.2s;
+}
+.btn-footer:hover {
+    -fx-background-color: #45475a; /* Aclarar un poco en hover */
+    -fx-scale-x: 1.05; /* Levitación sutil */
+    -fx-scale-y: 1.05;
 }
