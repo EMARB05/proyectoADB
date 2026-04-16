@@ -20,16 +20,13 @@
         <fx:include fx:id="fichaTecnica" source="ficha_tecnica.fxml" />
     </VBox>
 
-    <padding>
-        <Insets top="0" right="0" bottom="0" left="200"/>
-    </padding>
 
     <VBox spacing="15" VBox.vgrow="ALWAYS">
       <Label text="PANEL DE CONTROL DE PRUEBAS" style="-fx-text-fill: #89b4fa; -fx-font-weight: bold;" styleClass="card-container" />
 
       <VBox spacing="8" style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;">
         <Label text="Conectividad &amp; Red" style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
-        <FlowPane hgap="10" vgap="10">
+        <FlowPane hgap="50" vgap="10" alignment="CENTER" styleClass="fila1" >
             <Button  onAction="#addWifiOn" styleClass="btn-action,btn-modern,btn-network">
                <graphic>
                 <VBox alignment="CENTER" spacing="5">
@@ -63,7 +60,7 @@
 
     <VBox spacing="8" style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;" styleClass="card-container">
         <Label text="Pruebas de Hardware" style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
-        <FlowPane hgap="10" vgap="10">
+        <FlowPane hgap="50" vgap="10" alignment="CENTER" styleClass="fila2">
             <Button onAction="#addSoundTest" styleClass="btn-hw,btn-modern">
                <graphic>
                 <VBox alignment="CENTER" spacing="5">

@@ -1,15 +1,13 @@
 package com.example.View;
 
 import com.example.Controller.ADBService;
-import com.example.Controller.ScrcpyService;
 
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.Node;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleButton;
-import javafx.stage.Stage;
+
 
 public class AjustesRapidosController {
 

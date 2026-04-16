@@ -4,6 +4,9 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.collections.FXCollections?>
 <?import java.lang.String?>
+<?import java.net.URL?>
+
+
 
 <VBox spacing="20" style="-fx-background-color: #1e1e2e; -fx-padding: 24;"
       xmlns:fx="http://javafx.com/fxml"
@@ -24,11 +27,18 @@
        <!--Seleccionar resolución-->
        <VBox spacing="10" alignment="CENTER_LEFT">
        <Label text="Resolución del Dispositivo" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
+       
        <HBox spacing="10" alignment="CENTER">
+       
               <ComboBox fx:id="comboResolucion" 
                      promptText="Seleccionar resolución..."
                      maxWidth="Infinity" HBox.hgrow="ALWAYS"
-                     style="-fx-background-color: #313244; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8;">
+                     style="-fx-background-color: #313244; 
+                 -fx-background-radius: 8; 
+                 -fx-padding: 5; 
+                 -fx-text-base-color: white; 
+                 -fx-text-fill: white;
+                 -fx-prompt-text-fill: derive(white, -20%);">
                      <items>
                             <FXCollections fx:factory="observableArrayList">
                             <String fx:value="720x1280 (HD)" />
@@ -36,13 +46,15 @@
                             <String fx:value="1080x2340 (FHD+ Moderno)" />
                             <String fx:value="1440x2560 (QHD)" />
                             <String fx:value="1440x3120 (WQHD+)" />
-                            <String fx:value="reset (Original)" />
                             </FXCollections>
                      </items>
               </ComboBox>
               <Button text="✓ Set" 
-                     
+                     onAction = "#cambiarResolucion"
                      style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"/>
+              <Button text="Reset" 
+                     onAction = "#resetearResolucion"
+                     style="-fx-background-color: #f5d59a; -fx-text-fill: #2e281e; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"/>
        </HBox>
        <Separator opacity="0.1"/>
        </VBox>
@@ -51,12 +63,12 @@
        <Label text="Orientación y Vista" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
        <HBox spacing="10">
               <Button text="🔄 Rotar 90°" 
-                     
+                     onAction="#rotarPantalla90"
                      maxWidth="Infinity" HBox.hgrow="ALWAYS"
                      style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
               
               <Button text="↔ Simetría (Flip)" 
-                     
+                     onAction="#flipPantalla"
                      maxWidth="Infinity" HBox.hgrow="ALWAYS"
                      style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
        </HBox>
