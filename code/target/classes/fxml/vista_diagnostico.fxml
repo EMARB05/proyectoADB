@@ -92,7 +92,7 @@
     
     <HBox spacing="10">
         <Button fx:id="btnEjecutar" text="EJECUTAR" onAction="#ejecutarScript" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="btnEjecutar" style="-fx-padding: 10" />
-        <Button fx:id="btnInforme" text="INFORME" onAction="#generarInforme" disable="true" styleClass="#btnInforme" style="-fx-padding: 10" />
+        <Button fx:id="btnInforme" text="INFORME" onAction="#generarInformePDF" disable="true" styleClass="#btnInforme" style="-fx-padding: 10" />
         <Button text="Limpiar" onAction="#limpiarPasos" styleClass="btn-footer">
            <graphic>
             <ImageView fitHeight="18" fitWidth="18" preserveRatio="true">

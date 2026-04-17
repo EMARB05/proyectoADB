@@ -171,4 +171,20 @@ public class FichaTecnicaController implements DispositivoAware {
             e.printStackTrace();
         }
     }
+
+    @FXML
+private void abrirLaboratorio() {
+    try {
+        // Asegúrate de que la ruta empiece por / si está en resources
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LaboratorioBateria.fxml"));
+        Parent root = loader.load();
+        
+        Stage stage = new Stage();
+        stage.setTitle("Laboratorio de Rendimiento");
+        stage.setScene(new Scene(root));
+        stage.show();
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
 }

@@ -31,16 +31,6 @@
     -fx-border-width: 1;
 }
 
-.fila1{
-    -fx-display: flex;
-    -fx-justify-content:space-around;
-}
-
-.fila2{
-    -fx-display: flex;
-    -fx-justify-content:space-around;
-}
-
 
 
 .btn-modern {
@@ -70,11 +60,14 @@
 /* Estos necesitan un estilo más formal para contrastar */
 #btnEjecutar {
     -fx-font-family: "Poppins";
-    -fx-background-color: #3d91f1; /* Verde brillante para acción principal */
+    -fx-background-color: #63acff; /* Verde brillante para acción principal */
     -fx-text-fill: #11111b;
     -fx-background-radius: 5;
     -fx-font-weight: bold;
     
+}
+#btnEjecutar:hover{
+ -fx-background-color: #2882e9;
 }
 
 #btnInforme {
