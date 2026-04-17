@@ -1,19 +1,34 @@
 package com.example.View;
 
+import java.io.IOException;
+import java.util.List;
+
 import com.example.Controller.ADBService;
 
+import javafx.util.Duration;
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
+import javafx.animation.SequentialTransition;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Cursor;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
-
+import javafx.scene.layout.StackPane;
+import javafx.stage.DirectoryChooser;
 
 public class AjustesRapidosController {
 
     private String serial; // Se debe asignar al abrir la ventana
     private ADBService adbService = new ADBService();
-    
 
     @FXML
     private Slider sliderBrillo;
@@ -27,6 +42,17 @@ public class AjustesRapidosController {
     private ToggleButton btnBluetooth;
     @FXML
     private ToggleButton btnGPS;
+    @FXML
+    private TextField txtBuscador;
+    @FXML
+    private ListView<String> listaPaquetes;
+    @FXML
+    private Button btnListar;
+
+    @FXML
+    private StackPane rootPane;
+
+    private ObservableList<String> masterData = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
@@ -58,6 +84,15 @@ public class AjustesRapidosController {
                 ultimoValorEntero = actual;
             }
         });
+
+        listaPaquetes.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                String seleccionado = listaPaquetes.getSelectionModel().getSelectedItem();
+                if (seleccionado != null) {
+                    abrirSelectorYDescargar(seleccionado);
+                }
+            }
+        });
     }
 
     // Se llama desde AjustesController.setSerial() una vez que el serial está
@@ -65,6 +100,8 @@ public class AjustesRapidosController {
     public void setSerial(String serial) {
         this.serial = serial;
         sincronizarEstadoInicial();
+        adbService.ejecutarAccionHilo(serial, "shell input keyevent KEYCODE_WAKEUP"); // Comando para que se encienda la
+                                                                                      // pantalla al abrir el menú
     }
 
     private void sincronizarEstadoInicial() {
@@ -144,5 +181,88 @@ public class AjustesRapidosController {
                     "-fx-background-color: #313244; -fx-text-fill: #CDD5F3; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 8; -fx-padding: 10 18 10 18;");
         }
     }
-}
 
+    @FXML
+    private void handleListarPaquetes() {
+        try {
+            List<String> paquetes = adbService.listarPaquetes(serial);
+            masterData.setAll(paquetes);
+
+            // Filtrado
+            FilteredList<String> filteredData = new FilteredList<>(masterData, p -> true);
+
+            txtBuscador.textProperty().addListener((observable, oldValue, newValue) -> {
+                filteredData.setPredicate(paquete -> {
+                    if (newValue == null || newValue.isEmpty())
+                        return true;
+                    return paquete.toLowerCase().contains(newValue.toLowerCase());
+                });
+            });
+
+            listaPaquetes.setItems(filteredData);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void abrirSelectorYDescargar(String paquete) {
+        // Selector de directorios
+        DirectoryChooser selector = new DirectoryChooser();
+        selector.setTitle("Selecciona dónde guardar el APK de " + paquete);
+
+        // Recogemos los datos de la ventana
+        java.io.File carpetaDestino = selector.showDialog(listaPaquetes.getScene().getWindow());
+
+        if (carpetaDestino != null) {
+            try {
+                String ruta = carpetaDestino.getAbsolutePath().replace("\\", "/");
+                listaPaquetes.getScene().setCursor(Cursor.WAIT);
+                adbService.descargarApk(serial, paquete, ruta);
+                listaPaquetes.getScene().setCursor(Cursor.DEFAULT);
+                Platform.runLater(() -> mostrarToast("✅ APK extraída: " + paquete));
+            } catch (IOException e) {
+                e.printStackTrace();
+                Platform.runLater(() -> mostrarToast("❌ Error: " + e.getMessage()));
+            }
+        }
+    }
+
+    /**
+     * Muestra un Toast flotante en la parte inferior del rootPane.
+     */
+    private void mostrarToast(String mensaje) {
+        if (rootPane == null)
+            return;
+
+        // Crear el Label con tu estilo Mocha
+        Label toast = new Label(mensaje);
+        toast.setStyle(
+                "-fx-background-color: #313244;" +
+                        "-fx-text-fill: #cdd6f4;" +
+                        "-fx-padding: 12 24;" +
+                        "-fx-background-radius: 24;" +
+                        "-fx-font-size: 13px;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 12, 0, 0, 4);");
+        toast.setOpacity(0);
+
+        // Posicionamiento en el StackPane
+        StackPane.setAlignment(toast, javafx.geometry.Pos.BOTTOM_CENTER);
+        StackPane.setMargin(toast, new javafx.geometry.Insets(0, 0, 32, 0));
+
+        rootPane.getChildren().add(toast);
+
+        // Secuencia de animación
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), toast);
+        fadeIn.setFromValue(0);
+        fadeIn.setToValue(1);
+
+        PauseTransition pausa = new PauseTransition(Duration.seconds(2));
+
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(400), toast);
+        fadeOut.setFromValue(1);
+        fadeOut.setToValue(0);
+        fadeOut.setOnFinished(e -> rootPane.getChildren().remove(toast));
+
+        new SequentialTransition(fadeIn, pausa, fadeOut).play();
+    }
+}

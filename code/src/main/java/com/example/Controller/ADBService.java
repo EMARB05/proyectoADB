@@ -3,10 +3,13 @@ package com.example.Controller;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.example.Model.Dispositivo;
 import com.example.Model.Marca;
@@ -14,6 +17,7 @@ import com.example.Model.Modelo;
 import com.example.Model.Soc;
 
 public class ADBService {
+    private String rutaRemotaActual;
 
     /**
      * MÉTODO MOTOR (Privado): Es el único que realmente toca el ProcessBuilder.
@@ -107,20 +111,84 @@ public class ADBService {
 
     // Métodos lanzados desde el PC
     public void ejecutarComandoDirecto(String... args) {
-    new Thread(() -> {
-        try {
-            List<String> fullCmd = new ArrayList<>();
-            fullCmd.add("adb");
-            for (String arg : args) fullCmd.add(arg);
+        new Thread(() -> {
+            try {
+                List<String> fullCmd = new ArrayList<>();
+                fullCmd.add("adb");
+                for (String arg : args)
+                    fullCmd.add(arg);
 
-            ejecutarADB(fullCmd.toArray(new String[0]));
-            System.out.println("ADB Directo ejecutado: " + String.join(" ", fullCmd));
-        } catch (IOException e) {
-            System.err.println("Error ADB Directo: " + e.getMessage());
+                ejecutarADB(fullCmd.toArray(new String[0]));
+                System.out.println("ADB Directo ejecutado: " + String.join(" ", fullCmd));
+            } catch (IOException e) {
+                System.err.println("Error ADB Directo: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    public String[] getVolteEstado(String serial) throws IOException {
+        // [0] = Soporte, [1] = Estado, [2] = Motivo
+        String soporte;
+        List<String> salidaProp = ejecutarADB("adb", "-s", serial, "shell", "getprop", "persist.vendor.volte_support");
+        soporte = (!salidaProp.isEmpty() && "1".equals(salidaProp.get(0).trim())) ? "Soportado" : "No soportado";
+
+        List<String> dumpsys = ejecutarADB("adb", "-s", serial, "shell", "dumpsys", "telephony.registry");
+
+        // Buscamos SOLO la primera línea con mServiceState (estado actual, sin
+        // timestamp)
+        String lineaEstado = "";
+        for (String linea : dumpsys) {
+            String trim = linea.trim();
+            if (trim.startsWith("mServiceState=") || trim.startsWith("mServiceState={")) {
+                lineaEstado = trim;
+                break; // La primera es la actual, ignoramos el historial
+            }
         }
-    }).start();
-}
 
+        if (lineaEstado.isEmpty()) {
+            return new String[] { soporte, "Inactivo", "No se pudo leer el estado" };
+        }
+
+        // Extraemos mVoiceRegState
+        boolean modoAvion = lineaEstado.contains("mVoiceRegState=3(POWER_OFF)");
+        boolean sinServicio = lineaEstado.contains("mVoiceRegState=1(OUT_OF_SERVICE)");
+
+        // Extraemos getRilVoiceRadioTechnology
+        String radioTech = "";
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("getRilVoiceRadioTechnology=\\d+\\((\\w+)\\)")
+                .matcher(lineaEstado);
+        if (m.find())
+            radioTech = m.group(1);
+
+        // Comprobamos VoLTE activo: buscamos el bloque CS+LTE+VOICE en la misma línea
+        // (en el estado actual todo viene en una sola línea larga)
+        boolean voiceEnLTE = lineaEstado.contains("domain=CS")
+                && lineaEstado.contains("accessNetworkTechnology=LTE")
+                && lineaEstado.contains("availableServices=[VOICE");
+
+        // Lógica de decisión
+        String estado, motivo;
+
+        if (modoAvion) {
+            estado = "Inactivo";
+            motivo = "Modo avión";
+        } else if (sinServicio || radioTech.equals("Unknown") || radioTech.isEmpty()) {
+            estado = "Inactivo";
+            motivo = "Sin señal";
+        } else if (!radioTech.equals("LTE") && !radioTech.equals("NR")) {
+            estado = "Inactivo";
+            motivo = "Red " + radioTech + " (requiere 4G)";
+        } else if (voiceEnLTE) {
+            estado = "Activo";
+            motivo = "";
+        } else {
+            estado = "Inactivo";
+            motivo = "LTE sin registro IMS";
+        }
+
+        return new String[] { soporte, estado, motivo };
+    }
     // --- MÉTODOS DE OBTENCIÓN DE DATOS (Sincrónicos) ---
 
     public List<String> obtenerDispositivosConectados() throws IOException {
@@ -170,7 +238,6 @@ public class ADBService {
         return new Dispositivo(modelo, serial, android_id);
     }
 
-
     private double obtenerRamTotalGb(String serial) throws IOException {
         List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "cat", "/proc/meminfo");
         for (String linea : salida) {
@@ -218,45 +285,120 @@ public class ADBService {
     }
 
     public boolean ejecutarPasoSync(String serial, String comandoShell) {
-    try {
-        String comandoLimpio = comandoShell.replace("adb shell ", "").replace("shell ", "");
-        String[] partes = comandoLimpio.split(" ");
-        
-        List<String> fullCmd = new ArrayList<>();
-        fullCmd.add("adb");
-        fullCmd.add("-s");
-        fullCmd.add(serial);
-        fullCmd.add("shell");
-        for (String p : partes) fullCmd.add(p);
+        try {
+            String comandoLimpio = comandoShell.replace("adb shell ", "").replace("shell ", "");
+            String[] partes = comandoLimpio.split(" ");
 
-        // AQUÍ USAMOS LA LISTA:
-        List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
-        
-       // --- LÓGICA DE ESPERA INTELIGENTE PARA WIFI ---
-        if (comandoShell.contains("wifi enable")) {
-            int intentos = 0;
-            boolean conectado = false;
-            while (intentos < 10 && !conectado) { // Reintenta durante 10 segundos máximo
-                Thread.sleep(1000);
-                // Consultamos si el wifi ya está activo
-                List<String> check = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "global", "wifi_on");
-                if (!check.isEmpty() && check.get(0).trim().equals("1")) {
-                    conectado = true;
+            List<String> fullCmd = new ArrayList<>();
+            fullCmd.add("adb");
+            fullCmd.add("-s");
+            fullCmd.add(serial);
+            fullCmd.add("shell");
+            for (String p : partes)
+                fullCmd.add(p);
+
+            // AQUÍ USAMOS LA LISTA:
+            List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
+
+            // --- LÓGICA DE ESPERA INTELIGENTE PARA WIFI ---
+            if (comandoShell.contains("wifi enable")) {
+                int intentos = 0;
+                boolean conectado = false;
+                while (intentos < 10 && !conectado) { // Reintenta durante 10 segundos máximo
+                    Thread.sleep(1000);
+                    // Consultamos si el wifi ya está activo
+                    List<String> check = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "global",
+                            "wifi_on");
+                    if (!check.isEmpty() && check.get(0).trim().equals("1")) {
+                        conectado = true;
+                    }
+                    intentos++;
                 }
-                intentos++;
+                return conectado;
             }
-            return conectado;
-        }
 
-        // --- LÓGICA PARA PING (Validación real de respuesta) ---
-        if (comandoShell.contains("ping")) {
-            String respuesta = String.join(" ", salida).toLowerCase();
-            return respuesta.contains("bytes from") && !respuesta.contains("100% packet loss");
-        }
+            // --- LÓGICA PARA PING (Validación real de respuesta) ---
+            if (comandoShell.contains("ping")) {
+                String respuesta = String.join(" ", salida).toLowerCase();
+                return respuesta.contains("bytes from") && !respuesta.contains("100% packet loss");
+            }
 
-        return true; 
-    } catch (Exception e) {
-        return false;
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
-}
+
+    // App extractor
+
+    // Devuelve la lista de paquetes instalados
+    public List<String> listarPaquetes(String serial) throws IOException {
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "pm", "list", "packages");
+
+        return salida.stream()
+                .filter(app -> app.startsWith("package:"))
+                .map(app -> app.replace("package:", "").trim())
+                .collect(Collectors.toList());
+    }
+
+    public String obtenerRutaApk(String serial, String paquete) throws IOException {
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "pm", "path", paquete);
+        if (!salida.isEmpty()) {
+            return salida.get(0).replace("package:", "").trim();
+        }
+        return null;
+    }
+
+    public void descargarApk(String serial, String paquete, String carpetaDestino) throws IOException {
+        String rutaRemota = obtenerRutaApk(serial, paquete);
+        if (rutaRemota == null)
+            throw new IOException("No se encontró el APK de " + paquete);
+
+        String nombreArchivo = paquete + ".apk";
+        ejecutarADB("adb", "-s", serial, "pull", rutaRemota, carpetaDestino + "/" + nombreArchivo);
+    }
+
+    // Capturas y grabaciones
+    public void capturarPantalla(String serial, String carpetaDestino) throws IOException {
+        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String rutaTemporal = "/sdcard/screenshot_" + timeStamp + ".png";
+        String rutaLocal = carpetaDestino + "/screenshot_" + timeStamp + ".png";
+
+        // hacer la captura en el dispositivo
+        ejecutarADB("adb", "-s", serial, "shell", "screencap", "-p", rutaTemporal);
+        // descargarla en el PC
+        ejecutarADB("adb", "-s", serial, "pull", rutaTemporal, rutaLocal);
+        // Borrarla del dispositivo
+        ejecutarADB("adb", "-s", serial, "shell", "rm", rutaTemporal);
+    }
+
+    public Process iniciarGrabacion(String serial) throws IOException {
+        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        rutaRemotaActual = "/sdcard/video_" + timeStamp + ".mp4";
+        // máx 180 segundos por limitación de ADB
+        ProcessBuilder pb = new ProcessBuilder(
+                "adb", "-s", serial, "shell", "screenrecord", "--time-limit", "180", rutaRemotaActual);
+        pb.redirectErrorStream(true);
+        return pb.start();
+    }
+
+    public void enviarSenalParada(String serial) {
+        ejecutarComandoSincrono(serial, "shell pkill -l SIGINT screenrecord");
+    }
+
+    public void descargarYLimpiar(String serial, String carpetaDestino) throws IOException {
+        // Esperamos a que el video se cierre bien
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String rutaLocal = carpetaDestino + "/video_" + timeStamp + ".mp4";
+
+        // Descargamos y borramos
+        ejecutarADB("adb", "-s", serial, "pull", rutaRemotaActual, rutaLocal);
+        ejecutarADB("adb", "-s", serial, "shell", "rm", rutaRemotaActual);
+        rutaRemotaActual = null;
+    }
 }

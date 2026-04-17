@@ -41,7 +41,8 @@
            maxWidth="Infinity" 
            minWidth="200"
            styleClass="label-datos"
-           style="-fx-text-overrun: CLIP;"/> <Label fx:id="lblSerial"
+           style="-fx-text-overrun: CLIP;"/>
+    <Label fx:id="lblSerial"
            text="Serial: —"
            maxWidth="Infinity"
            styleClass="label-datos"/>
@@ -76,8 +77,6 @@
                             
 
         </HBox>
-
-
 
         <!-- Tarjetas de specs -->
         <GridPane hgap="12" vgap="12">
@@ -178,6 +177,7 @@
                           -fx-font-weight: bold;"/>
             <FlowPane fx:id="panelBandas" hgap="8" vgap="8"/>
         </VBox>
+
         <!-- Notas -->
         <VBox spacing="8"
               style="-fx-background-color: #181825; -fx-background-radius: 10;
@@ -189,7 +189,6 @@
                    text="—"
                    wrapText="true"
                    style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-              
         </VBox>
 
     </VBox>
