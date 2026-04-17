@@ -32,9 +32,10 @@ public class RedImsController {
                 String apnStatus = adbService.ejecutarComandoSincrono(serial,
                         "shell content query --uri content://telephony/carriers/preferapn --projection name");
                 String operadorStatus = adbService.ejecutarComandoSincrono(serial, "shell getprop gsm.operator.alpha");
-                String volteStatus = adbService.ejecutarComandoSincrono(serial,
-                        "shell getprop persist.dbg.volte_avail_ovr");
+                // String volteStatus = adbService.ejecutarComandoSincrono(serial,
+                //         "shell getprop persist.dbg.volte_avail_ovr");
 
+                String[] volteStatus = adbService.getVolteEstado(serial);        
                 Platform.runLater(() -> {
                     // APN
                     // devuelve algo como: "Row: 0 name=Mi APN"
@@ -53,11 +54,17 @@ public class RedImsController {
                     // VoLTE
                     // 1 = habilitado, 0 = deshabilitado, vacío = depende del operador (valor por
                     // defecto)
-                    String volte = switch (volteStatus.trim()) {
-                        case "1" -> "Habilitado";
-                        case "0" -> "Deshabilitado";
-                        default -> "Por defecto (operador)";
-                    };
+                    // String volte = switch (volteStatus.trim()) {
+                    //     case "1" -> "Habilitado";
+                    //     case "0" -> "Deshabilitado";
+                    //     default -> "Por defecto (operador)";
+                    // };
+                    // txtVoLTE.setText(volte);
+                    String volte = volteStatus[0] + " · " + volteStatus[1];
+                    if (!volteStatus[2].isEmpty())
+                        volte += " (" + volteStatus[2] + ")";
+                    // Ejemplo: "Soportado · Inactivo (Red GSM, requiere 4G)"
+                    // "Soportado · Activo"
                     txtVoLTE.setText(volte);
                 });
             } catch (Exception e) {
@@ -70,7 +77,8 @@ public class RedImsController {
     private void leerApn(ActionEvent event) {
         new Thread(() -> {
             try {
-                // shell content query --uri content://telephony/carriers/preferapn --projection name
+                // shell content query --uri content://telephony/carriers/preferapn --projection
+                // name
                 // shell dumpsys telephony.registry | grep -i apn
                 // shell settings get global default_apn
                 String apnStatus = adbService.ejecutarComandoSincrono(serial,
@@ -112,18 +120,17 @@ public class RedImsController {
     private void leerVolte(ActionEvent event) {
         new Thread(() -> {
             try {
-                // shell getprop persist.dbg.volte_avail_ovr
-                // shell dumpsys telephony.registry | grep mIsImsRegistered
-                // shell getprop ro.telephony.volte_on
-                String volteStatus = adbService.ejecutarComandoSincrono(serial,
-                        "shell dumpsys telephony.registry | grep mIsImsRegistered");
+                String[] volte = adbService.getVolteEstado(serial);
+                // volte[0] = "Soportado" / "No soportado"
+                // volte[1] = "Activo" / "Inactivo"
+                // volte[2] = motivo si inactivo
                 Platform.runLater(() -> {
-                    String volte = switch (volteStatus.trim()) {
-                        case "1" -> "Habilitado";
-                        case "0" -> "Deshabilitado";
-                        default -> "Por defecto (operador)";
-                    };
-                    txtVoLTE.setText(volte);
+                    String texto = volte[0] + " · " + volte[1];
+                    if (!volte[2].isEmpty())
+                        texto += " (" + volte[2] + ")";
+                    // Ejemplo: "Soportado · Inactivo (Red GSM, requiere 4G)"
+                    // "Soportado · Activo"
+                    txtVoLTE.setText(texto);
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> txtVoLTE.setText("Error"));

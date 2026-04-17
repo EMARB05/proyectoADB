@@ -41,7 +41,8 @@
            maxWidth="Infinity" 
            minWidth="200"
            styleClass="label-datos"
-           style="-fx-text-overrun: CLIP;"/> <Label fx:id="lblSerial"
+           style="-fx-text-overrun: CLIP;"/>
+    <Label fx:id="lblSerial"
            text="Serial: —"
            maxWidth="Infinity"
            styleClass="label-datos"/>
@@ -53,8 +54,8 @@
            styleClass="label-datos"/>
 </VBox>
 
-             <!-- Botón scrcpy alineado a la derecha -->
-              <VBox alignment="TOP_RIGHT" spacing="10" prefHeight="100.0">
+            <!-- Botón scrcpy alineado a la derecha -->
+            <VBox alignment="TOP_RIGHT" spacing="10" prefHeight="100.0">
     <Button fx:id="btnGestionar"
             text="⚙  Gestionar Dispositivo"
             onAction="#onAbrirAjustes"
@@ -64,11 +65,8 @@
                    -fx-background-radius: 8; -fx-padding: 10 20 10 20;
                    -fx-cursor: hand;"/>
 </VBox>
-                            
 
         </HBox>
-
-
 
         <!-- Tarjetas de specs -->
         <GridPane hgap="12" vgap="12">
@@ -169,6 +167,7 @@
                           -fx-font-weight: bold;"/>
             <FlowPane fx:id="panelBandas" hgap="8" vgap="8"/>
         </VBox>
+
         <!-- Notas -->
         <VBox spacing="8"
               style="-fx-background-color: #181825; -fx-background-radius: 10;
@@ -180,7 +179,6 @@
                    text="—"
                    wrapText="true"
                    style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-              
         </VBox>
 
     </VBox>

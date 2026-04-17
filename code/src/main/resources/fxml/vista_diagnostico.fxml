@@ -9,100 +9,112 @@
 <?import javafx.scene.layout.FlowPane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<HBox spacing="20" xmlns:fx="http://javafx.com/fxml" 
+<HBox spacing="20" xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.example.View.DiagnosticoController">
-    
+
     <padding>
-        <Insets top="20" right="0" bottom="20" left="0"/>
+        <Insets top="20" right="20" bottom="20" left="20"/>
     </padding>
 
-    <VBox fx:id="contenedorFicha" minWidth="500" prefWidth="700" maxWidth="750" HBox.hgrow="NEVER">
+    <!-- Columna izquierda: ficha técnica -->
+    <VBox fx:id="contenedorFicha" HBox.hgrow="ALWAYS">
         <fx:include fx:id="fichaTecnica" source="ficha_tecnica.fxml" />
     </VBox>
 
+    <!-- Columna derecha: panel de pruebas, con margen izquierdo extra -->
+    <VBox spacing="15" HBox.hgrow="ALWAYS" style="-fx-padding: 0 0 0 24;">
+        <Label text="PANEL DE CONTROL DE PRUEBAS"
+               style="-fx-text-fill: #89b4fa; -fx-font-weight: bold;"
+               styleClass="card-container"/>
 
-    <VBox spacing="15" VBox.vgrow="ALWAYS">
-      <Label text="PANEL DE CONTROL DE PRUEBAS" style="-fx-text-fill: #89b4fa; -fx-font-weight: bold;" styleClass="card-container" />
-
-      <VBox spacing="8" style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;">
-        <Label text="Conectividad &amp; Red" style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
-        <FlowPane hgap="50" vgap="10" alignment="CENTER" styleClass="fila1" >
-            <Button  onAction="#addWifiOn" styleClass="btn-action,btn-modern,btn-network">
-               <graphic>
-                <VBox alignment="CENTER" spacing="5">
-                    <FontIcon iconLiteral="fas-wifi" iconSize="24" iconColor="#a6e3a1"/>
-                    <Label text="ON WIFI" style="-fx-font-size: 9px;"/>
-                </VBox>
-            </graphic>
-            </Button>
-            <Button onAction="#addWifiOff" styleClass="btn-action, btn-modern,btn-network">
-               <graphic>
-                 <VBox alignment="CENTER" spacing="8">
-                   <ImageView fitHeight="30" fitWidth="30" preserveRatio="true">
-                      <image>
-                        <Image url="@../img/wifi-apagado.png"/>
-                      </image>
-                    </ImageView>
-                  <Label text="OFF WIFI" styleClass="btn-label"/>
+        <VBox spacing="8"
+              style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;">
+            <Label text="Conectividad &amp; Red"
+                   style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
+            <FlowPane hgap="50" vgap="10" alignment="CENTER" styleClass="fila1">
+                <Button onAction="#addWifiOn" styleClass="btn-action,btn-modern,btn-network">
+                    <graphic>
+                        <VBox alignment="CENTER" spacing="5">
+                            <FontIcon iconLiteral="fas-wifi" iconSize="24" iconColor="#a6e3a1"/>
+                            <Label text="ON WIFI" style="-fx-font-size: 9px;"/>
+                        </VBox>
+                    </graphic>
+                </Button>
+                <Button onAction="#addWifiOff" styleClass="btn-action,btn-modern,btn-network">
+                    <graphic>
+                        <VBox alignment="CENTER" spacing="8">
+                            <ImageView fitHeight="30" fitWidth="30" preserveRatio="true">
+                                <image>
+                                    <Image url="@../img/wifi-apagado.png"/>
+                                </image>
+                            </ImageView>
+                            <Label text="OFF WIFI" styleClass="btn-label"/>
+                        </VBox>
+                    </graphic>
+                </Button>
+                <Button onAction="#addPingStep" styleClass="btn-action,btn-modern,btn-network">
+                    <graphic>
+                        <VBox alignment="CENTER" spacing="5">
+                            <FontIcon iconLiteral="fas-network-wired" iconSize="24" iconColor="#89b4fa"/>
+                            <Label text="PING" style="-fx-font-size: 9px;"/>
+                        </VBox>
+                    </graphic>
+                </Button>
+            </FlowPane>
         </VBox>
-    </graphic>
-            </Button>
-            <Button onAction="#addPingStep" styleClass="btn-action, btn-modern,btn-network">
-                <graphic>
-                <VBox alignment="CENTER" spacing="5">
-                    <FontIcon iconLiteral="fas-network-wired" iconSize="24" iconColor="#89b4fa"/>
-                    <Label text="PING" style="-fx-font-size: 9px;"/>
-                </VBox>
-            </graphic>
-            </Button>
-        </FlowPane>
-      </VBox>
 
-    <VBox spacing="8" style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;" styleClass="card-container">
-        <Label text="Pruebas de Hardware" style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
-        <FlowPane hgap="50" vgap="10" alignment="CENTER" styleClass="fila2">
-            <Button onAction="#addSoundTest" styleClass="btn-hw,btn-modern">
-               <graphic>
-                <VBox alignment="CENTER" spacing="5">
-                    <FontIcon iconLiteral="fas-volume-up" iconSize="24" iconColor="#cba6f7"/>
-                    <Label text="SOUND" style="-fx-font-size: 9px;"/>
-                </VBox>
-            </graphic>
-            </Button>
-            <Button onAction="#addVibrateStep" styleClass="btn-hw,btn-modern">
+        <VBox spacing="8"
+              style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;"
+              styleClass="card-container">
+            <Label text="Pruebas de Hardware"
+                   style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
+            <FlowPane hgap="50" vgap="10" alignment="CENTER" styleClass="fila2">
+                <Button onAction="#addSoundTest" styleClass="btn-hw,btn-modern">
+                    <graphic>
+                        <VBox alignment="CENTER" spacing="5">
+                            <FontIcon iconLiteral="fas-volume-up" iconSize="24" iconColor="#cba6f7"/>
+                            <Label text="SOUND" style="-fx-font-size: 9px;"/>
+                        </VBox>
+                    </graphic>
+                </Button>
+                <Button onAction="#addVibrateStep" styleClass="btn-hw,btn-modern">
+                    <graphic>
+                        <VBox alignment="CENTER" spacing="5">
+                            <FontIcon iconLiteral="fas-mobile-alt" iconSize="24" iconColor="#fab387"/>
+                            <Label text="VIBRATE" style="-fx-font-size: 9px;"/>
+                        </VBox>
+                    </graphic>
+                </Button>
+                <Button onAction="#addCallTest" styleClass="btn-hw,btn-modern">
+                    <graphic>
+                        <VBox alignment="CENTER" spacing="5">
+                            <FontIcon iconLiteral="fas-phone" iconSize="24" iconColor="#f9e2af"/>
+                            <Label text="CALL" style="-fx-font-size: 9px;"/>
+                        </VBox>
+                    </graphic>
+                </Button>
+            </FlowPane>
+        </VBox>
+
+        <ListView fx:id="listaPasos" VBox.vgrow="ALWAYS"
+                  style="-fx-text-fill: #6a0dad;"/>
+
+        <HBox spacing="10">
+            <Button fx:id="btnEjecutar" text="EJECUTAR" onAction="#ejecutarScript"
+                    maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                    styleClass="btnEjecutar" style="-fx-padding: 10"/>
+            <Button fx:id="btnInforme" text="INFORME" onAction="#generarInforme"
+                    disable="true" styleClass="#btnInforme" style="-fx-padding: 10"/>
+            <Button text="Limpiar" onAction="#limpiarPasos" styleClass="btn-footer">
                 <graphic>
-                <VBox alignment="CENTER" spacing="5">
-                    <FontIcon iconLiteral="fas-mobile-alt" iconSize="24" iconColor="#fab387"/>
-                    <Label text="VIBRATE" style="-fx-font-size: 9px;"/>
-                </VBox>
-            </graphic>
+                    <ImageView fitHeight="18" fitWidth="18" preserveRatio="true">
+                        <image>
+                            <Image url="@../img/borrar.png"/>
+                        </image>
+                    </ImageView>
+                </graphic>
             </Button>
-            <Button onAction="#addCallTest" styleClass="btn-hw,btn-modern">
-               <graphic>
-                <VBox alignment="CENTER" spacing="5">
-                    <FontIcon iconLiteral="fas-phone" iconSize="24" iconColor="#f9e2af"/>
-                    <Label text="CALL" style="-fx-font-size: 9px;"/>
-                </VBox>
-            </graphic>
-            </Button>
-        </FlowPane>
+        </HBox>
     </VBox>
-
-    <ListView fx:id="listaPasos" VBox.vgrow="ALWAYS" />
-    
-    <HBox spacing="10">
-        <Button fx:id="btnEjecutar" text="EJECUTAR" onAction="#ejecutarScript" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="btnEjecutar" style="-fx-padding: 10" />
-        <Button fx:id="btnInforme" text="INFORME" onAction="#generarInforme" disable="true" styleClass="#btnInforme" style="-fx-padding: 10" />
-        <Button text="Limpiar" onAction="#limpiarPasos" styleClass="btn-footer">
-           <graphic>
-            <ImageView fitHeight="18" fitWidth="18" preserveRatio="true">
-              <image>
-                  <Image url="@../img/borrar.png"/>
-              </image>
-            </ImageView>
-    </graphic>
-        </Button>
-    </HBox>
-</VBox>
 
 </HBox>

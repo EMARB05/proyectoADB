@@ -107,20 +107,84 @@ public class ADBService {
 
     // Métodos lanzados desde el PC
     public void ejecutarComandoDirecto(String... args) {
-    new Thread(() -> {
-        try {
-            List<String> fullCmd = new ArrayList<>();
-            fullCmd.add("adb");
-            for (String arg : args) fullCmd.add(arg);
+        new Thread(() -> {
+            try {
+                List<String> fullCmd = new ArrayList<>();
+                fullCmd.add("adb");
+                for (String arg : args)
+                    fullCmd.add(arg);
 
-            ejecutarADB(fullCmd.toArray(new String[0]));
-            System.out.println("ADB Directo ejecutado: " + String.join(" ", fullCmd));
-        } catch (IOException e) {
-            System.err.println("Error ADB Directo: " + e.getMessage());
+                ejecutarADB(fullCmd.toArray(new String[0]));
+                System.out.println("ADB Directo ejecutado: " + String.join(" ", fullCmd));
+            } catch (IOException e) {
+                System.err.println("Error ADB Directo: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    public String[] getVolteEstado(String serial) throws IOException {
+        // [0] = Soporte, [1] = Estado, [2] = Motivo
+        String soporte;
+        List<String> salidaProp = ejecutarADB("adb", "-s", serial, "shell", "getprop", "persist.vendor.volte_support");
+        soporte = (!salidaProp.isEmpty() && "1".equals(salidaProp.get(0).trim())) ? "Soportado" : "No soportado";
+
+        List<String> dumpsys = ejecutarADB("adb", "-s", serial, "shell", "dumpsys", "telephony.registry");
+
+        // Buscamos SOLO la primera línea con mServiceState (estado actual, sin
+        // timestamp)
+        String lineaEstado = "";
+        for (String linea : dumpsys) {
+            String trim = linea.trim();
+            if (trim.startsWith("mServiceState=") || trim.startsWith("mServiceState={")) {
+                lineaEstado = trim;
+                break; // La primera es la actual, ignoramos el historial
+            }
         }
-    }).start();
-}
 
+        if (lineaEstado.isEmpty()) {
+            return new String[] { soporte, "Inactivo", "No se pudo leer el estado" };
+        }
+
+        // Extraemos mVoiceRegState
+        boolean modoAvion = lineaEstado.contains("mVoiceRegState=3(POWER_OFF)");
+        boolean sinServicio = lineaEstado.contains("mVoiceRegState=1(OUT_OF_SERVICE)");
+
+        // Extraemos getRilVoiceRadioTechnology
+        String radioTech = "";
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("getRilVoiceRadioTechnology=\\d+\\((\\w+)\\)")
+                .matcher(lineaEstado);
+        if (m.find())
+            radioTech = m.group(1);
+
+        // Comprobamos VoLTE activo: buscamos el bloque CS+LTE+VOICE en la misma línea
+        // (en el estado actual todo viene en una sola línea larga)
+        boolean voiceEnLTE = lineaEstado.contains("domain=CS")
+                && lineaEstado.contains("accessNetworkTechnology=LTE")
+                && lineaEstado.contains("availableServices=[VOICE");
+
+        // Lógica de decisión
+        String estado, motivo;
+
+        if (modoAvion) {
+            estado = "Inactivo";
+            motivo = "Modo avión";
+        } else if (sinServicio || radioTech.equals("Unknown") || radioTech.isEmpty()) {
+            estado = "Inactivo";
+            motivo = "Sin señal";
+        } else if (!radioTech.equals("LTE") && !radioTech.equals("NR")) {
+            estado = "Inactivo";
+            motivo = "Red " + radioTech + " (requiere 4G)";
+        } else if (voiceEnLTE) {
+            estado = "Activo";
+            motivo = "";
+        } else {
+            estado = "Inactivo";
+            motivo = "LTE sin registro IMS";
+        }
+
+        return new String[] { soporte, estado, motivo };
+    }
     // --- MÉTODOS DE OBTENCIÓN DE DATOS (Sincrónicos) ---
 
     public List<String> obtenerDispositivosConectados() throws IOException {
@@ -170,7 +234,6 @@ public class ADBService {
         return new Dispositivo(modelo, serial, android_id);
     }
 
-
     private double obtenerRamTotalGb(String serial) throws IOException {
         List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "cat", "/proc/meminfo");
         for (String linea : salida) {
@@ -218,45 +281,47 @@ public class ADBService {
     }
 
     public boolean ejecutarPasoSync(String serial, String comandoShell) {
-    try {
-        String comandoLimpio = comandoShell.replace("adb shell ", "").replace("shell ", "");
-        String[] partes = comandoLimpio.split(" ");
-        
-        List<String> fullCmd = new ArrayList<>();
-        fullCmd.add("adb");
-        fullCmd.add("-s");
-        fullCmd.add(serial);
-        fullCmd.add("shell");
-        for (String p : partes) fullCmd.add(p);
+        try {
+            String comandoLimpio = comandoShell.replace("adb shell ", "").replace("shell ", "");
+            String[] partes = comandoLimpio.split(" ");
 
-        // AQUÍ USAMOS LA LISTA:
-        List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
-        
-       // --- LÓGICA DE ESPERA INTELIGENTE PARA WIFI ---
-        if (comandoShell.contains("wifi enable")) {
-            int intentos = 0;
-            boolean conectado = false;
-            while (intentos < 10 && !conectado) { // Reintenta durante 10 segundos máximo
-                Thread.sleep(1000);
-                // Consultamos si el wifi ya está activo
-                List<String> check = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "global", "wifi_on");
-                if (!check.isEmpty() && check.get(0).trim().equals("1")) {
-                    conectado = true;
+            List<String> fullCmd = new ArrayList<>();
+            fullCmd.add("adb");
+            fullCmd.add("-s");
+            fullCmd.add(serial);
+            fullCmd.add("shell");
+            for (String p : partes)
+                fullCmd.add(p);
+
+            // AQUÍ USAMOS LA LISTA:
+            List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
+
+            // --- LÓGICA DE ESPERA INTELIGENTE PARA WIFI ---
+            if (comandoShell.contains("wifi enable")) {
+                int intentos = 0;
+                boolean conectado = false;
+                while (intentos < 10 && !conectado) { // Reintenta durante 10 segundos máximo
+                    Thread.sleep(1000);
+                    // Consultamos si el wifi ya está activo
+                    List<String> check = ejecutarADB("adb", "-s", serial, "shell", "settings", "get", "global",
+                            "wifi_on");
+                    if (!check.isEmpty() && check.get(0).trim().equals("1")) {
+                        conectado = true;
+                    }
+                    intentos++;
                 }
-                intentos++;
+                return conectado;
             }
-            return conectado;
-        }
 
-        // --- LÓGICA PARA PING (Validación real de respuesta) ---
-        if (comandoShell.contains("ping")) {
-            String respuesta = String.join(" ", salida).toLowerCase();
-            return respuesta.contains("bytes from") && !respuesta.contains("100% packet loss");
-        }
+            // --- LÓGICA PARA PING (Validación real de respuesta) ---
+            if (comandoShell.contains("ping")) {
+                String respuesta = String.join(" ", salida).toLowerCase();
+                return respuesta.contains("bytes from") && !respuesta.contains("100% packet loss");
+            }
 
-        return true; 
-    } catch (Exception e) {
-        return false;
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
-}
 }

@@ -65,6 +65,7 @@ public class AjustesRapidosController {
     public void setSerial(String serial) {
         this.serial = serial;
         sincronizarEstadoInicial();
+        adbService.ejecutarAccionHilo(serial, "shell input keyevent KEYCODE_WAKEUP"); // Comando para que se encienda la pantalla al abrir el menú
     }
 
     private void sincronizarEstadoInicial() {
