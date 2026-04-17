@@ -3,52 +3,77 @@
 <?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
 
-<VBox spacing="20" style="-fx-background-color: #1e1e2e; -fx-padding: 24;"
-      xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.example.View.AjustesRapidosController">
+<StackPane fx:id="rootPane" xmlns:fx="http://javafx.com/fxml" 
+           fx:controller="com.example.View.AjustesRapidosController"
+           style="-fx-background-color: #1e1e2e;">
 
-    <!-- Toggles -->
-    <GridPane hgap="15" vgap="15">
-        <columnConstraints>
-            <ColumnConstraints percentWidth="50"/>
-            <ColumnConstraints percentWidth="50"/>
-        </columnConstraints>
-        <children>
-            <ToggleButton fx:id="btnModoAvion" text="✈ Modo Avión"
-                          onAction="#toggleAirplane" maxWidth="Infinity"
-                          GridPane.columnIndex="0" GridPane.rowIndex="0"
-                          style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
-                                 -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
-            <ToggleButton fx:id="btnBluetooth" text="🀆 Bluetooth"
-                          onAction="#toggleBluetooth" maxWidth="Infinity"
-                          GridPane.columnIndex="1" GridPane.rowIndex="0"
-                          style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
-                                 -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
-            <ToggleButton fx:id="btnGPS" text="📍 Ubicación (GPS)"
-                          onAction="#toggleGPS" maxWidth="Infinity"
-                          GridPane.columnIndex="0" GridPane.rowIndex="1"
-                          style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
-                                 -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
-        </children>
-    </GridPane>
+    <VBox spacing="20" style="-fx-padding: 24;">
+        
+        <GridPane hgap="15" vgap="15">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="50"/>
+                <ColumnConstraints percentWidth="50"/>
+            </columnConstraints>
+            <children>
+                <ToggleButton fx:id="btnModoAvion" text="✈ Modo Avión"
+                              onAction="#toggleAirplane" maxWidth="Infinity"
+                              GridPane.columnIndex="0" GridPane.rowIndex="0"
+                              style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
+                                     -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
+                <ToggleButton fx:id="btnBluetooth" text="🀆 Bluetooth"
+                              onAction="#toggleBluetooth" maxWidth="Infinity"
+                              GridPane.columnIndex="1" GridPane.rowIndex="0"
+                              style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
+                                     -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
+                <ToggleButton fx:id="btnGPS" text="📍 Ubicación (GPS)"
+                              onAction="#toggleGPS" maxWidth="Infinity"
+                              GridPane.columnIndex="0" GridPane.rowIndex="1"
+                              style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
+                                     -fx-padding: 12; -fx-background-radius: 8; -fx-cursor: hand;"/>
+            </children>
+        </GridPane>
 
-    <!-- Sliders -->
-    <VBox spacing="15" style="-fx-background-color: #181825; -fx-padding: 15;
-                               -fx-background-radius: 10;">
-        <VBox spacing="8">
-            <HBox spacing="10">
-                <Label text="🔅 Brillo Pantalla" style="-fx-text-fill: #cdd6f4;"/>
-                <Label fx:id="lblBrilloVal" text="128" style="-fx-text-fill: #6c7086;"/>
-            </HBox>
-            <Slider fx:id="sliderBrillo" min="0" max="255" value="128"/>
+        <VBox spacing="15" style="-fx-background-color: #181825; -fx-padding: 15; -fx-background-radius: 10;">
+            <VBox spacing="8">
+                <HBox spacing="10">
+                    <Label text="🔅 Brillo Pantalla" style="-fx-text-fill: #cdd6f4;"/>
+                    <Label fx:id="lblBrilloVal" text="128" style="-fx-text-fill: #6c7086;"/>
+                </HBox>
+                <Slider fx:id="sliderBrillo" min="0" max="255" value="128"/>
+            </VBox>
+            <VBox spacing="8">
+                <HBox spacing="10">
+                    <Label text="🔊 Volumen Multimedia" style="-fx-text-fill: #cdd6f4;"/>
+                    <Label fx:id="lblVolVal" text="7" style="-fx-text-fill: #6c7086;"/>
+                </HBox>
+                <Slider fx:id="sliderVolumen" min="0" max="15" value="7"/>
+            </VBox>
         </VBox>
-        <VBox spacing="8">
+
+        <Separator opacity="0.1" />
+
+        <VBox spacing="12" VBox.vgrow="ALWAYS">
+            <Label text="📦 Extractor de Aplicaciones" style="-fx-text-fill: #89b4fa; -fx-font-weight: bold;"/>
+            
             <HBox spacing="10">
-                <Label text="🔊 Volumen Multimedia" style="-fx-text-fill: #cdd6f4;"/>
-                <Label fx:id="lblVolVal" text="7" style="-fx-text-fill: #6c7086;"/>
+                <TextField fx:id="txtBuscador" promptText="Filtrar paquete..." HBox.hgrow="ALWAYS"
+                           style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; 
+                                  -fx-prompt-text-fill: #6c7086; -fx-background-radius: 5;"/>
+                <Button fx:id="btnListar" text="🔄 Listar"
+                        onAction="#handleListarPaquetes"
+                        style="-fx-background-color: #fab387; -fx-text-fill: #11111b; 
+                               -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 5;"/>
             </HBox>
-            <Slider fx:id="sliderVolumen" min="0" max="15" value="7"/>
+
+            <ListView fx:id="listaPaquetes" VBox.vgrow="ALWAYS" minHeight="150"
+                      style="-fx-background-color: #181825; 
+                             -fx-control-inner-background: #181825; 
+                             -fx-background-radius: 8;
+                             -fx-border-color: #313244;
+                             -fx-border-radius: 8;">
+            </ListView>
+            
+            <Label text="* Haz doble clic para extraer APK" style="-fx-text-fill: #6c7086; -fx-font-size: 10;"/>
         </VBox>
     </VBox>
-
-</VBox>
+</StackPane>

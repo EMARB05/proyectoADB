@@ -324,4 +324,32 @@ public class ADBService {
             return false;
         }
     }
+
+    // App extractor
+
+    // Devuelve la lista de paquetes instalados
+    public List<String> listarPaquetes (String serial) throws IOException{
+        List<String> salida = ejecutarADB("adb","-s",serial,"shell","pm","list","packages");
+
+        return salida.stream()
+            .filter(app -> app.startsWith("package:"))
+            .map(app -> app.replace("package:", "").trim())
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    public String obtenerRutaApk(String serial, String paquete)throws IOException{
+        List<String> salida = ejecutarADB("adb","-s",serial,"shell","pm","path",paquete);
+        if (!salida.isEmpty()) {
+            return salida.get(0).replace("package:", "").trim();
+        }
+        return null;
+    }
+
+    public void descargarApk(String serial,String paquete,String carpetaDestino)throws IOException{
+        String rutaRemota = obtenerRutaApk(serial, paquete);
+        if (rutaRemota == null) throw new IOException("No se encontró el APK de "+paquete);
+
+        String nombreArchivo = paquete + ".apk";
+        ejecutarADB("adb","-s",serial,"pull",rutaRemota,carpetaDestino+"/"+nombreArchivo);
+    }
 }
