@@ -15,6 +15,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -215,9 +216,9 @@ public class AjustesRapidosController {
         if (carpetaDestino != null) {
             try {
                 String ruta = carpetaDestino.getAbsolutePath().replace("\\", "/");
-                listaPaquetes.getScene().setCursor(javafx.scene.Cursor.WAIT);
+                listaPaquetes.getScene().setCursor(Cursor.WAIT);
                 adbService.descargarApk(serial, paquete, ruta);
-                listaPaquetes.getScene().setCursor(javafx.scene.Cursor.DEFAULT);
+                listaPaquetes.getScene().setCursor(Cursor.DEFAULT);
                 Platform.runLater(() -> mostrarToast("✅ APK extraída: " + paquete));
             } catch (IOException e) {
                 e.printStackTrace();

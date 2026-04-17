@@ -3,10 +3,13 @@ package com.example.Controller;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.example.Model.Dispositivo;
 import com.example.Model.Marca;
@@ -14,6 +17,7 @@ import com.example.Model.Modelo;
 import com.example.Model.Soc;
 
 public class ADBService {
+    private String rutaRemotaActual;
 
     /**
      * MÉTODO MOTOR (Privado): Es el único que realmente toca el ProcessBuilder.
@@ -328,28 +332,73 @@ public class ADBService {
     // App extractor
 
     // Devuelve la lista de paquetes instalados
-    public List<String> listarPaquetes (String serial) throws IOException{
-        List<String> salida = ejecutarADB("adb","-s",serial,"shell","pm","list","packages");
+    public List<String> listarPaquetes(String serial) throws IOException {
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "pm", "list", "packages");
 
         return salida.stream()
-            .filter(app -> app.startsWith("package:"))
-            .map(app -> app.replace("package:", "").trim())
-            .collect(java.util.stream.Collectors.toList());
+                .filter(app -> app.startsWith("package:"))
+                .map(app -> app.replace("package:", "").trim())
+                .collect(Collectors.toList());
     }
 
-    public String obtenerRutaApk(String serial, String paquete)throws IOException{
-        List<String> salida = ejecutarADB("adb","-s",serial,"shell","pm","path",paquete);
+    public String obtenerRutaApk(String serial, String paquete) throws IOException {
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "pm", "path", paquete);
         if (!salida.isEmpty()) {
             return salida.get(0).replace("package:", "").trim();
         }
         return null;
     }
 
-    public void descargarApk(String serial,String paquete,String carpetaDestino)throws IOException{
+    public void descargarApk(String serial, String paquete, String carpetaDestino) throws IOException {
         String rutaRemota = obtenerRutaApk(serial, paquete);
-        if (rutaRemota == null) throw new IOException("No se encontró el APK de "+paquete);
+        if (rutaRemota == null)
+            throw new IOException("No se encontró el APK de " + paquete);
 
         String nombreArchivo = paquete + ".apk";
-        ejecutarADB("adb","-s",serial,"pull",rutaRemota,carpetaDestino+"/"+nombreArchivo);
+        ejecutarADB("adb", "-s", serial, "pull", rutaRemota, carpetaDestino + "/" + nombreArchivo);
+    }
+
+    // Capturas y grabaciones
+    public void capturarPantalla(String serial, String carpetaDestino) throws IOException {
+        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String rutaTemporal = "/sdcard/screenshot_" + timeStamp + ".png";
+        String rutaLocal = carpetaDestino + "/screenshot_" + timeStamp + ".png";
+
+        // hacer la captura en el dispositivo
+        ejecutarADB("adb", "-s", serial, "shell", "screencap", "-p", rutaTemporal);
+        // descargarla en el PC
+        ejecutarADB("adb", "-s", serial, "pull", rutaTemporal, rutaLocal);
+        // Borrarla del dispositivo
+        ejecutarADB("adb", "-s", serial, "shell", "rm", rutaTemporal);
+    }
+
+    public Process iniciarGrabacion(String serial) throws IOException {
+        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        rutaRemotaActual = "/sdcard/video_" + timeStamp + ".mp4";
+        // máx 180 segundos por limitación de ADB
+        ProcessBuilder pb = new ProcessBuilder(
+                "adb", "-s", serial, "shell", "screenrecord", "--time-limit", "180", rutaRemotaActual);
+        pb.redirectErrorStream(true);
+        return pb.start();
+    }
+
+    public void enviarSenalParada(String serial) {
+        ejecutarComandoSincrono(serial, "shell pkill -l SIGINT screenrecord");
+    }
+
+    public void descargarYLimpiar(String serial, String carpetaDestino) throws IOException {
+        // Esperamos a que el video se cierre bien
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
+        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String rutaLocal = carpetaDestino + "/video_" + timeStamp + ".mp4";
+
+        // Descargamos y borramos
+        ejecutarADB("adb", "-s", serial, "pull", rutaRemotaActual, rutaLocal);
+        ejecutarADB("adb", "-s", serial, "shell", "rm", rutaRemotaActual);
+        rutaRemotaActual = null;
     }
 }
