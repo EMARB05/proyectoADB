@@ -7,9 +7,7 @@ import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
 import com.example.Model.Foto;
 
-import javafx.animation.FadeTransition;
-import javafx.animation.PauseTransition;
-import javafx.animation.SequentialTransition;
+
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -22,7 +20,6 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Modality;
 
 import javafx.stage.Stage;
-import javafx.util.Duration;
 
 import java.io.File;
 import java.io.IOException;
