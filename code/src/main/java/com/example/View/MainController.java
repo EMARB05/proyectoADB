@@ -152,29 +152,45 @@ public class MainController {
         }
     }
 
-    @FXML
-    private void onSeleccionarDispositivo() {
-        String serial = listaDispositivos.getSelectionModel().getSelectedItem();
-        if (serial == null)
-            return;
+  @FXML
+private void onSeleccionarDispositivo() {
+    String serial = listaDispositivos.getSelectionModel().getSelectedItem();
+    if (serial == null) return;
 
-        try {
-            Dispositivo dispositivo = dispositivoDAO.buscarPorSerial(serial);
+    try {
+        // Busca primero por serial
+        Dispositivo dispositivo = dispositivoDAO.buscarPorSerial(serial);
 
-            if (dispositivo == null) {
-                // Serial desconocido → formulario de alta con datos de ADB
-                Dispositivo desdeAdb = adbService.obtenerProps(serial);
-                cargarFormularioAlta(desdeAdb);
-            } else {
-                // Serial conocido → ficha técnica desde la BBDD
-                cargarPanel("/fxml/vista_diagnostico.fxml", dispositivo);
+        // Si no lo encuentra (puede ser IP en modo WiFi), obtiene props de ADB
+        // y busca por android_id para no abrir el formulario si ya está registrado
+        if (dispositivo == null) {
+            Dispositivo desdeAdb = adbService.obtenerProps(serial);
+            String androidId = desdeAdb.getAndroid_id();
+
+            if (androidId != null && !androidId.isBlank()) {
+                dispositivo = dispositivoDAO.buscarPorAndroidId(androidId);
             }
 
-        } catch (IOException | SQLException e) {
-            lblEstadoAdb.setText("● Error al cargar dispositivo");
-            e.printStackTrace();
+            if (dispositivo == null) {
+                // Realmente es nuevo — abre el formulario de alta
+                System.out.println("[MAIN] Dispositivo nuevo, abriendo formulario de alta");
+                cargarFormularioAlta(desdeAdb);
+            } else {
+                // Ya existe pero conectado por WiFi — va directo a la ficha
+                System.out.println("[MAIN] Dispositivo ya registrado (detectado por android_id), cargando ficha");
+                cargarPanel("/fxml/ficha_tecnica.fxml", dispositivo);
+            }
+        } else {
+            // Encontrado por serial directamente
+            System.out.println("[MAIN] Dispositivo encontrado por serial, cargando ficha");
+            cargarPanel("/fxml/ficha_tecnica.fxml", dispositivo);
         }
+
+    } catch (IOException | SQLException e) {
+        lblEstadoAdb.setText("● Error al cargar dispositivo");
+        e.printStackTrace();
     }
+}
 
     /**
      * Carga el formulario de alta e inyecta:

@@ -28,6 +28,17 @@ public class DispositivoDAO {
         }
     }
 
+    public Dispositivo buscarPorAndroidId(String androidId) throws SQLException {
+    String sql = "SELECT * FROM dispositivo WHERE android_id = ?";
+    try (Connection conn = DatabaseManager.getInstance().getConexion();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+        ps.setString(1, androidId);
+        ResultSet rs = ps.executeQuery();
+        if (rs.next()) return mapear(rs);
+        return null;
+    }
+}
+
     public int insertar(Dispositivo dispositivo) throws SQLException {
         String sql = """
                 INSERT INTO dispositivo (id_modelo, serial_number, android_id, estado, notas)
