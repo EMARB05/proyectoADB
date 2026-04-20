@@ -1,5 +1,6 @@
 package com.example.View;
 
+import com.example.Controller.ADBService;
 import com.example.Controller.BandaDAO;
 import com.example.Controller.FotoDAO;
 import com.example.Controller.LogcatManager;
@@ -65,6 +66,7 @@ public class FichaTecnicaController implements DispositivoAware {
     private Dispositivo dispositivoActual;
     private final BandaDAO bandaDAO = new BandaDAO();
     private final FotoDAO fotoDAO = new FotoDAO();
+    private ADBService adb = new ADBService();
 
     @Override
     public void setDispositivo(Dispositivo dispositivo) {
@@ -93,7 +95,7 @@ public class FichaTecnicaController implements DispositivoAware {
         cargarFoto(dispositivo);
         cargarBandas(modelo.getIdModelo());
 
-        iniciarLogcat(dispositivo.getSerialNumber());
+        iniciarLogcat(dispositivo.getAndroid_id());
     }
 
     private void cargarFoto(Dispositivo dispositivo) {
@@ -200,13 +202,13 @@ public class FichaTecnicaController implements DispositivoAware {
         }
     }
 
-    private void iniciarLogcat(String serial) {
+    private void iniciarLogcat(String androidID) {
         // Solo reinicia si el dispositivo cambió o no hay captura activa
         if (logcatManager.isActivo())
             return;
 
         try {
-            logcatManager.iniciar(serial);
+            logcatManager.iniciar(adb.getSerialActivo(androidID));
         } catch (IOException e) {
             e.printStackTrace();
         }

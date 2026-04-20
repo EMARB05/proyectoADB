@@ -26,33 +26,45 @@ public class LogcatManager {
 
     // Inicia la captura de logcat para un dispositivo
     public void iniciar(String serial) throws IOException {
+        System.out.println("SERIAL:"+serial);
         if (activo)
             return;
         activo = true;
-        lineasCapturadas.clear();
-
-        ProcessBuilder pb;
-
-        pb = new ProcessBuilder(
-                "adb", "-s", serial, "logcat",
-                "-v", "time", "-T", "0");
-
-        pb.redirectErrorStream(true);
-        procesoLogcat = pb.start();
+        // No limpiamos la lista aquí para no perder lo capturado antes de un
+        // micro-corte
 
         hiloLectura = new Thread(() -> {
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(procesoLogcat.getInputStream()))) {
-                String linea;
-                while (activo && (linea = reader.readLine()) != null) {
-                    lineasCapturadas.add(linea);
-                    if (onNuevaLinea != null) {
-                        final String lineaFinal = linea;
-                        onNuevaLinea.accept(lineaFinal);
+            while (activo) { // Bucle de persistencia para WiFi
+                ProcessBuilder pb = new ProcessBuilder(
+                        "adb", "-s", serial, "logcat", "-v", "time", "-T", "1");
+
+                pb.redirectErrorStream(true);
+                try {
+                    procesoLogcat = pb.start();
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(procesoLogcat.getInputStream()))) {
+                        String linea;
+                        // Lee mientras la conexión esté viva
+                        while (activo && (linea = reader.readLine()) != null) {
+                            lineasCapturadas.add(linea);
+                            if (onNuevaLinea != null) {
+                                onNuevaLinea.accept(linea);
+                            }
+                        }
+                    }
+                    procesoLogcat.waitFor();
+                } catch (IOException | InterruptedException e) {
+                    // Error de red o interrupción, el bucle while intentará reconectar
+                }
+
+                // Espera breve antes de reintentar para no saturar la CPU
+                if (activo) {
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        break;
                     }
                 }
-            } catch (IOException e) {
-                // Proceso detenido, es normal
             }
         });
         hiloLectura.setDaemon(true);
@@ -94,28 +106,29 @@ public class LogcatManager {
 
     // Guarda las líneas (filtradas o todas) en disco
     // Carpeta: logs/NombreModelo/2024-01-15/
-    // public Path guardar(String nombreModelo, String palabraClave) throws IOException {
-    //     List<String> lineas = palabraClave.isBlank()
-    //             ? lineasCapturadas
-    //             : filtrar(palabraClave);
+    // public Path guardar(String nombreModelo, String palabraClave) throws
+    // IOException {
+    // List<String> lineas = palabraClave.isBlank()
+    // ? lineasCapturadas
+    // : filtrar(palabraClave);
 
-    //     String fecha = LocalDateTime.now().format(
-    //             DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-    //     String timestamp = LocalDateTime.now().format(
-    //             DateTimeFormatter.ofPattern("HHmmss"));
+    // String fecha = LocalDateTime.now().format(
+    // DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+    // String timestamp = LocalDateTime.now().format(
+    // DateTimeFormatter.ofPattern("HHmmss"));
 
-    //     // Carpeta: logs/Samsung_Galaxy_S22/2024-01-15/
-    //     String nombreLimpio = nombreModelo.replaceAll("[^a-zA-Z0-9_]", "_");
-    //     String escritorio = System.getProperty("user.home") + "/Desktop";
-    //     Path carpeta = Paths.get(escritorio, "logs", nombreLimpio, fecha);
-    //     Files.createDirectories(carpeta);
+    // // Carpeta: logs/Samsung_Galaxy_S22/2024-01-15/
+    // String nombreLimpio = nombreModelo.replaceAll("[^a-zA-Z0-9_]", "_");
+    // String escritorio = System.getProperty("user.home") + "/Desktop";
+    // Path carpeta = Paths.get(escritorio, "logs", nombreLimpio, fecha);
+    // Files.createDirectories(carpeta);
 
-    //     String nombreArchivo = (palabraClave.isBlank() ? "logcat" : palabraClave)
-    //             + "_" + timestamp + ".txt";
-    //     Path archivo = carpeta.resolve(nombreArchivo);
+    // String nombreArchivo = (palabraClave.isBlank() ? "logcat" : palabraClave)
+    // + "_" + timestamp + ".txt";
+    // Path archivo = carpeta.resolve(nombreArchivo);
 
-    //     Files.write(archivo, lineas);
-    //     return archivo;
+    // Files.write(archivo, lineas);
+    // return archivo;
     // }
 
     public Path guardar(String nombreModelo, List<String> lineas,

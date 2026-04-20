@@ -63,8 +63,10 @@ public class LogcatController {
         String clave = txtFiltro.getText().trim();
 
         new Thread(() -> {
+            // Filtrado sobre la lista CONGELADA (esto mantiene tu funcionalidad intacta)
             List<String> base = chkSoloRelevantes.isSelected()
                     ? lineasCongeladas.stream()
+                            .filter(l -> !l.startsWith("- waiting") && !l.startsWith("error:")) // Filtra basura de red
                             .filter(l -> l.contains(" W/") || l.contains(" W ") ||
                                     l.contains(" E/") || l.contains(" E ") ||
                                     l.contains(" F/") || l.contains(" F "))
@@ -82,14 +84,9 @@ public class LogcatController {
                 areaLogs.setText(texto);
                 areaLogs.setScrollTop(Double.MAX_VALUE);
 
-                if (chkSoloRelevantes.isSelected()) {
-                        lblContador.setText(lineas.size() + " líneas (solo warnings y errores)"
-                            + (clave.isBlank() ? "" : " con \"" + clave + "\""));
-                } else {
-                    lblContador.setText(lineas.size() + " líneas"
-                            + (clave.isBlank() ? "" : " con \"" + clave + "\""));
-                }
-
+                lblContador.setText(lineas.size() + " líneas" +
+                        (chkSoloRelevantes.isSelected() ? " (solo relevantes)" : "") +
+                        (clave.isBlank() ? "" : " con \"" + clave + "\""));
             });
         }).start();
     }
