@@ -64,7 +64,7 @@ public class LaboratorioController {
         startMonitor();
     }
 
-    // ───────────────────── ADB WIFI ─────────────────────
+    /* // ───────────────────── ADB WIFI ─────────────────────
     @FXML
     private void conectarAdbWifi() {
         System.out.println("[ADB] Iniciando conexión WiFi...");
@@ -116,7 +116,7 @@ public class LaboratorioController {
             System.out.println("[ADB] ✔ Modo USB activado correctamente");
             Platform.runLater(() -> labelDiferencia.setText("ADB USB activo"));
         });
-    }
+    } */
 
     // ───────────────────── LLAMADA ─────────────────────
     @FXML
@@ -288,22 +288,7 @@ public class LaboratorioController {
         }
     }
 
-    private void detectarIpDispositivo() {
-        String out = ejecutarComandoAdb(new String[]{"adb", "shell", "ip", "route"});
-        System.out.println("[ADB] ip route output: " + out);
-
-        for (String line : out.split("\n")) {
-            if (line.contains("wlan0") && line.contains("src")) {
-                Matcher m = Pattern.compile("src\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)").matcher(line);
-                if (m.find()) {
-                    deviceIp = m.group(1);
-                    System.out.println("[ADB] IP wlan0 detectada: " + deviceIp);
-                    return;
-                }
-            }
-        }
-        System.out.println("[ADB] No se pudo detectar IP wlan0, usando: " + deviceIp);
-    }
+   
 
     // ───────────────────── LECTURAS DISPOSITIVO ─────────────────────
     private double leerCorrienteUa() {
