@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.example.Model.DatabaseManager;
-import com.example.Model.Marca;
 import com.example.Model.Soc;
 
 public class SocDAO {
