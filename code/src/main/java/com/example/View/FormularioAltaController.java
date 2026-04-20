@@ -60,9 +60,9 @@ public class FormularioAltaController implements DispositivoAware {
     // y lo muestra en la ficha técnica
     private Consumer<Dispositivo> onGuardadoExitoso;
 
-    private final MarcaDAO       marcaDAO       = new MarcaDAO();
-    private final SocDAO         socDAO         = new SocDAO();
-    private final ModeloDAO      modeloDAO      = new ModeloDAO();
+    private final MarcaDAO marcaDAO = new MarcaDAO();
+    private final SocDAO socDAO = new SocDAO();
+    private final ModeloDAO modeloDAO = new ModeloDAO();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
     private final FotoDAO fotoDAO = new FotoDAO();
 
@@ -85,14 +85,18 @@ public class FormularioAltaController implements DispositivoAware {
         var modelo = dispositivo.getModelo();
         var marca = modelo.getMarca();
         var soc = modelo.getSoc();
-        var android_id= dispositivo.getAndroid_id();
+        var android_id = dispositivo.getAndroid_id();
 
         lblSerial.setText(serial);
 
-        if (marca  != null) txtMarca.setText(marca.getNombre());
-        if (modelo != null) txtModelo.setText(modelo.getNombreModelo());
-        if (soc    != null) txtSoc.setText(soc.getModeloSoc());
-        if(android_id != null) txtAndroidID.setText(android_id);
+        if (marca != null)
+            txtMarca.setText(marca.getNombre());
+        if (modelo != null)
+            txtModelo.setText(modelo.getNombreModelo());
+        if (soc != null)
+            txtSoc.setText(soc.getModeloSoc());
+        if (android_id != null)
+            txtAndroidID.setText(android_id);
 
         txtRam.setText(modelo.getRamGb() > 0 ? String.valueOf(modelo.getRamGb()) : "");
         txtAndroid.setText(modelo.getSoVersion() != null ? modelo.getSoVersion() : "");
@@ -102,55 +106,62 @@ public class FormularioAltaController implements DispositivoAware {
     @FXML
     private void onGuardar() {
         try {
-            // 1. Marca
-            Marca marca = new Marca(txtMarca.getText().trim(), "");
-            int idMarca = marcaDAO.insertar(marca);
-            marca.setIdMarca(idMarca);
-
-            // 2. SoC
-            Soc soc = new Soc();
-            soc.setModeloSoc(txtSoc.getText().trim());
-            soc.setFabricante(txtMarca.getText().trim());
-            int idSoc = socDAO.insertar(soc);
-            soc.setIdSoc(idSoc);
-
-            // 3. Modelo
-            Modelo modelo = new Modelo(marca, txtModelo.getText().trim());
-            modelo.setSoc(soc);
-            modelo.setSoVersion(txtAndroid.getText().trim());
-            modelo.setPantallaPulgadas(txtPantalla.getText().trim());
-            modelo.setCamaraMp(txtCamara.getText().trim());
-
-            if (!txtRam.getText().isBlank())
-                modelo.setRamGb(Integer.parseInt(txtRam.getText().trim()));
-            if (!txtAlmacenamiento.getText().isBlank())
-                modelo.setAlmacenamientoGb(Integer.parseInt(txtAlmacenamiento.getText().trim()));
-
-            int idModelo = modeloDAO.insertar(modelo);
-            modelo.setIdModelo(idModelo);
-
-            // --- NUEVO: INSERTAR FOTO ---
-
-            String ruta = txtRutaFoto.getText();
-            if (ruta != null && !ruta.trim().isEmpty()) {
-                Foto foto = new Foto();
-                foto.setIdModelo(idModelo); // Vinculamos con el ID recién creado
-                foto.setUrlExterna(ruta.trim()); // Usamos el nombre url_externa
-                foto.setDescripcion("Foto principal");
-
-                fotoDAO.insertar(foto);
+            // 1. Marca: Buscar por nombre antes de insertar
+            String nombreMarca = txtMarca.getText().trim();
+            Marca marca = marcaDAO.buscarPorNombre(nombreMarca);
+            if (marca == null) {
+                marca = new Marca(nombreMarca, "");
+                int idMarca = marcaDAO.insertar(marca);
+                marca.setIdMarca(idMarca);
             }
 
-            // 4. Dispositivo
+            // 2. SoC: Buscar por modelo antes de insertar
+            String nombreSoc = txtSoc.getText().trim();
+            Soc soc = socDAO.buscarPorModelo(nombreSoc);
+            if (soc == null) {
+                soc = new Soc();
+                soc.setModeloSoc(nombreSoc);
+                soc.setFabricante(nombreMarca);
+                int idSoc = socDAO.insertar(soc);
+                soc.setIdSoc(idSoc);
+            }
+
+            // 3. Modelo: Buscar por nombre antes de insertar
+            String nombreModelo = txtModelo.getText().trim();
+            Modelo modelo = modeloDAO.buscarPorNombre(nombreModelo);
+            if (modelo == null) {
+                modelo = new Modelo(marca, nombreModelo);
+                modelo.setSoc(soc);
+                modelo.setSoVersion(txtAndroid.getText().trim());
+                modelo.setPantallaPulgadas(txtPantalla.getText().trim());
+                modelo.setCamaraMp(txtCamara.getText().trim());
+
+                if (!txtRam.getText().isBlank())
+                    modelo.setRamGb(Integer.parseInt(txtRam.getText().trim()));
+                if (!txtAlmacenamiento.getText().isBlank())
+                    modelo.setAlmacenamientoGb(Integer.parseInt(txtAlmacenamiento.getText().trim()));
+
+                int idModelo = modeloDAO.insertar(modelo);
+                modelo.setIdModelo(idModelo);
+
+                // Solo insertamos la foto si el MODELO es nuevo
+                String ruta = txtRutaFoto.getText();
+                if (ruta != null && !ruta.trim().isEmpty()) {
+                    Foto foto = new Foto();
+                    foto.setIdModelo(idModelo);
+                    foto.setUrlExterna(ruta.trim());
+                    foto.setDescripcion("Foto principal");
+                    fotoDAO.insertar(foto);
+                }
+            }
+
+            // 4. Dispositivo: Este SIEMPRE se inserta (es una unidad física única)
             Dispositivo dispositivo = new Dispositivo(modelo, serial, txtAndroidID.getText());
             dispositivo.setNotas(txtNotas.getText().trim());
             dispositivoDAO.insertar(dispositivo);
 
-            // 5. Toast de confirmación (no bloquea)
+            // 5. Feedback y Navegación
             mostrarToast("✓ Dispositivo registrado correctamente");
-
-            // 6. Navegar a la ficha técnica tras un breve delay
-            //    (el mismo tiempo que tarda el Toast en aparecer, ~400 ms)
             PauseTransition espera = new PauseTransition(Duration.millis(400));
             Dispositivo dispositivoFinal = dispositivo;
             espera.setOnFinished(e -> {
@@ -179,13 +190,12 @@ public class FormularioAltaController implements DispositivoAware {
 
         Label toast = new Label(mensaje);
         toast.setStyle(
-            "-fx-background-color: #313244;" +
-            "-fx-text-fill: #cdd6f4;" +
-            "-fx-padding: 12 24 12 24;" +
-            "-fx-background-radius: 24;" +
-            "-fx-font-size: 13px;" +
-            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 12, 0, 0, 4);"
-        );
+                "-fx-background-color: #313244;" +
+                        "-fx-text-fill: #cdd6f4;" +
+                        "-fx-padding: 12 24 12 24;" +
+                        "-fx-background-radius: 24;" +
+                        "-fx-font-size: 13px;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 12, 0, 0, 4);");
         toast.setOpacity(0);
 
         // Anclamos el Toast en la parte inferior, centrado
@@ -195,13 +205,15 @@ public class FormularioAltaController implements DispositivoAware {
         rootPane.getChildren().add(toast);
 
         // Animación: fade-in → pausa → fade-out → eliminar nodo
-        FadeTransition fadeIn  = new FadeTransition(Duration.millis(300), toast);
-        fadeIn.setFromValue(0); fadeIn.setToValue(1);
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), toast);
+        fadeIn.setFromValue(0);
+        fadeIn.setToValue(1);
 
-        PauseTransition pausa  = new PauseTransition(Duration.seconds(2));
+        PauseTransition pausa = new PauseTransition(Duration.seconds(2));
 
         FadeTransition fadeOut = new FadeTransition(Duration.millis(400), toast);
-        fadeOut.setFromValue(1); fadeOut.setToValue(0);
+        fadeOut.setFromValue(1);
+        fadeOut.setToValue(0);
         fadeOut.setOnFinished(e -> rootPane.getChildren().remove(toast));
 
         new SequentialTransition(fadeIn, pausa, fadeOut).play();
@@ -220,6 +232,5 @@ public class FormularioAltaController implements DispositivoAware {
             txtRutaFoto.setText(selectedFile.getAbsolutePath());
         }
     }
-
 
 }
