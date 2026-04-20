@@ -2,9 +2,14 @@ package com.example.View;
 
 import com.example.Controller.BandaDAO;
 import com.example.Controller.FotoDAO;
+import com.example.Controller.LogcatManager;
 import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
 import com.example.Model.Foto;
+
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
+import javafx.animation.SequentialTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -13,9 +18,11 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Modality;
 
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,12 +61,18 @@ public class FichaTecnicaController implements DispositivoAware {
     private Label lblNotas;
     @FXML
     private FlowPane panelBandas;
+    @FXML
+    private StackPane rootPane;
 
+    private final LogcatManager logcatManager = new LogcatManager();
+    private Dispositivo dispositivoActual;
     private final BandaDAO bandaDAO = new BandaDAO();
     private final FotoDAO fotoDAO = new FotoDAO();
 
     @Override
     public void setDispositivo(Dispositivo dispositivo) {
+        this.dispositivoActual = dispositivo;
+
         var modelo = dispositivo.getModelo();
         var marca = modelo.getMarca();
         var soc = modelo.getSoc();
@@ -82,6 +95,8 @@ public class FichaTecnicaController implements DispositivoAware {
 
         cargarFoto(dispositivo);
         cargarBandas(modelo.getIdModelo());
+
+        iniciarLogcat(dispositivo.getSerialNumber());
     }
 
     private void cargarFoto(Dispositivo dispositivo) {
@@ -173,18 +188,49 @@ public class FichaTecnicaController implements DispositivoAware {
     }
 
     @FXML
-private void abrirLaboratorio() {
-    try {
-        // Asegúrate de que la ruta empiece por / si está en resources
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LaboratorioBateria.fxml"));
-        Parent root = loader.load();
-        
-        Stage stage = new Stage();
-        stage.setTitle("Laboratorio de Rendimiento");
-        stage.setScene(new Scene(root));
-        stage.show();
-    } catch (IOException e) {
-        e.printStackTrace();
+    private void abrirLaboratorio() {
+        try {
+            // Asegúrate de que la ruta empiece por / si está en resources
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LaboratorioBateria.fxml"));
+            Parent root = loader.load();
+
+            Stage stage = new Stage();
+            stage.setTitle("Laboratorio de Rendimiento");
+            stage.setScene(new Scene(root));
+            stage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
-}
+
+    private void iniciarLogcat(String serial) {
+        // Solo reinicia si el dispositivo cambió o no hay captura activa
+        if (logcatManager.isActivo())
+            return;
+
+        try {
+            logcatManager.iniciar(serial);
+        } catch (IOException e) {
+           e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void onAbrirLogcat() throws IOException {
+        FXMLLoader loader = new FXMLLoader(
+                getClass().getResource("/fxml/logcat.fxml"));
+        Scene scene = new Scene(loader.load(), 700, 480);
+
+        // Pasamos el logcatManager y el dispositivo al controlador del filtro
+        LogcatController controller = loader.getController();
+        controller.setLogcatManager(logcatManager, dispositivoActual);
+
+        Stage stage = new Stage();
+        stage.setTitle("Logcat — " + dispositivoActual.getSerialNumber());
+        stage.setScene(scene);
+        stage.initModality(Modality.NONE);
+        stage.setOnCloseRequest(null);
+
+        stage.show();
+    }
 }

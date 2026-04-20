@@ -87,4 +87,27 @@ public class ModeloDAO {
         m.setSoc(socDAO.buscarPorId(rs.getInt("id_soc")));
         return m;
     }
+
+    public Modelo buscarPorNombre(String nombreModelo)throws SQLException {
+        String sql = "SELECT * FROM modelo WHERE LOWER(nombre_modelo) = LOWER(?)";
+
+        try (Connection conn = DatabaseManager.getInstance().getConexion();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, nombreModelo);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                // Suponiendo que tu constructor o setters pueden manejar esto
+                Modelo modelo = new Modelo();
+                modelo.setIdModelo(rs.getInt("id_modelo"));
+                modelo.setNombreModelo(rs.getString("nombre_modelo"));
+                modelo.setRamGb(rs.getInt("ram_gb"));
+                modelo.setAlmacenamientoGb(rs.getInt("almacenamiento_gb"));
+                modelo.setSoVersion(rs.getString("so_version"));
+                // El objeto Marca y SoC se suelen cargar con un JOIN o en otro paso
+                return modelo;
+            }
+        }
+        return null;
+    }
 }

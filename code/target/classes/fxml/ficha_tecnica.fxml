@@ -4,10 +4,12 @@
 <?import javafx.scene.image.*?>
 <?import javafx.geometry.Insets?>
 
-<ScrollPane fitToWidth="true"
-            style="-fx-background-color: transparent; -fx-background: transparent;"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.example.View.FichaTecnicaController">
+<StackPane fx:id="rootPane"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.example.View.FichaTecnicaController">
+
+    <ScrollPane fitToWidth="true"
+                style="-fx-background-color: transparent; -fx-background: transparent;">
 
     <VBox spacing="20" style="-fx-padding: 24;">
 
@@ -23,36 +25,36 @@
                             preserveRatio="true"/>
               </StackPane>
 
-            <VBox spacing="8" HBox.hgrow="ALWAYS" minWidth="0"> 
-    <Label fx:id="lblNombreModelo"
-           text="—"
-           maxWidth="Infinity"
-           minWidth="200"
-           style="-fx-text-fill: #cdd6f4; -fx-font-size: 24px; -fx-font-weight: bold;"/>
-    
-    <Label fx:id="lblMarca"
-           text="—"
-           maxWidth="Infinity"
-           minWidth="220"
-           style="-fx-text-fill: #89b4fa; -fx-font-size: 14px;"/>
+              <VBox spacing="8" HBox.hgrow="ALWAYS" minWidth="0"> 
+       <Label fx:id="lblNombreModelo"
+              text="—"
+              maxWidth="Infinity"
+              minWidth="200"
+              style="-fx-text-fill: #cdd6f4; -fx-font-size: 24px; -fx-font-weight: bold;"/>
+       
+       <Label fx:id="lblMarca"
+              text="—"
+              maxWidth="Infinity"
+              minWidth="220"
+              style="-fx-text-fill: #89b4fa; -fx-font-size: 14px;"/>
 
-    <Label fx:id="lblAndroidId"
-           text="Android ID: —"
-           maxWidth="Infinity" 
-           minWidth="200"
-           styleClass="label-datos"
-           style="-fx-text-overrun: CLIP;"/>
-    <Label fx:id="lblSerial"
-           text="Serial: —"
-           maxWidth="Infinity"
-           styleClass="label-datos"/>
+       <Label fx:id="lblAndroidId"
+              text="Android ID: —"
+              maxWidth="Infinity" 
+              minWidth="200"
+              styleClass="label-datos"
+              style="-fx-text-overrun: CLIP;"/>
+       <Label fx:id="lblSerial"
+              text="Serial: —"
+              maxWidth="Infinity"
+              styleClass="label-datos"/>
 
-    <Label fx:id="lblFechaRegistro"
-           text="Registrado: —"
-           minWidth="200"
-           maxWidth="Infinity"
-           styleClass="label-datos"/>
-</VBox>
+       <Label fx:id="lblFechaRegistro"
+              text="Registrado: —"
+              minWidth="200"
+              maxWidth="Infinity"
+              styleClass="label-datos"/>
+       </VBox>
 
              <!-- Botón scrcpy alineado a la derecha -->
               <VBox alignment="CENTER_RIGHT" spacing="12" prefWidth="240.0">
@@ -60,7 +62,7 @@
                         text="📊  Laboratorio Energía"
                         onAction="#abrirLaboratorio"
                         minWidth="220"
-                        style="-fx-background-color: #f5c2e7; -fx-text-fill: #1e1e2e;
+                        style="-fx-background-color: #cba6f7; -fx-text-fill: #1e1e2e;
                                -fx-font-weight: bold; -fx-font-size: 13px;
                                -fx-background-radius: 8; -fx-padding: 12;
                                -fx-cursor: hand;"/>
@@ -72,7 +74,7 @@
                         style="-fx-background-color: #cba6f7; -fx-text-fill: #1e1e2e;
                                -fx-font-weight: bold; -fx-font-size: 13px;
                                -fx-background-radius: 8; -fx-padding: 10;
-                               -fx-cursor: hand; -fx-opacity: 0.8;"/>
+                               -fx-cursor: hand;"/>
             </VBox>
                             
 
@@ -191,5 +193,17 @@
                    style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
         </VBox>
 
+       <!-- Botón logs -->
+              <HBox alignment="CENTER_RIGHT" spacing="12">
+                     <Button text="📋 Guardar Logs"
+                            onAction="#onAbrirLogcat"
+                            style="-fx-background-color: #000000; -fx-text-fill: #4cdb77;
+                                   -fx-font-weight: bold; -fx-background-radius: 6;
+                                   -fx-padding: 8 16 8 16;
+                                   -fx-cursor: hand;
+                                   -fx-border-width: 1; -fx-border-style: solid; -fx-border-color: #4cdb77; -fx-border-radius: 6;"/>
+              </HBox>
     </VBox>
-</ScrollPane>
+    </ScrollPane>
+
+</StackPane>
