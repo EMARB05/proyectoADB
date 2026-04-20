@@ -44,7 +44,7 @@ public class LaboratorioController {
     // ───────────────────── ADB MODE ─────────────────────
     private enum AdbMode { USB, WIFI }
     private AdbMode adbMode  = AdbMode.USB;
-    private String  deviceIp = "10.55.107.115";
+    private String  deviceIp = "192.168.113.123";
 
     // ───────────────────── INIT ──────────────────────────
     @FXML

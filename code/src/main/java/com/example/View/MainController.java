@@ -2,7 +2,10 @@ package com.example.View;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -25,31 +28,25 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 public class MainController {
-    @FXML
-    private Label lblEstadoAdb;
-    @FXML
-    private ListView<String> listaDispositivos;
-    @FXML
-    private StackPane panelCentral;
-    @FXML
-    private javafx.scene.layout.VBox panelLista;
 
-    // referencia al StackPane raíz de la escena para los Toasts
-    @FXML
-    private StackPane rootPane;
-
+    @FXML private Label lblEstadoAdb;
+    @FXML private ListView<String> listaDispositivos;
+    @FXML private StackPane panelCentral;
+    @FXML private javafx.scene.layout.VBox panelLista;
+    @FXML private StackPane rootPane;
     private final ADBService adbService = new ADBService();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
-
     private ScheduledExecutorService scheduler;
 
+    // Mapa interno: androidId -> serial (serial solo para comandos ADB, nunca se muestra)
+    private final Map<String, String> mapaAndroidIdSerial = new LinkedHashMap<>();
+
+    // ───────────────────── INIT ─────────────────────
     @FXML
     public void initialize() {
         Platform.runLater(() -> {
             Stage stage = (Stage) panelLista.getScene().getWindow();
-            if (stage != null) {
-                setupResponsive(stage);
-            }
+            if (stage != null) setupResponsive(stage);
         });
 
         iniciarDeteccionAutomatica();
@@ -60,155 +57,126 @@ public class MainController {
             boolean expandido = stage.isFullScreen() || stage.isMaximized();
             actualizarMargen(expandido);
         };
-
-        stage.fullScreenProperty().addListener((obs, old, isNowFull) -> checkState.run());
-        stage.maximizedProperty().addListener((obs, old, isNowMax) -> checkState.run());
+        stage.fullScreenProperty().addListener((obs, old, val) -> checkState.run());
+        stage.maximizedProperty().addListener((obs, old, val) -> checkState.run());
         checkState.run();
     }
 
     private void actualizarMargen(boolean esPantallaCompleta) {
         if (esPantallaCompleta) {
-            HBox.setMargin(panelLista, new Insets(0, 0, 0, 0));
+            HBox.setMargin(panelLista, new Insets(0));
             panelLista.setPadding(new Insets(30, 24, 30, 24));
             panelLista.setMinWidth(320);
             panelLista.setMaxWidth(320);
         } else {
-            HBox.setMargin(panelLista, new Insets(0, 0, 0, 0));
+            HBox.setMargin(panelLista, new Insets(0));
             panelLista.setPadding(new Insets(16));
             panelLista.setMinWidth(240);
             panelLista.setMaxWidth(240);
         }
     }
 
+    // ───────────────────── DETECCIÓN AUTOMÁTICA ─────────────────────
     private void iniciarDeteccionAutomatica() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
             try {
-                List<String> seriales = adbService.obtenerDispositivosConectados();
-                Platform.runLater(() -> actualizarLista(seriales));
+                Map<String, String> dispositivos = adbService.obtenerDispositivosConectados();
+                Platform.runLater(() -> actualizarLista(dispositivos));
             } catch (IOException e) {
                 Platform.runLater(() -> lblEstadoAdb.setText("● Error al ejecutar ADB"));
             }
         }, 0, 3, TimeUnit.SECONDS);
     }
 
-  private void actualizarLista(List<String> seriales) {
-    // 1. Actualización del estado visual superior
-    if (seriales.isEmpty()) {
-        lblEstadoAdb.setStyle("-fx-text-fill: #f38ba8; -fx-font-size: 13px;");
-        lblEstadoAdb.setText("● Ningún dispositivo conectado");
-    } else {
-        lblEstadoAdb.setStyle("-fx-text-fill: #a6e3a1; -fx-font-size: 13px;");
-        lblEstadoAdb.setText("● " + seriales.size() + " dispositivo(s) conectado(s)");
-    }
-
-    // 2. Solo actualizamos los items si la lista ha cambiado (evita parpadeos)
-    if (!listaDispositivos.getItems().equals(seriales)) {
-        listaDispositivos.setItems(FXCollections.observableArrayList(seriales));
-    }
-
-    // 3. Celda personalizada para traducir Serial -> Android ID
-    listaDispositivos.setCellFactory(lv -> new ListCell<String>() {
-        @Override
-        protected void updateItem(String serial, boolean empty) {
-            super.updateItem(serial, empty);
-            
-            if (empty || serial == null) {
-                setText(null);
-                setGraphic(null);
-            } else {
-                try {
-                    // Intentamos buscar el dispositivo por serial para obtener su Android ID
-                    Dispositivo d = dispositivoDAO.buscarPorSerial(serial);
-                    
-                    if (d != null && d.getAndroid_id() != null && !d.getAndroid_id().isEmpty()) {
-                        // Si existe en la BD, mostramos el Android ID
-                        setText(d.getAndroid_id());
-                    } else {
-                        // Si es nuevo o no tiene ID en BD, mostramos el serial como respaldo
-                        setText(serial + " (Nuevo)");
-                    }
-                } catch (SQLException e) {
-                    // Si falla la BD, mostramos el serial para no dejar la celda vacía
-                    setText(serial);
-                }
-
-                // Estilo para asegurar que use Poppins y se vea limpio
-                setCursor(javafx.scene.Cursor.HAND);
-                setStyle("-fx-font-family: 'Poppins'; -fx-padding: 8 12;");
-            }
+    // ───────────────────── LISTA ─────────────────────
+    private void actualizarLista(Map<String, String> dispositivos) {
+        if (dispositivos.isEmpty()) {
+            lblEstadoAdb.setStyle("-fx-text-fill: #f38ba8; -fx-font-size: 13px;");
+            lblEstadoAdb.setText("● Ningún dispositivo conectado");
+        } else {
+            lblEstadoAdb.setStyle("-fx-text-fill: #a6e3a1; -fx-font-size: 13px;");
+            lblEstadoAdb.setText("● " + dispositivos.size() + " dispositivo(s) conectado(s)");
         }
-    });
-}
 
+        // Actualiza el mapa interno
+        mapaAndroidIdSerial.clear();
+        mapaAndroidIdSerial.putAll(dispositivos);
+
+        // La lista solo muestra android_ids
+        List<String> androidIds = new ArrayList<>(dispositivos.keySet());
+        if (!listaDispositivos.getItems().equals(androidIds)) {
+            listaDispositivos.setItems(FXCollections.observableArrayList(androidIds));
+        }
+
+        // Celda simple — mostramos directamente el android_id
+        listaDispositivos.setCellFactory(lv -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String androidId, boolean empty) {
+                super.updateItem(androidId, empty);
+                if (empty || androidId == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(androidId);
+                    setCursor(javafx.scene.Cursor.HAND);
+                    setStyle("-fx-font-family: 'Poppins'; -fx-padding: 8 12;");
+                }
+            }
+        });
+    }
+
+    // ───────────────────── REFRESCAR ─────────────────────
     @FXML
     private void onRefrescar() {
         try {
-            List<String> seriales = adbService.obtenerDispositivosConectados();
-            actualizarLista(seriales);
+            Map<String, String> dispositivos = adbService.obtenerDispositivosConectados();
+            actualizarLista(dispositivos);
         } catch (IOException e) {
             lblEstadoAdb.setText("● Error al ejecutar ADB");
             e.printStackTrace();
         }
     }
 
-  @FXML
-private void onSeleccionarDispositivo() {
-    String serial = listaDispositivos.getSelectionModel().getSelectedItem();
-    if (serial == null) return;
+    // ───────────────────── SELECCIONAR ─────────────────────
+    @FXML
+    private void onSeleccionarDispositivo() {
+        String androidId = listaDispositivos.getSelectionModel().getSelectedItem();
+        if (androidId == null) return;
 
-    try {
-        // Busca primero por serial
-        Dispositivo dispositivo = dispositivoDAO.buscarPorSerial(serial);
+        // Recupera el serial real para los comandos ADB
+        String serial = mapaAndroidIdSerial.get(androidId);
+        if (serial == null) return;
 
-        // Si no lo encuentra (puede ser IP en modo WiFi), obtiene props de ADB
-        // y busca por android_id para no abrir el formulario si ya está registrado
-        if (dispositivo == null) {
-            Dispositivo desdeAdb = adbService.obtenerProps(serial);
-            String androidId = desdeAdb.getAndroid_id();
-
-            if (androidId != null && !androidId.isBlank()) {
-                dispositivo = dispositivoDAO.buscarPorAndroidId(androidId);
-            }
+        try {
+            // Busca directamente por android_id — funciona igual por USB y por WiFi
+            Dispositivo dispositivo = dispositivoDAO.buscarPorAndroidId(androidId);
 
             if (dispositivo == null) {
-                // Realmente es nuevo — abre el formulario de alta
+                // Realmente es nuevo — obtiene props de ADB y abre formulario de alta
                 System.out.println("[MAIN] Dispositivo nuevo, abriendo formulario de alta");
+                Dispositivo desdeAdb = adbService.obtenerProps(serial);
                 cargarFormularioAlta(desdeAdb);
             } else {
-                // Ya existe pero conectado por WiFi — va directo a la ficha
-                System.out.println("[MAIN] Dispositivo ya registrado (detectado por android_id), cargando ficha");
-                cargarPanel("/fxml/ficha_tecnica.fxml", dispositivo);
+                // Ya existe — va directo a la ficha técnica
+                System.out.println("[MAIN] Dispositivo encontrado, cargando ficha");
+                cargarPanel("/fxml/vista_diagnostico.fxml", dispositivo);
             }
-        } else {
-            // Encontrado por serial directamente
-            System.out.println("[MAIN] Dispositivo encontrado por serial, cargando ficha");
-            cargarPanel("/fxml/ficha_tecnica.fxml", dispositivo);
+
+        } catch (IOException | SQLException e) {
+            lblEstadoAdb.setText("● Error al cargar dispositivo");
+            e.printStackTrace();
         }
-
-    } catch (IOException | SQLException e) {
-        lblEstadoAdb.setText("● Error al cargar dispositivo");
-        e.printStackTrace();
     }
-}
 
-    /**
-     * Carga el formulario de alta e inyecta:
-     * - el Dispositivo con los datos de ADB
-     * - el rootPane para mostrar el Toast
-     * - el callback que, al guardar, navega automáticamente a la ficha técnica
-     */
+    // ───────────────────── NAVEGACIÓN ─────────────────────
     private void cargarFormularioAlta(Dispositivo desdeAdb) throws IOException {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/formulario_alta.fxml"));
         Node panel = loader.load();
 
         FormularioAltaController controller = loader.getController();
         controller.setDispositivo(desdeAdb);
-
-        // Inyectamos el rootPane para que el Toast flote sobre toda la UI
         controller.setRootPane(rootPane);
-
-        // Al guardar con éxito, navegamos a la ficha técnica del dispositivo guardado
         controller.setOnGuardadoExitoso(dispositivoGuardado -> {
             try {
                 cargarPanel("/fxml/ficha_tecnica.fxml", dispositivoGuardado);
@@ -221,7 +189,6 @@ private void onSeleccionarDispositivo() {
         panelCentral.getChildren().setAll(panel);
     }
 
-    /** Carga cualquier panel genérico (DispositivoAware) en el centro. */
     private void cargarPanel(String fxmlPath, Dispositivo dispositivo) throws IOException {
         FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
         Node panel = loader.load();
@@ -232,8 +199,8 @@ private void onSeleccionarDispositivo() {
         panelCentral.getChildren().setAll(panel);
     }
 
+    // ───────────────────── STOP ─────────────────────
     public void detener() {
-        if (scheduler != null)
-            scheduler.shutdown();
+        if (scheduler != null) scheduler.shutdown();
     }
 }
