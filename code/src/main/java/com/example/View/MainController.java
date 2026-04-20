@@ -178,12 +178,12 @@ private void onSeleccionarDispositivo() {
             } else {
                 // Ya existe pero conectado por WiFi — va directo a la ficha
                 System.out.println("[MAIN] Dispositivo ya registrado (detectado por android_id), cargando ficha");
-                cargarPanel("/fxml/ficha_tecnica.fxml", dispositivo);
+                cargarPanel("/fxml/vista_diagnostico.fxml", dispositivo);
             }
         } else {
             // Encontrado por serial directamente
             System.out.println("[MAIN] Dispositivo encontrado por serial, cargando ficha");
-            cargarPanel("/fxml/ficha_tecnica.fxml", dispositivo);
+            cargarPanel("/fxml/vista_diagnostico.fxml", dispositivo);
         }
 
     } catch (IOException | SQLException e) {
