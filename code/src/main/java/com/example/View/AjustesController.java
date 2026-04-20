@@ -9,6 +9,8 @@ import javafx.stage.Stage;
 
 import java.util.List;
 
+import com.example.Controller.ADBService;
+
 public class AjustesController {
 
     private String serial;
@@ -43,6 +45,7 @@ public class AjustesController {
     private RedImsController redImsController;
     @FXML
     private AdbWifiController adbWifiController;
+    ADBService adbService= new ADBService();
 
     private static final String ESTILO_ACTIVO = "-fx-background-color: #1e1e2e; -fx-text-fill: #89b4fa; " +
             "-fx-font-size: 11px; -fx-font-weight: bold; " +
@@ -95,8 +98,13 @@ public class AjustesController {
 
     // --- Serial: se propaga a todos los subcontroladores ---
 
-    public void setSerial(String serial) {
-        this.serial = serial;
+    public void setSerial(String androidId)  {
+        try {
+             this.serial = adbService.getSerialActivo(androidId) ;
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+       
         ajustesRapidosController.setSerial(serial);
         gestionPantallaController.setSerial(serial);
         redImsController.setSerial(serial);

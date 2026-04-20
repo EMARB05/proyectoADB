@@ -4,14 +4,11 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-
 import com.example.Controller.ADBService;
 import com.example.Model.Dispositivo;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-
 import com.example.Model.PasoPrueba;
-
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -20,15 +17,12 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
-
 
 public class DiagnosticoController implements DispositivoAware {
 
@@ -119,49 +113,48 @@ private void abrirLaboratorio() {
     }
 }
 
-    @FXML
-    private void ejecutarScript() {
-        if (dispositivoActual == null || pasos.isEmpty())
-            return;
-        // Desactivamos el botón para que no pulsen dos veces
-        // btnEjecutar.setDisable(true);
-        new Thread(() -> {
-            ADBService adb = new ADBService(); // O usa una instancia inyectada
+   @FXML
+private void ejecutarScript() {
+    if (dispositivoActual == null || pasos.isEmpty()) return;
 
-            for (PasoPrueba paso : pasos) {
-                // 1. Cambiamos estado a "EJECUTANDO" (En el hilo de UI)
-                javafx.application.Platform.runLater(() -> {
-                    paso.setEstado("EJECUTANDO");
-                    listaPasos.refresh();
-                });
+    new Thread(() -> {
+        ADBService adb = new ADBService();
 
-                // 2. Ejecutamos el comando real (Este hilo se queda esperando aquí)
-                boolean exito = adb.ejecutarPasoSync(dispositivoActual.getSerialNumber(), paso.getComando());
+        // Resuelve el serial activo por android_id — funciona por USB y WiFi
+        String serialActivo;
+        try {
+            serialActivo = adb.getSerialActivo(dispositivoActual.getAndroid_id());
+        } catch (IOException e) {
+            serialActivo = dispositivoActual.getSerialNumber(); // fallback al de la BD
+            System.out.println("[DIAG] No se pudo resolver serial activo, usando BD: " + serialActivo);
+        }
 
-                // 3. Esperamos un segundo para que el usuario vea qué pasa (opcional)
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                }
+        final String serial = serialActivo;
+        System.out.println("[DIAG] Ejecutando script con serial: " + serial);
 
-                // 4. Actualizamos el resultado final
-                javafx.application.Platform.runLater(() -> {
-                    paso.setEstado(exito ? "OK" : "ERROR");
-                    listaPasos.refresh();
-                });
-            }
-
-            Platform.runLater(() -> {
-                btnInforme.setDisable(false); // ¡Ya podemos guardar los resultados!
-                btnEjecutar.setDisable(false);
-                System.out.println("Informe listo para generar.");
+        for (PasoPrueba paso : pasos) {
+            javafx.application.Platform.runLater(() -> {
+                paso.setEstado("EJECUTANDO");
+                listaPasos.refresh();
             });
 
-            // Al finalizar, podrías habilitar el botón de "Generar Informe"
-            System.out.println("Secuencia completada.");
-        }).start();
-    }
+            boolean exito = adb.ejecutarPasoSync(serial, paso.getComando());
 
+            try { Thread.sleep(1000); } catch (InterruptedException e) {}
+
+            javafx.application.Platform.runLater(() -> {
+                paso.setEstado(exito ? "OK" : "ERROR");
+                listaPasos.refresh();
+            });
+        }
+
+        Platform.runLater(() -> {
+            btnInforme.setDisable(false);
+            btnEjecutar.setDisable(false);
+            System.out.println("[DIAG] Secuencia completada.");
+        });
+    }).start();
+}
     // --- SCRIPTS DE RED ---
     @FXML
     private void addWifiOn() {

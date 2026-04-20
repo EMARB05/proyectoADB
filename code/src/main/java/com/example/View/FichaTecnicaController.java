@@ -162,8 +162,8 @@ public class FichaTecnicaController implements DispositivoAware {
 
             // 3. Le pasamos el SERIAL del dispositivo actual
             // Limpiamos el texto del label por si tiene el prefijo "Serial: "
-            String serialLimpio = lblSerial.getText().replace("Serial: ", "").trim();
-            controller.setSerial(serialLimpio);
+            // BIEN — pasa el android_id directamente del objeto dispositivo
+            controller.setSerial(dispositivoActual.getAndroid_id());
 
             // 4. Creamos y configuramos la nueva ventana (Stage)
             Stage stage = new Stage();
@@ -208,7 +208,7 @@ public class FichaTecnicaController implements DispositivoAware {
         try {
             logcatManager.iniciar(serial);
         } catch (IOException e) {
-           e.printStackTrace();
+            e.printStackTrace();
         }
     }
 
