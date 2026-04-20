@@ -1,110 +1,172 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.NumberAxis?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<VBox prefHeight="700.0" prefWidth="900.0" spacing="20.0" 
-      style="-fx-background-color: #1a1a2e;" 
-      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+<VBox prefHeight="700.0" prefWidth="900.0"
+      spacing="20.0"
+      style="-fx-background-color: #1a1a2e;"
+      xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.example.View.LaboratorioController">
-   
-   <children>
 
-      <!-- TÍTULO -->
-      <Label text="ANÁLISIS ENERGÉTICO Y RENDIMIENTO" 
-             style="-fx-text-fill: #a29bfe; -fx-font-size: 24px; -fx-font-weight: bold;" />
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
 
-      <!-- BOTÓN + RESULTADOS -->
-      <!-- BOTÓN + RESULTADOS -->
-<VBox spacing="10">
-   <children>
+    <children>
 
-      <!-- TEST DE CONSUMO -->
-      <Button text="Iniciar Test de Consumo"
-              onAction="#iniciarTestConsumo"
-              style="-fx-background-color: #a29bfe; -fx-text-fill: white;" />
+        <!-- TÍTULO -->
+        <Label text="ANÁLISIS ENERGÉTICO Y RENDIMIENTO"
+               style="-fx-text-fill: #a29bfe; -fx-font-size: 24px; -fx-font-weight: bold;" />
 
-      <!-- 🔥 NUEVA SECCIÓN: LLAMADA -->
-      <HBox spacing="10">
+        <!-- ───────────── CONTROL PANEL ───────────── -->
+        <VBox spacing="10">
 
-         <TextField fx:id="numeroTelefono"
-                    promptText="Número de llamada"
-                    HBox.hgrow="ALWAYS"
-                    style="-fx-background-color: #2c2c3e; -fx-text-fill: white;" />
+            <children>
 
-         <Button text="Iniciar llamada"
-                 onAction="#iniciarLlamada"
-                 style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+                <!-- BOTONES ADB -->
+                <HBox spacing="10">
 
-      </HBox>
+                    <Button text="Conectar ADB WiFi"
+                            onAction="#conectarAdbWifi"
+                            style="-fx-background-color: #00b894; -fx-text-fill: white;" />
 
-      <!-- RESULTADOS -->
-      <Label fx:id="labelReposo" text="Consumo en reposo: -" style="-fx-text-fill: white;" />
-      <Label fx:id="labelLlamada" text="Consumo en llamada: -" style="-fx-text-fill: white;" />
-      <Label fx:id="labelDiferencia" text="Diferencia: -" style="-fx-text-fill: #2ecc71;" />
+                    <Button text="Conectar ADB USB"
+                            onAction="#conectarAdbUsb"
+                            style="-fx-background-color: #0984e3; -fx-text-fill: white;" />
 
-   </children>
-</VBox>
+                </HBox>
 
-      <!-- GRÁFICA BATERÍA -->
-      <VBox style="-fx-background-color: #16213e; -fx-background-radius: 10;" VBox.vgrow="ALWAYS">
-         <padding>
-            <Insets bottom="10" left="10" right="10" top="10" />
-         </padding>
-         <children>
-            <Label text="Nivel de Batería (%) - Carga en Tiempo Real" style="-fx-text-fill: white;" />
-            <LineChart fx:id="batteryChart" createSymbols="false">
-              <xAxis>
-                <NumberAxis label="Tiempo (s)" tickLabelFill="WHITE" />
-              </xAxis>
-              <yAxis>
-                <NumberAxis lowerBound="0" upperBound="100" label="Porcentaje" tickLabelFill="WHITE" />
-              </yAxis>
-            </LineChart>
-         </children>
-      </VBox>
+                <!-- TEST CONSUMO -->
+                <Button text="Iniciar Test de Consumo"
+                        onAction="#iniciarTestConsumo"
+                        style="-fx-background-color: #a29bfe; -fx-text-fill: white;" />
 
-      <!-- CPU + RAM -->
-      <HBox spacing="20.0" VBox.vgrow="ALWAYS">
-         <children>
+                <!-- LLAMADA -->
+                <HBox spacing="10">
+
+                    <TextField fx:id="numeroTelefono"
+                               promptText="Número de llamada"
+                               HBox.hgrow="ALWAYS"
+                               style="-fx-background-color: #2c2c3e; -fx-text-fill: white;" />
+
+                    <Button text="Llamar"
+                            onAction="#iniciarLlamada"
+                            style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+
+                </HBox>
+
+                <!-- RESULTADOS -->
+                <Label fx:id="labelReposo"
+                       text="Consumo en reposo: -"
+                       style="-fx-text-fill: white;" />
+
+                <Label fx:id="labelLlamada"
+                       text="Consumo en llamada: -"
+                       style="-fx-text-fill: white;" />
+
+                <Label fx:id="labelDiferencia"
+                       text="Diferencia: -"
+                       style="-fx-text-fill: #2ecc71;" />
+
+            </children>
+        </VBox>
+
+        <!-- ───────────── BATTERY CHART ───────────── -->
+        <VBox style="-fx-background-color: #16213e; -fx-background-radius: 10;" VBox.vgrow="ALWAYS">
+
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+
+            <children>
+
+                <Label text="Batería en tiempo real"
+                       style="-fx-text-fill: white;" />
+
+                <LineChart fx:id="batteryChart" createSymbols="false">
+
+                    <xAxis>
+                        <NumberAxis label="Tiempo (s)" tickLabelFill="WHITE"/>
+                    </xAxis>
+
+                    <yAxis>
+                        <NumberAxis lowerBound="0"
+                                    upperBound="100"
+                                    label="Batería %"
+                                    tickLabelFill="WHITE"/>
+                    </yAxis>
+
+                </LineChart>
+
+            </children>
+        </VBox>
+
+        <!-- ───────────── CPU + RAM ───────────── -->
+        <HBox spacing="20" VBox.vgrow="ALWAYS">
 
             <!-- CPU -->
-            <VBox HBox.hgrow="ALWAYS" style="-fx-background-color: #16213e; -fx-background-radius: 10;">
-               <padding><Insets bottom="10" left="10" right="10" top="10" /></padding>
-               <children>
-                  <Label text="Uso de CPU (%)" style="-fx-text-fill: white;" />
-                  <LineChart fx:id="cpuChart" createSymbols="false">
-                    <xAxis><NumberAxis tickLabelFill="WHITE" /></xAxis>
-                    <yAxis><NumberAxis upperBound="100" tickLabelFill="WHITE" /></yAxis>
-                  </LineChart>
-               </children>
+            <VBox HBox.hgrow="ALWAYS"
+                  style="-fx-background-color: #16213e; -fx-background-radius: 10;">
+
+                <padding>
+                    <Insets top="10" right="10" bottom="10" left="10"/>
+                </padding>
+
+                <children>
+
+                    <Label text="CPU (%)"
+                           style="-fx-text-fill: white;" />
+
+                    <LineChart fx:id="cpuChart" createSymbols="false">
+
+                        <xAxis>
+                            <NumberAxis tickLabelFill="WHITE"/>
+                        </xAxis>
+
+                        <yAxis>
+                            <NumberAxis upperBound="100" tickLabelFill="WHITE"/>
+                        </yAxis>
+
+                    </LineChart>
+
+                </children>
             </VBox>
 
             <!-- RAM -->
-            <VBox HBox.hgrow="ALWAYS" style="-fx-background-color: #16213e; -fx-background-radius: 10;">
-               <padding><Insets bottom="10" left="10" right="10" top="10" /></padding>
-               <children>
-                  <Label text="Memoria RAM (MB)" style="-fx-text-fill: white;" />
-                  <LineChart fx:id="ramChart" createSymbols="false">
-                    <xAxis><NumberAxis tickLabelFill="WHITE" /></xAxis>
-                    <yAxis><NumberAxis tickLabelFill="WHITE" /></yAxis>
-                  </LineChart>
-               </children>
+            <VBox HBox.hgrow="ALWAYS"
+                  style="-fx-background-color: #16213e; -fx-background-radius: 10;">
+
+                <padding>
+                    <Insets top="10" right="10" bottom="10" left="10"/>
+                </padding>
+
+                <children>
+
+                    <Label text="RAM (MB)"
+                           style="-fx-text-fill: white;" />
+
+                    <LineChart fx:id="ramChart" createSymbols="false">
+
+                        <xAxis>
+                            <NumberAxis tickLabelFill="WHITE"/>
+                        </xAxis>
+
+                        <yAxis>
+                            <NumberAxis tickLabelFill="WHITE"/>
+                        </yAxis>
+
+                    </LineChart>
+
+                </children>
             </VBox>
 
-         </children>
-      </HBox>
+        </HBox>
 
-   </children>
-
-   <padding>
-      <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-   </padding>
+    </children>
 
 </VBox>

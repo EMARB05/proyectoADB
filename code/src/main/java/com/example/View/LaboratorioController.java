@@ -1,7 +1,5 @@
 package com.example.View;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.chart.LineChart;
@@ -9,7 +7,11 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class LaboratorioController {
 
@@ -25,23 +27,28 @@ public class LaboratorioController {
 
     // ───────────────────── SERIES ─────────────────────────
     private final XYChart.Series<Number, Number> batterySeries = new XYChart.Series<>();
-    private final XYChart.Series<Number, Number> cpuSeries = new XYChart.Series<>();
-    private final XYChart.Series<Number, Number> ramSeries = new XYChart.Series<>();
+    private final XYChart.Series<Number, Number> cpuSeries     = new XYChart.Series<>();
+    private final XYChart.Series<Number, Number> ramSeries     = new XYChart.Series<>();
 
     // ─────────────────── EXECUTION CORE ───────────────────
-    private final ScheduledExecutorService scheduler =
+    private final ScheduledExecutorService monitorScheduler =
             Executors.newSingleThreadScheduledExecutor();
-
+    private final ExecutorService taskExecutor =
+            Executors.newCachedThreadPool();
     private ScheduledFuture<?> monitorTask;
 
     // ───────────────────── STATE ─────────────────────────
-    private int time = 0;
+    private int    time    = 0;
     private double lastRam = 0;
+
+    // ───────────────────── ADB MODE ─────────────────────
+    private enum AdbMode { USB, WIFI }
+    private AdbMode adbMode  = AdbMode.USB;
+    private String  deviceIp = "10.55.107.115";
 
     // ───────────────────── INIT ──────────────────────────
     @FXML
     public void initialize() {
-
         batterySeries.setName("Battery");
         cpuSeries.setName("CPU");
         ramSeries.setName("RAM");
@@ -50,29 +57,88 @@ public class LaboratorioController {
         cpuChart.getData().add(cpuSeries);
         ramChart.getData().add(ramSeries);
 
+        batteryChart.setAnimated(false);
+        cpuChart.setAnimated(false);
+        ramChart.setAnimated(false);
+
         startMonitor();
     }
 
+    // ───────────────────── ADB WIFI ─────────────────────
+    @FXML
+    private void conectarAdbWifi() {
+        System.out.println("[ADB] Iniciando conexión WiFi...");
+
+        taskExecutor.execute(() -> {
+            try {
+                System.out.println("[ADB] Activando modo TCP en puerto 5555...");
+                String tcpResult = ejecutarComandoAdb(new String[]{"adb", "tcpip", "5555"});
+                System.out.println("[ADB] tcpip resultado: " + tcpResult);
+                Thread.sleep(2000);
+
+                System.out.println("[ADB] Detectando IP del dispositivo...");
+                detectarIpDispositivo();
+                System.out.println("[ADB] IP detectada: " + deviceIp);
+
+                System.out.println("[ADB] Conectando a " + deviceIp + ":5555 ...");
+                String connectResult = ejecutarComandoAdb(
+                        new String[]{"adb", "connect", deviceIp + ":5555"});
+                System.out.println("[ADB] Resultado conexión: " + connectResult);
+
+                if (connectResult.contains("connected")) {
+                    adbMode = AdbMode.WIFI;
+                    System.out.println("[ADB] ✔ Conexión WiFi establecida correctamente con " + deviceIp);
+                    Platform.runLater(() -> labelDiferencia.setText("ADB WiFi OK — " + deviceIp));
+                } else {
+                    System.out.println("[ADB] ✖ Falló la conexión WiFi. Respuesta: " + connectResult);
+                    Platform.runLater(() -> labelDiferencia.setText("Error WiFi: " + connectResult));
+                }
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.out.println("[ADB] ✖ Conexión interrumpida");
+            } catch (Exception e) {
+                System.out.println("[ADB] ✖ Excepción al conectar por WiFi: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+    }
 
     @FXML
-private void iniciarLlamada() {
+    private void conectarAdbUsb() {
+        System.out.println("[ADB] Volviendo a modo USB...");
 
-    String numero = numeroTelefono.getText();
+        taskExecutor.execute(() -> {
+            String result = ejecutarComandoAdb(
+                    new String[]{"adb", "disconnect", deviceIp + ":5555"});
+            System.out.println("[ADB] Disconnect resultado: " + result);
+            adbMode = AdbMode.USB;
+            System.out.println("[ADB] ✔ Modo USB activado correctamente");
+            Platform.runLater(() -> labelDiferencia.setText("ADB USB activo"));
+        });
+    }
 
-    if (numero == null || numero.isBlank()) return;
+    // ───────────────────── LLAMADA ─────────────────────
+    @FXML
+    private void iniciarLlamada() {
+        String numero = numeroTelefono.getText();
+        if (numero == null || numero.isBlank()) {
+            System.out.println("[LLAMADA] No se introdujo número de teléfono");
+            return;
+        }
+        System.out.println("[LLAMADA] Iniciando llamada a: " + numero);
+        taskExecutor.execute(() ->
+                ejecutarComandoAdbShell("am start -a android.intent.action.CALL -d tel:" + numero));
+    }
 
-    ejecutarComandoAdb("shell am start -a android.intent.action.CALL -d tel:" + numero);
-}
-
-    // ───────────────────── DASHBOARD LOOP ─────────────────
+    // ───────────────────── MONITOR ─────────────────────
     private void startMonitor() {
+        System.out.println("[MONITOR] Iniciando monitorización en tiempo real...");
 
-        monitorTask = scheduler.scheduleAtFixedRate(() -> {
-
+        monitorTask = monitorScheduler.scheduleAtFixedRate(() -> {
             try {
                 double cpu = obtenerUsoCpuReal();
-                int bat = obtenerNivelBateriaReal();
-
+                int    bat = obtenerNivelBateriaReal();
                 time += 5;
 
                 if (time % 10 == 0) {
@@ -81,68 +147,89 @@ private void iniciarLlamada() {
 
                 double ramSnapshot = lastRam;
 
-                Platform.runLater(() -> {
+                System.out.printf("[MONITOR] t=%ds | Batería=%d%% | CPU=%.1f%% | RAM=%.0f MB%n",
+                        time, bat, cpu, ramSnapshot);
 
+                Platform.runLater(() -> {
                     batterySeries.getData().add(new XYChart.Data<>(time, bat));
                     cpuSeries.getData().add(new XYChart.Data<>(time, cpu));
                     ramSeries.getData().add(new XYChart.Data<>(time, ramSnapshot));
-
                     trimSeries();
-
                     if (time == 5) aplicarColores();
                 });
 
             } catch (Exception e) {
+                System.out.println("[MONITOR] Error en ciclo: " + e.getMessage());
                 e.printStackTrace();
             }
-
         }, 0, 5, TimeUnit.SECONDS);
     }
 
-    // ───────────────────── TEST JOB ───────────────────────
+    // ───────────────────── TEST CONSUMO ─────────────────────
     @FXML
     private void iniciarTestConsumo() {
+        System.out.println("[TEST] Iniciando test de consumo energético...");
 
-        scheduler.execute(() -> {
+        String numero = numeroTelefono.getText();
+        if (numero == null || numero.isBlank()) {
+            Platform.runLater(() -> labelDiferencia.setText("Introduce un número primero"));
+            System.out.println("[TEST] No hay número de teléfono, abortando");
+            return;
+        }
 
+        taskExecutor.execute(() -> {
             try {
-                updateUI("Midiendo reposo...", "-", "-");
+                // ── FASE 1: REPOSO (5 minutos) ──────────────────
+                System.out.println("[TEST] Fase 1 — Reposo durante 5 minutos...");
+                updateUI("Reposo: 5 min...", "-", "-");
 
-                ejecutarComandoAdb("shell dumpsys batterystats --reset");
-                ejecutarComandoAdb("shell input keyevent 26"); // pantalla off
+                Thread.sleep(TimeUnit.MINUTES.toMillis(5));
 
-                int batStartIdle = obtenerNivelBateriaReal();
-                sleep(300000);
+                double idleCurrent = leerCorrienteUa();
+                System.out.println("[TEST] Corriente reposo: " + idleCurrent + " µA");
+                updateUI(String.format("Reposo: %.0f µA", idleCurrent), "Iniciando llamada...", "-");
 
-                int batEndIdle = obtenerNivelBateriaReal();
+                // ── FASE 2: LLAMADA (5 minutos) ──────────────────
+                System.out.println("[TEST] Fase 2 — Iniciando llamada a: " + numero);
+                ejecutarComandoAdbShell("am start -a android.intent.action.CALL -d tel:" + numero);
 
-                updateUI("Midiendo en llamada...", "-", "-");
+                // Espera 5 segundos a que la llamada conecte antes de empezar a medir
+                Thread.sleep(5000);
+                System.out.println("[TEST] Llamada activa, midiendo durante 5 minutos...");
+                updateUI(String.format("Reposo: %.0f µA", idleCurrent), "Llamada: 5 min...", "-");
 
-                ejecutarComandoAdb("shell input keyevent 26");
-                ejecutarComandoAdb("shell am start -a android.intent.action.DIAL");
+                Thread.sleep(TimeUnit.MINUTES.toMillis(5));
 
-                int batStartLoad = obtenerNivelBateriaReal();
-                sleep(300000);
+                double callCurrent = leerCorrienteUa();
+                System.out.println("[TEST] Corriente en llamada: " + callCurrent + " µA");
 
-                int batEndLoad = obtenerNivelBateriaReal();
+                // ── CUELGA ───────────────────────────────────────
+                ejecutarComandoAdbShell("input keyevent KEYCODE_ENDCALL");
+                System.out.println("[TEST] Llamada finalizada");
 
-                double idle = batStartIdle - batEndIdle;
-                double load = batStartLoad - batEndLoad;
+                // ── RESULTADO ────────────────────────────────────
+                double diff = callCurrent - idleCurrent;
+                System.out.printf("[TEST] ✔ Reposo=%.0fµA | Llamada=%.0fµA | Δ=%.0fµA%n",
+                        idleCurrent, callCurrent, diff);
 
                 Platform.runLater(() -> {
-                    labelReposo.setText("Reposo: " + idle + "%");
-                    labelLlamada.setText("En llamada: " + load + "%");
-                    labelDiferencia.setText("Δ: " + (load - idle) + "%");
+                    labelReposo.setText(String.format("Reposo:  %.0f µA", idleCurrent));
+                    labelLlamada.setText(String.format("Llamada: %.0f µA", callCurrent));
+                    labelDiferencia.setText(String.format("Δ: %.0f µA", diff));
                 });
 
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.out.println("[TEST] ✖ Test interrumpido");
+                Platform.runLater(() -> labelDiferencia.setText("Test interrumpido"));
             } catch (Exception e) {
-                Platform.runLater(() ->
-                        labelDiferencia.setText("Error: " + e.getMessage()));
+                System.out.println("[TEST] ✖ Error: " + e.getMessage());
+                Platform.runLater(() -> labelDiferencia.setText("Error: " + e.getMessage()));
             }
         });
     }
 
-    // ───────────────────── HELPERS ────────────────────────
+    // ───────────────────── HELPERS UI ─────────────────────
     private void updateUI(String r, String l, String d) {
         Platform.runLater(() -> {
             labelReposo.setText(r);
@@ -159,12 +246,6 @@ private void iniciarLlamada() {
         }
     }
 
-    private void sleep(int sec) {
-        try {
-            Thread.sleep(sec * 1000L);
-        } catch (InterruptedException ignored) {}
-    }
-
     private void aplicarColores() {
         try {
             batterySeries.getNode().lookup(".chart-series-line")
@@ -176,62 +257,109 @@ private void iniciarLlamada() {
         } catch (Exception ignored) {}
     }
 
-    // ───────────────────── ADB ────────────────────────────
-    private String ejecutarComandoAdb(String cmd) {
+    // ───────────────────── ADB CORE ─────────────────────
+    private String ejecutarComandoAdb(String[] args) {
         try {
-            Process p = new ProcessBuilder(("adb " + cmd).split(" "))
-                    .redirectErrorStream(true)
-                    .start();
+            ProcessBuilder pb = new ProcessBuilder(args);
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
 
-            return new String(p.getInputStream().readAllBytes()).trim();
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(p.getInputStream()));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line).append("\n");
+            p.waitFor(10, TimeUnit.SECONDS);
+            return sb.toString().trim();
 
         } catch (Exception e) {
+            System.out.println("[ADB] Error ejecutando comando: " + e.getMessage());
             return "";
         }
     }
 
-    private double obtenerUsoCpuReal() {
+    private String ejecutarComandoAdbShell(String shellCmd) {
+        if (adbMode == AdbMode.WIFI) {
+            return ejecutarComandoAdb(
+                    new String[]{"adb", "-s", deviceIp + ":5555", "shell", shellCmd});
+        } else {
+            return ejecutarComandoAdb(
+                    new String[]{"adb", "shell", shellCmd});
+        }
+    }
+
+    private void detectarIpDispositivo() {
+        String out = ejecutarComandoAdb(new String[]{"adb", "shell", "ip", "route"});
+        System.out.println("[ADB] ip route output: " + out);
+
+        for (String line : out.split("\n")) {
+            if (line.contains("wlan0") && line.contains("src")) {
+                Matcher m = Pattern.compile("src\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)").matcher(line);
+                if (m.find()) {
+                    deviceIp = m.group(1);
+                    System.out.println("[ADB] IP wlan0 detectada: " + deviceIp);
+                    return;
+                }
+            }
+        }
+        System.out.println("[ADB] No se pudo detectar IP wlan0, usando: " + deviceIp);
+    }
+
+    // ───────────────────── LECTURAS DISPOSITIVO ─────────────────────
+    private double leerCorrienteUa() {
+        String out = ejecutarComandoAdbShell("cat /sys/class/power_supply/battery/current_now");
         try {
-            return Math.min(
-                    Double.parseDouble(ejecutarComandoAdb("shell cat /proc/loadavg")
-                            .split(" ")[0]) * 10,
-                    100
-            );
+            double ua = Double.parseDouble(out.trim());
+            return Math.abs(ua);
+        } catch (NumberFormatException e) {
+            System.out.println("[SENSOR] No se pudo leer current_now, valor: " + out);
+            return 0;
+        }
+    }
+
+    private double obtenerUsoCpuReal() {
+        String out = ejecutarComandoAdbShell("cat /proc/loadavg");
+        try {
+            return Math.min(Double.parseDouble(out.split(" ")[0]) * 10, 100);
         } catch (Exception e) {
             return 0;
         }
     }
 
     private int obtenerNivelBateriaReal() {
-        String out = ejecutarComandoAdb("shell dumpsys battery");
+        String out = ejecutarComandoAdbShell("dumpsys battery");
         for (String l : out.split("\n")) {
-            if (l.contains("level")) {
-                return Integer.parseInt(l.split(":")[1].trim());
+            if (l.trim().startsWith("level")) {
+                try {
+                    return Integer.parseInt(l.split(":")[1].trim());
+                } catch (Exception ignored) {}
             }
         }
         return 0;
     }
 
     private double obtenerUsoRamReal() {
-        String out = ejecutarComandoAdb("shell cat /proc/meminfo");
-
+        String out = ejecutarComandoAdbShell("cat /proc/meminfo");
         double total = 0, avail = 0;
 
         for (String l : out.split("\n")) {
-            if (l.startsWith("MemTotal")) {
-                total = Double.parseDouble(l.replaceAll("[^0-9]", ""));
-            }
-            if (l.startsWith("MemAvailable")) {
-                avail = Double.parseDouble(l.replaceAll("[^0-9]", ""));
-            }
+            try {
+                if (l.startsWith("MemTotal"))
+                    total = Double.parseDouble(l.replaceAll("[^0-9]", ""));
+                if (l.startsWith("MemAvailable"))
+                    avail = Double.parseDouble(l.replaceAll("[^0-9]", ""));
+            } catch (Exception ignored) {}
         }
 
-        return (total - avail) / 1024;
+        return (total > 0) ? (total - avail) / 1024.0 : 0;
     }
 
-    // ───────────────────── SHUTDOWN ───────────────────────
+    // ───────────────────── STOP ─────────────────────
     public void stop() {
+        System.out.println("[APP] Deteniendo servicios...");
         if (monitorTask != null) monitorTask.cancel(true);
-        scheduler.shutdownNow();
+        monitorScheduler.shutdownNow();
+        taskExecutor.shutdownNow();
+        System.out.println("[APP] Servicios detenidos correctamente");
     }
 }
