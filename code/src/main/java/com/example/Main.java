@@ -16,7 +16,8 @@ public class Main extends Application {
         FXMLLoader loader = new FXMLLoader(
             getClass().getResource("/fxml/main.fxml")
         );
-        Scene scene = new Scene(loader.load(), 900, 600);
+        Scene scene = new Scene(loader.load());
+        stage.setMaximized(true);
 
         scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
         // stage.setMaximized(true);
