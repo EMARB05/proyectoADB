@@ -1,5 +1,6 @@
 package com.example.View;
 
+import com.example.Controller.ADBService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.chart.LineChart;
@@ -39,10 +40,9 @@ public class LaboratorioController {
     private int    time    = 0;
     private double lastRam = 0;
 
-    // ───────────────────── ADB MODE ─────────────────────
-    private enum AdbMode { USB, WIFI }
-    private AdbMode adbMode  = AdbMode.USB;
-    private String  deviceIp = "192.168.113.123";
+    // ───────────────────── ADB ─────────────────────────
+    private final ADBService adbService = new ADBService();
+    private String serialActivo = null; // se rellena en setSerial()
 
     // ───────────────────── INIT ──────────────────────────
     @FXML
@@ -59,10 +59,28 @@ public class LaboratorioController {
         cpuChart.setAnimated(false);
         ramChart.setAnimated(false);
 
-        startMonitor();
+        // NO arrancamos el monitor aquí — esperamos a tener el serial
     }
 
-    
+    // ───────────────────── SET SERIAL ──────────────────────────
+    // Recibe el android_id y resuelve el serial activo (IP o serial USB)
+    public void setSerial(String androidId) {
+        System.out.println("[LAB] Resolviendo serial para androidId: " + androidId);
+        new Thread(() -> {
+            try {
+                String serial = adbService.getSerialActivo(androidId);
+                this.serialActivo = serial;
+                System.out.println("[LAB] Serial activo resuelto: " + serialActivo);
+                Platform.runLater(this::startMonitor);
+            } catch (Exception e) {
+                // Fallback: usa el android_id directamente
+                this.serialActivo = androidId;
+                System.out.println("[LAB] Fallback serial: " + serialActivo);
+                Platform.runLater(this::startMonitor);
+            }
+        }).start();
+    }
+
     // ───────────────────── LLAMADA ─────────────────────
     @FXML
     private void iniciarLlamada() {
@@ -73,12 +91,16 @@ public class LaboratorioController {
         }
         System.out.println("[LLAMADA] Iniciando llamada a: " + numero);
         taskExecutor.execute(() ->
-                ejecutarComandoAdbShell("am start -a android.intent.action.CALL -d tel:" + numero));
+                ejecutarShell("am start -a android.intent.action.CALL -d tel:" + numero));
     }
 
     // ───────────────────── MONITOR ─────────────────────
     private void startMonitor() {
-        System.out.println("[MONITOR] Iniciando monitorización en tiempo real...");
+        if (serialActivo == null) {
+            System.out.println("[MONITOR] Sin serial, no se puede iniciar");
+            return;
+        }
+        System.out.println("[MONITOR] Iniciando monitorización con serial: " + serialActivo);
 
         monitorTask = monitorScheduler.scheduleAtFixedRate(() -> {
             try {
@@ -103,7 +125,6 @@ public class LaboratorioController {
 
             } catch (Exception e) {
                 System.out.println("[MONITOR] Error en ciclo: " + e.getMessage());
-                e.printStackTrace();
             }
         }, 0, 5, TimeUnit.SECONDS);
     }
@@ -120,21 +141,30 @@ public class LaboratorioController {
             return;
         }
 
+        if (serialActivo == null) {
+            Platform.runLater(() -> labelDiferencia.setText("Sin dispositivo conectado"));
+            System.out.println("[TEST] Sin serial activo, abortando");
+            return;
+        }
+
         taskExecutor.execute(() -> {
             try {
                 // ── FASE 1: REPOSO (5 minutos) ──────────────────
+                System.out.println("[TEST] Fase 1 — Reposo durante 5 minutos...");
                 updateUI("Reposo: 5 min...", "-", "-");
 
                 Thread.sleep(TimeUnit.MINUTES.toMillis(5));
 
                 double idleCurrent = leerCorrienteUa();
+                System.out.println("[TEST] Corriente reposo: " + idleCurrent + " µA");
                 updateUI(String.format("Reposo: %.0f µA", idleCurrent), "Iniciando llamada...", "-");
 
                 // ── FASE 2: LLAMADA (5 minutos) ──────────────────
-                ejecutarComandoAdbShell("am start -a android.intent.action.CALL -d tel:" + numero);
+                System.out.println("[TEST] Fase 2 — Iniciando llamada a: " + numero);
+                ejecutarShell("am start -a android.intent.action.CALL -d tel:" + numero);
 
-                // Espera 5 segundos a que la llamada conecte antes de empezar a medir
-                Thread.sleep(5000);
+                Thread.sleep(5000); // espera a que conecte
+                System.out.println("[TEST] Llamada activa, midiendo durante 5 minutos...");
                 updateUI(String.format("Reposo: %.0f µA", idleCurrent), "Llamada: 5 min...", "-");
 
                 Thread.sleep(TimeUnit.MINUTES.toMillis(5));
@@ -143,7 +173,7 @@ public class LaboratorioController {
                 System.out.println("[TEST] Corriente en llamada: " + callCurrent + " µA");
 
                 // ── CUELGA ───────────────────────────────────────
-                ejecutarComandoAdbShell("input keyevent KEYCODE_ENDCALL");
+                ejecutarShell("input keyevent KEYCODE_ENDCALL");
                 System.out.println("[TEST] Llamada finalizada");
 
                 // ── RESULTADO ────────────────────────────────────
@@ -197,9 +227,10 @@ public class LaboratorioController {
     }
 
     // ───────────────────── ADB CORE ─────────────────────
-    private String ejecutarComandoAdb(String[] args) {
+    private String ejecutarShell(String shellCmd) {
         try {
-            ProcessBuilder pb = new ProcessBuilder(args);
+            ProcessBuilder pb = new ProcessBuilder(
+                    "adb", "-s", serialActivo, "shell", shellCmd);
             pb.redirectErrorStream(true);
             Process p = pb.start();
 
@@ -212,29 +243,16 @@ public class LaboratorioController {
             return sb.toString().trim();
 
         } catch (Exception e) {
-            System.out.println("[ADB] Error ejecutando comando: " + e.getMessage());
+            System.out.println("[ADB] Error: " + e.getMessage());
             return "";
         }
     }
 
-    private String ejecutarComandoAdbShell(String shellCmd) {
-        if (adbMode == AdbMode.WIFI) {
-            return ejecutarComandoAdb(
-                    new String[]{"adb", "-s", deviceIp + ":5555", "shell", shellCmd});
-        } else {
-            return ejecutarComandoAdb(
-                    new String[]{"adb", "shell", shellCmd});
-        }
-    }
-
-   
-
     // ───────────────────── LECTURAS DISPOSITIVO ─────────────────────
     private double leerCorrienteUa() {
-        String out = ejecutarComandoAdbShell("cat /sys/class/power_supply/battery/current_now");
+        String out = ejecutarShell("cat /sys/class/power_supply/battery/current_now");
         try {
-            double ua = Double.parseDouble(out.trim());
-            return Math.abs(ua);
+            return Math.abs(Double.parseDouble(out.trim()));
         } catch (NumberFormatException e) {
             System.out.println("[SENSOR] No se pudo leer current_now, valor: " + out);
             return 0;
@@ -242,7 +260,7 @@ public class LaboratorioController {
     }
 
     private double obtenerUsoCpuReal() {
-        String out = ejecutarComandoAdbShell("cat /proc/loadavg");
+        String out = ejecutarShell("cat /proc/loadavg");
         try {
             return Math.min(Double.parseDouble(out.split(" ")[0]) * 10, 100);
         } catch (Exception e) {
@@ -251,7 +269,7 @@ public class LaboratorioController {
     }
 
     private int obtenerNivelBateriaReal() {
-        String out = ejecutarComandoAdbShell("dumpsys battery");
+        String out = ejecutarShell("dumpsys battery");
         for (String l : out.split("\n")) {
             if (l.trim().startsWith("level")) {
                 try {
@@ -263,9 +281,8 @@ public class LaboratorioController {
     }
 
     private double obtenerUsoRamReal() {
-        String out = ejecutarComandoAdbShell("cat /proc/meminfo");
+        String out = ejecutarShell("cat /proc/meminfo");
         double total = 0, avail = 0;
-
         for (String l : out.split("\n")) {
             try {
                 if (l.startsWith("MemTotal"))
@@ -274,7 +291,6 @@ public class LaboratorioController {
                     avail = Double.parseDouble(l.replaceAll("[^0-9]", ""));
             } catch (Exception ignored) {}
         }
-
         return (total > 0) ? (total - avail) / 1024.0 : 0;
     }
 
