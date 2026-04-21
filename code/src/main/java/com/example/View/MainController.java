@@ -77,6 +77,7 @@ public class MainController {
     }
 
     // ───────────────────── DETECCIÓN AUTOMÁTICA ─────────────────────
+    
     private void iniciarDeteccionAutomatica() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
@@ -139,35 +140,43 @@ public class MainController {
     }
 
     // ───────────────────── SELECCIONAR ─────────────────────
-    @FXML
-    private void onSeleccionarDispositivo() {
-        String androidId = listaDispositivos.getSelectionModel().getSelectedItem();
-        if (androidId == null) return;
+    
+@FXML
+private void onSeleccionarDispositivo() {
+    String androidId = listaDispositivos.getSelectionModel().getSelectedItem();
+    if (androidId == null) return;
+    String serial = mapaAndroidIdSerial.get(androidId);
+    if (serial == null) return;
 
-        // Recupera el serial real para los comandos ADB
-        String serial = mapaAndroidIdSerial.get(androidId);
-        if (serial == null) return;
-
+    new Thread(() -> {
         try {
-            // Busca directamente por android_id — funciona igual por USB y por WiFi
             Dispositivo dispositivo = dispositivoDAO.buscarPorAndroidId(androidId);
-
             if (dispositivo == null) {
-                // Realmente es nuevo — obtiene props de ADB y abre formulario de alta
-                System.out.println("[MAIN] Dispositivo nuevo, abriendo formulario de alta");
                 Dispositivo desdeAdb = adbService.obtenerProps(serial);
-                cargarFormularioAlta(desdeAdb);
+                Platform.runLater(() -> {
+                    try {
+                        cargarFormularioAlta(desdeAdb);
+                    } catch (IOException e) {
+                        lblEstadoAdb.setText("● Error al cargar formulario");
+                        e.printStackTrace();
+                    }
+                });
             } else {
-                // Ya existe — va directo a la ficha técnica
-                System.out.println("[MAIN] Dispositivo encontrado, cargando ficha");
-                cargarPanel("/fxml/vista_diagnostico.fxml", dispositivo);
+                Platform.runLater(() -> {
+                    try {
+                        cargarPanel("/fxml/vista_diagnostico.fxml", dispositivo);
+                    } catch (IOException e) {
+                        lblEstadoAdb.setText("● Error al cargar panel");
+                        e.printStackTrace();
+                    }
+                });
             }
-
         } catch (IOException | SQLException e) {
-            lblEstadoAdb.setText("● Error al cargar dispositivo");
+            Platform.runLater(() -> lblEstadoAdb.setText("● Error al cargar dispositivo"));
             e.printStackTrace();
         }
-    }
+    }).start();
+}
 
     // ───────────────────── NAVEGACIÓN ─────────────────────
     private void cargarFormularioAlta(Dispositivo desdeAdb) throws IOException {
