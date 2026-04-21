@@ -62,60 +62,7 @@ public class LaboratorioController {
         startMonitor();
     }
 
-    /* // ───────────────────── ADB WIFI ─────────────────────
-    @FXML
-    private void conectarAdbWifi() {
-        System.out.println("[ADB] Iniciando conexión WiFi...");
-
-        taskExecutor.execute(() -> {
-            try {
-                System.out.println("[ADB] Activando modo TCP en puerto 5555...");
-                String tcpResult = ejecutarComandoAdb(new String[]{"adb", "tcpip", "5555"});
-                System.out.println("[ADB] tcpip resultado: " + tcpResult);
-                Thread.sleep(2000);
-
-                System.out.println("[ADB] Detectando IP del dispositivo...");
-                detectarIpDispositivo();
-                System.out.println("[ADB] IP detectada: " + deviceIp);
-
-                System.out.println("[ADB] Conectando a " + deviceIp + ":5555 ...");
-                String connectResult = ejecutarComandoAdb(
-                        new String[]{"adb", "connect", deviceIp + ":5555"});
-                System.out.println("[ADB] Resultado conexión: " + connectResult);
-
-                if (connectResult.contains("connected")) {
-                    adbMode = AdbMode.WIFI;
-                    System.out.println("[ADB] ✔ Conexión WiFi establecida correctamente con " + deviceIp);
-                    Platform.runLater(() -> labelDiferencia.setText("ADB WiFi OK — " + deviceIp));
-                } else {
-                    System.out.println("[ADB] ✖ Falló la conexión WiFi. Respuesta: " + connectResult);
-                    Platform.runLater(() -> labelDiferencia.setText("Error WiFi: " + connectResult));
-                }
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.out.println("[ADB] ✖ Conexión interrumpida");
-            } catch (Exception e) {
-                System.out.println("[ADB] ✖ Excepción al conectar por WiFi: " + e.getMessage());
-                e.printStackTrace();
-            }
-        });
-    }
-
-    @FXML
-    private void conectarAdbUsb() {
-        System.out.println("[ADB] Volviendo a modo USB...");
-
-        taskExecutor.execute(() -> {
-            String result = ejecutarComandoAdb(
-                    new String[]{"adb", "disconnect", deviceIp + ":5555"});
-            System.out.println("[ADB] Disconnect resultado: " + result);
-            adbMode = AdbMode.USB;
-            System.out.println("[ADB] ✔ Modo USB activado correctamente");
-            Platform.runLater(() -> labelDiferencia.setText("ADB USB activo"));
-        });
-    } */
-
+    
     // ───────────────────── LLAMADA ─────────────────────
     @FXML
     private void iniciarLlamada() {
