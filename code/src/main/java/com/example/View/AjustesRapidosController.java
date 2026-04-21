@@ -96,24 +96,24 @@ public class AjustesRapidosController {
     }
 
     public void setSerial(String androidId) {
-    // Resuelve el serial activo (IP si está por WiFi, serial si está por USB)
-    new Thread(() -> {
-        try {
-            String serialActivo = adbService.getSerialActivo(androidId);
-            this.serial = serialActivo;
-            System.out.println("[AJUSTES] Serial activo resuelto: " + serial);
-            Platform.runLater(() -> {
-                sincronizarEstadoInicial();
-                adbService.ejecutarAccionHilo(serial, "shell input keyevent KEYCODE_WAKEUP");
-            });
-        } catch (IOException e) {
-            // Fallback: usa lo que llega si falla la resolución
-            this.serial = androidId;
-            System.out.println("[AJUSTES] Fallback serial: " + serial);
-            Platform.runLater(() -> sincronizarEstadoInicial());
-        }
-    }).start();
-}
+        // Resuelve el serial activo (IP si está por WiFi, serial si está por USB)
+        new Thread(() -> {
+            try {
+                String serialActivo = adbService.getSerialActivo(androidId);
+                this.serial = serialActivo;
+                System.out.println("[AJUSTES] Serial activo resuelto: " + serial);
+                Platform.runLater(() -> {
+                    sincronizarEstadoInicial();
+                    adbService.ejecutarAccionHilo(serial, "shell input keyevent KEYCODE_WAKEUP");
+                });
+            } catch (IOException e) {
+                // Fallback: usa lo que llega si falla la resolución
+                this.serial = androidId;
+                System.out.println("[AJUSTES] Fallback serial: " + serial);
+                Platform.runLater(() -> sincronizarEstadoInicial());
+            }
+        }).start();
+    }
 
     private void sincronizarEstadoInicial() {
         // Ejecutar en un hilo separado para no congelar la UI
