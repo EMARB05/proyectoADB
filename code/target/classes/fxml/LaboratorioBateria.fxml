@@ -29,17 +29,7 @@
             <children>
 
                 <!-- BOTONES ADB -->
-                <HBox spacing="10">
-
-                    <Button text="Conectar ADB WiFi"
-                            onAction="#conectarAdbWifi"
-                            style="-fx-background-color: #00b894; -fx-text-fill: white;" />
-
-                    <Button text="Conectar ADB USB"
-                            onAction="#conectarAdbUsb"
-                            style="-fx-background-color: #0984e3; -fx-text-fill: white;" />
-
-                </HBox>
+                
 
                 <!-- TEST CONSUMO -->
                 <Button text="Iniciar Test de Consumo"
