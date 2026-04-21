@@ -10,13 +10,18 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
+import javafx.stage.DirectoryChooser;
 import javafx.util.Duration;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+
+import java.util.prefs.Preferences;
 
 public class LogcatController {
 
@@ -32,11 +37,27 @@ public class LogcatController {
     private CheckBox chkSoloRelevantes;
     @FXML
     private StackPane rootPane;
+    @FXML
+    private Label lblDirectorio;
+
+    // Directorio de destino — por defecto el escritorio
+    private static final String PREF_DIRECTORIO = "logcat_directorio";
+    private final Preferences prefs = Preferences.userNodeForPackage(LogcatController.class);
+    private Path directorioDestino;
 
     private LogcatManager logcatManager;
     private Dispositivo dispositivo;
     private Consumer<String> onGuardado;
     private List<String> lineasCongeladas = new ArrayList<>();
+
+    @FXML
+    public void initialize() {
+        // Carga el directorio guardado, si no hay ninguno usa el escritorio
+        String guardado = prefs.get(PREF_DIRECTORIO,
+                Paths.get(System.getProperty("user.home"), "Desktop").toString());
+        directorioDestino = Paths.get(guardado);
+        lblDirectorio.setText("Destino: " + directorioDestino.toString());
+    }
 
     public void setLogcatManager(LogcatManager manager, Dispositivo dispositivo) {
         this.logcatManager = manager;
@@ -122,7 +143,7 @@ public class LogcatController {
                         .collect(java.util.stream.Collectors.toList());
             }
 
-            Path archivo = logcatManager.guardar(nombreModelo, aGuardar, soloWEF, palabraClave);
+            Path archivo = logcatManager.guardar(nombreModelo, aGuardar, soloWEF, palabraClave, directorioDestino);
 
             // Toast en esta misma ventana en lugar de cerrarla
             mostrarToast("✓ Guardado: " + archivo.getFileName().toString());
@@ -134,6 +155,22 @@ public class LogcatController {
 
         } catch (IOException e) {
             lblEstado.setText("✗ Error al guardar: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void onCambiarDirectorio() {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle("Selecciona el directorio de destino");
+        chooser.setInitialDirectory(directorioDestino.toFile());
+
+        File seleccionado = chooser.showDialog(areaLogs.getScene().getWindow());
+        if (seleccionado != null) {
+            directorioDestino = seleccionado.toPath();
+            lblDirectorio.setText("Destino: " + directorioDestino.toString());
+
+            // Persiste la elección para la próxima vez
+            prefs.put(PREF_DIRECTORIO, directorioDestino.toString());
         }
     }
 
