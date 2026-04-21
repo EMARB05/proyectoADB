@@ -87,6 +87,7 @@
                     <yAxis>
                         <NumberAxis lowerBound="0"
                                     upperBound="100"
+                                    styleClass="lbl-bateria"
                                     label="Batería %"
                                     tickLabelFill="WHITE"/>
                     </yAxis>
