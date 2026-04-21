@@ -26,7 +26,7 @@ public class LogcatManager {
 
     // Inicia la captura de logcat para un dispositivo
     public void iniciar(String serial) throws IOException {
-        System.out.println("SERIAL:"+serial);
+        System.out.println("SERIAL:" + serial);
         if (activo)
             return;
         activo = true;
@@ -131,17 +131,16 @@ public class LogcatManager {
     // return archivo;
     // }
 
-    public Path guardar(String nombreModelo, List<String> lineas,
-            boolean soloRelevantes, String palabraClave) throws IOException {
+    public Path guardar(String nombreModelo, List<String> lineas, boolean soloRelevantes, String palabraClave,
+            Path directorioBase) throws IOException {
         String fecha = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HHmmss"));
 
         String nombreLimpio = nombreModelo.replaceAll("[^a-zA-Z0-9_]", "_");
-        String escritorio = System.getProperty("user.home") + "/Desktop";
-        Path carpeta = Paths.get(escritorio, "logs", nombreLimpio, fecha);
+        Path carpeta = directorioBase.resolve(
+                Paths.get("logs", nombreLimpio, fecha));
         Files.createDirectories(carpeta);
 
-        // Nombre expresivo según filtros aplicados
         StringBuilder nombre = new StringBuilder("logcat");
         if (soloRelevantes)
             nombre.append("_WEF");

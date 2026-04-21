@@ -9,63 +9,74 @@
     <VBox spacing="12"
           style="-fx-background-color: #1e1e2e; -fx-padding: 20;">
 
-    <!-- Estado -->
-    <Label fx:id="lblEstado"
-           text="Iniciando..."
-           style="-fx-text-fill: #a6e3a1; -fx-font-size: 13px;"/>
+        <!-- Estado -->
+        <Label fx:id="lblEstado"
+               text="Iniciando..."
+               style="-fx-text-fill: #a6e3a1; -fx-font-size: 13px;"/>
 
-    <!-- Controles -->
-    <HBox spacing="10" alignment="CENTER_LEFT">
-        <TextField fx:id="txtFiltro"
-                   promptText="Filtrar por palabra clave (RIL, IMS, Error...)"
+        <!-- Controles de filtro -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <TextField fx:id="txtFiltro"
+                       promptText="Filtrar por palabra clave (RIL, IMS, Error...)"
+                       HBox.hgrow="ALWAYS"
+                       style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
+                              -fx-border-color: #313244; -fx-border-radius: 6;
+                              -fx-background-radius: 6; -fx-padding: 8;"/>
+            <Button text="Filtrar"
+                    onAction="#onFiltrar"
+                    style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e;
+                           -fx-font-weight: bold; -fx-background-radius: 6;
+                           -fx-padding: 8 16 8 16;"/>
+            <Button text="⟳ Actualizar"
+                    onAction="#onActualizar"
+                    style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
+                           -fx-font-weight: bold; -fx-background-radius: 6;
+                           -fx-padding: 8 16 8 16;"/>
+        </HBox>
+
+        <!-- Filtro de relevancia -->
+        <HBox spacing="16" alignment="CENTER_LEFT">
+            <CheckBox fx:id="chkSoloRelevantes"
+                      text="Solo warnings y errores"
+                      selected="true"
+                      onAction="#onFiltrar"
+                      style="-fx-text-fill: #cdd6f4;"/>
+            <Label text="(W, E, F — excluye verbose, debug e info)"
+                   style="-fx-text-fill: #6c7086; -fx-font-size: 11px;"/>
+        </HBox>
+
+        <!-- Área de logs -->
+        <TextArea fx:id="areaLogs"
+                  VBox.vgrow="ALWAYS"
+                  editable="false"
+                  wrapText="false"
+                  style="-fx-background-color: #11111b; -fx-text-fill: #09247e;
+                         -fx-font-family: monospace; -fx-font-size: 12px;
+                         -fx-border-color: #313244; -fx-border-radius: 8;
+                         -fx-background-radius: 8;"/>
+
+        <!-- Contador -->
+        <Label fx:id="lblContador"
+               text="0 líneas capturadas"
+               style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+
+        <!-- Barra inferior: directorio + guardar -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label fx:id="lblDirectorio"
+                   text="Destino: Escritorio/logs"
                    HBox.hgrow="ALWAYS"
-                   style="-fx-background-color: #181825; -fx-text-fill: #cdd6f4;
-                          -fx-border-color: #313244; -fx-border-radius: 6;
-                          -fx-background-radius: 6; -fx-padding: 8;"/>
-        <Button text="Filtrar"
-                onAction="#onFiltrar"
-                style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e;
-                       -fx-font-weight: bold; -fx-background-radius: 6;
-                       -fx-padding: 8 16 8 16;"/>
-                       
-       <Button text="⟳ Actualizar"
-        onAction="#onActualizar"
-        style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
-               -fx-font-weight: bold; -fx-background-radius: 6;
-               -fx-padding: 8 16 8 16;"/>
-
-        <Button text="Guardar logs"
-                onAction="#onGuardar"
-                style="-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e;
-                       -fx-font-weight: bold; -fx-background-radius: 6;
-                       -fx-padding: 8 16 8 16;"/>
-    </HBox>
-
-    <!-- Filtro de relevancia -->
-    <HBox spacing="16" alignment="CENTER_LEFT">
-        <CheckBox fx:id="chkSoloRelevantes"
-                  text="Solo warnings y errores"
-                  selected="true"
-                  onAction="#onFiltrar"
-                  style="-fx-text-fill: #cdd6f4;"/>
-        <Label text="(W, E, F — excluye verbose, debug e info)"
-               style="-fx-text-fill: #6c7086; -fx-font-size: 11px;"/>
-    </HBox>
-
-    <!-- Área de logs -->
-    <TextArea fx:id="areaLogs"
-              VBox.vgrow="ALWAYS"
-              editable="false"
-              wrapText="false"
-              style="-fx-background-color: #11111b; -fx-text-fill: #534979;
-                     -fx-font-family: monospace; -fx-font-size: 12px;
-                     -fx-border-color: #313244; -fx-border-radius: 8;
-                     -fx-background-radius: 8;"/>
-
-    <!-- Contador -->
-    <Label fx:id="lblContador"
-           text="0 líneas capturadas"
-           style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+                   style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+            <Button text="📁 Cambiar directorio"
+                    onAction="#onCambiarDirectorio"
+                    style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;
+                           -fx-font-weight: bold; -fx-background-radius: 6;
+                           -fx-padding: 8 16 8 16;"/>
+            <Button text="Guardar logs"
+                    onAction="#onGuardar"
+                    style="-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e;
+                           -fx-font-weight: bold; -fx-background-radius: 6;
+                           -fx-padding: 8 16 8 16;"/>
+        </HBox>
 
     </VBox>
 
