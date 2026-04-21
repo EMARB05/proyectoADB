@@ -10,8 +10,6 @@ import javafx.scene.control.TextField;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.concurrent.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class LaboratorioController {
 
@@ -147,8 +145,6 @@ public class LaboratorioController {
 
                 double ramSnapshot = lastRam;
 
-                System.out.printf("[MONITOR] t=%ds | Batería=%d%% | CPU=%.1f%% | RAM=%.0f MB%n",
-                        time, bat, cpu, ramSnapshot);
 
                 Platform.runLater(() -> {
                     batterySeries.getData().add(new XYChart.Data<>(time, bat));
@@ -180,22 +176,18 @@ public class LaboratorioController {
         taskExecutor.execute(() -> {
             try {
                 // ── FASE 1: REPOSO (5 minutos) ──────────────────
-                System.out.println("[TEST] Fase 1 — Reposo durante 5 minutos...");
                 updateUI("Reposo: 5 min...", "-", "-");
 
                 Thread.sleep(TimeUnit.MINUTES.toMillis(5));
 
                 double idleCurrent = leerCorrienteUa();
-                System.out.println("[TEST] Corriente reposo: " + idleCurrent + " µA");
                 updateUI(String.format("Reposo: %.0f µA", idleCurrent), "Iniciando llamada...", "-");
 
                 // ── FASE 2: LLAMADA (5 minutos) ──────────────────
-                System.out.println("[TEST] Fase 2 — Iniciando llamada a: " + numero);
                 ejecutarComandoAdbShell("am start -a android.intent.action.CALL -d tel:" + numero);
 
                 // Espera 5 segundos a que la llamada conecte antes de empezar a medir
                 Thread.sleep(5000);
-                System.out.println("[TEST] Llamada activa, midiendo durante 5 minutos...");
                 updateUI(String.format("Reposo: %.0f µA", idleCurrent), "Llamada: 5 min...", "-");
 
                 Thread.sleep(TimeUnit.MINUTES.toMillis(5));
