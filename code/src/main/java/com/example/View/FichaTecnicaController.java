@@ -75,16 +75,8 @@ public class FichaTecnicaController implements DispositivoAware {
         lblAndroidId.setText("Android ID: " + dispositivo.getAndroid_id());
 
         new Thread(() -> {
-            Platform.runLater(() -> {
-                cargarFoto(dispositivo);
-            });
-        }).start();
-        new Thread(() -> {
-            Platform.runLater(() -> {
-                cargarBandas(modelo.getIdModelo());
-            });
-        }).start();
-        new Thread(() -> {
+            cargarFoto(dispositivo);
+            cargarBandas(modelo.getIdModelo());
             Platform.runLater(() -> {
                 iniciarLogcat(dispositivo.getAndroid_id());
             });
