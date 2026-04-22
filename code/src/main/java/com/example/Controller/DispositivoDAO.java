@@ -41,8 +41,8 @@ public class DispositivoDAO {
 
     public int insertar(Dispositivo dispositivo) throws SQLException {
         String sql = """
-                INSERT INTO dispositivo (id_modelo, serial_number, android_id, estado, notas)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO dispositivo (id_modelo, serial_number, android_id, notas)
+                VALUES (?, ?, ?, ?)
                 """;
 
         try (Connection conn = DatabaseManager.getInstance().getConexion();
@@ -51,8 +51,7 @@ public class DispositivoDAO {
             ps.setInt(1, dispositivo.getModelo().getIdModelo());
             ps.setString(2, dispositivo.getSerialNumber());
             ps.setString(3, dispositivo.getAndroid_id());
-            ps.setString(4, dispositivo.getEstado());
-            ps.setString(5, dispositivo.getNotas());
+            ps.setString(4, dispositivo.getNotas());
             ps.executeUpdate();
 
             ResultSet keys = ps.getGeneratedKeys();
@@ -65,7 +64,7 @@ public class DispositivoDAO {
     public void actualizar(Dispositivo dispositivo) throws SQLException {
         String sql = """
                 UPDATE dispositivo
-                SET id_modelo = ?, estado = ?, notas = ?
+                SET id_modelo = ?, notas = ?
                 WHERE serial_number = ?
                 """;
 
@@ -73,9 +72,8 @@ public class DispositivoDAO {
                 PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, dispositivo.getModelo().getIdModelo());
-            ps.setString(2, dispositivo.getEstado());
-            ps.setString(3, dispositivo.getNotas());
-            ps.setString(4, dispositivo.getSerialNumber());
+            ps.setString(2, dispositivo.getNotas());
+            ps.setString(3, dispositivo.getSerialNumber());
             ps.executeUpdate();
         }
     }
@@ -85,7 +83,6 @@ public class DispositivoDAO {
         d.setIdDispositivo(rs.getInt("id_dispositivo"));
         d.setSerialNumber(rs.getString("serial_number"));
         d.setAndroid_id(rs.getString("android_id"));
-        d.setEstado(rs.getString("estado"));
         d.setNotas(rs.getString("notas"));
         d.setFechaRegistro(rs.getString("fecha_registro"));
 

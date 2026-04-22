@@ -13,6 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
 import com.example.Model.Marca;
 import com.example.Model.Modelo;
@@ -208,7 +209,7 @@ public class ADBService {
 
     // Devuelve Map<androidId, serial> para mostrar androidId en lista
     // pero conservar el serial para comandos ADB
-    
+
     public Map<String, String> obtenerDispositivosConectados() throws IOException {
         Map<String, String> dispositivos = new LinkedHashMap<>();
         List<String> salida = ejecutarADB("adb", "devices");
@@ -227,7 +228,6 @@ public class ADBService {
                     String androidId = getSecureSetting(serial, "android_id");
                     String clave = (androidId == null || androidId.isBlank()) ? serial : androidId;
                     dispositivos.put(clave, serial);
-                    System.out.println("[ADB] Dispositivo detectado — androidId: " + clave + " | serial: " + serial);
                 } catch (IOException e) {
                     // Si falla la lectura del android_id usamos el serial como fallback
                     dispositivos.put(serial, serial);
@@ -266,6 +266,7 @@ public class ADBService {
         String android_id = getSecureSetting(serial, "android_id");
 
         return new Dispositivo(modelo, serial, android_id);
+
     }
 
     private double obtenerRamTotalGb(String serial) throws IOException {
@@ -306,6 +307,69 @@ public class ADBService {
             }
         }
         return 0;
+    }
+
+    public List<Banda> obtenerBandas(String serial) throws IOException {
+        List<Banda> bandasEncontradas = new ArrayList<>();
+        List<String> lineas = ejecutarADB("adb", "-s", serial, "shell", "dumpsys telephony.registry");
+        String dumpCompleto = String.join(" ", lineas);
+
+        Pattern bloquePattern = Pattern.compile("CellIdentity(Lte|Nr):\\s*\\{(.*?)\\}");
+        Matcher matcherBloque = bloquePattern.matcher(dumpCompleto);
+
+        while (matcherBloque.find()) {
+            String techType = matcherBloque.group(1).toUpperCase();
+            String contenido = matcherBloque.group(2);
+
+            Matcher m = Pattern.compile("mBands=\\[([\\d,\\s]+)\\]").matcher(contenido);
+            if (m.find()) {
+                for (String num : m.group(1).split(",")) {
+                    String numBanda = num.trim();
+                    // Ignorar valores nulos de Android (Integer.MAX_VALUE)
+                    if (numBanda.isEmpty() || numBanda.equals("2147483647"))
+                        continue;
+
+                    String prefijo = techType.equals("NR") ? "n" : "B";
+                    String nombreBanda = prefijo + numBanda;
+
+                    if (bandasEncontradas.stream().noneMatch(b -> b.getNumeroBanda().equals(nombreBanda))) {
+                        Banda banda = new Banda();
+                        banda.setTipo(techType);
+                        banda.setNumeroBanda(nombreBanda);
+                        banda.setTecnologia(techType.equals("NR") ? "VoNR" : "VoLTE");
+
+                        // Mapeo rápido de frecuencias
+                        switch (numBanda) {
+                            case "1":
+                                banda.setFrecuenciaMhz("2100");
+                                break;
+                            case "3":
+                                banda.setFrecuenciaMhz("1800");
+                                break;
+                            case "7":
+                                banda.setFrecuenciaMhz("2600");
+                                break;
+                            case "8":
+                                banda.setFrecuenciaMhz("900");
+                                break;
+                            case "20":
+                                banda.setFrecuenciaMhz("800");
+                                break;
+                            case "28":
+                                banda.setFrecuenciaMhz("700");
+                                break;
+                            case "78":
+                                banda.setFrecuenciaMhz("3500");
+                                break;
+                            default:
+                                banda.setFrecuenciaMhz("N/A");
+                        }
+                        bandasEncontradas.add(banda);
+                    }
+                }
+            }
+        }
+        return bandasEncontradas;
     }
 
     public boolean isModoAvionActivo(String serial) throws IOException {

@@ -7,10 +7,10 @@ public class Modelo {
     private Marca marca; // Objeto completo, no solo el ID
     private Soc soc;
     private String nombreModelo;
-    private int ramGb;
-    private int almacenamientoGb;
+    private double ramGb;
+    private double almacenamientoGb;
     private String soVersion;
-    private String pantallaPulgadas;
+    private String ResolucionPantalla;
     private String camaraMp;
     private List<Banda> bandas; // Relación muchos a muchos
     private List<Foto> fotos;
@@ -55,19 +55,19 @@ public class Modelo {
         this.nombreModelo = n;
     }
 
-    public int getRamGb() {
+    public double getRamGb() {
         return ramGb;
     }
 
-    public void setRamGb(int r) {
+    public void setRamGb(double r) {
         this.ramGb = r;
     }
 
-    public int getAlmacenamientoGb() {
+    public double getAlmacenamientoGb() {
         return almacenamientoGb;
     }
 
-    public void setAlmacenamientoGb(int a) {
+    public void setAlmacenamientoGb(double a) {
         this.almacenamientoGb = a;
     }
 
@@ -79,12 +79,12 @@ public class Modelo {
         this.soVersion = s;
     }
 
-    public String getPantallaPulgadas() {
-        return pantallaPulgadas;
+    public String getResolucionPantalla() {
+        return ResolucionPantalla;
     }
 
-    public void setPantallaPulgadas(String p) {
-        this.pantallaPulgadas = p;
+    public void setResolucionPantalla(String p) {
+        this.ResolucionPantalla = p;
     }
 
     public String getCamaraMp() {
@@ -113,6 +113,7 @@ public class Modelo {
 
     @Override
     public String toString() {
-        return marca.getNombre() + " " + nombreModelo;
+        String nombreMarca = (marca != null) ? marca.getNombre() : "Sin marca";
+        return nombreMarca + " " + nombreModelo;
     }
 }

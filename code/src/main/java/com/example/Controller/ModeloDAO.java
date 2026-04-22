@@ -19,7 +19,7 @@ public class ModeloDAO {
         String sql = """
                 INSERT INTO modelo
                     (id_marca, id_soc, nombre_modelo, ram_gb, almacenamiento_gb,
-                     so_version, pantalla_pulgadas, camara_mp)
+                     so_version, resolucion_pantalla, camara_mp)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
@@ -29,10 +29,10 @@ public class ModeloDAO {
             ps.setInt(1, modelo.getMarca().getIdMarca());
             ps.setInt(2, modelo.getSoc() != null ? modelo.getSoc().getIdSoc() : 0);
             ps.setString(3, modelo.getNombreModelo());
-            ps.setInt(4, modelo.getRamGb());
-            ps.setInt(5, modelo.getAlmacenamientoGb());
+            ps.setDouble(4, modelo.getRamGb());
+            ps.setDouble(5, modelo.getAlmacenamientoGb());
             ps.setString(6, modelo.getSoVersion());
-            ps.setString(7, modelo.getPantallaPulgadas());
+            ps.setString(7, modelo.getResolucionPantalla());
             ps.setString(8, modelo.getCamaraMp());
             ps.executeUpdate();
 
@@ -79,7 +79,7 @@ public class ModeloDAO {
         m.setRamGb(rs.getInt("ram_gb"));
         m.setAlmacenamientoGb(rs.getInt("almacenamiento_gb"));
         m.setSoVersion(rs.getString("so_version"));
-        m.setPantallaPulgadas(rs.getString("pantalla_pulgadas"));
+        m.setResolucionPantalla(rs.getString("resolucion_pantalla"));
         m.setCamaraMp(rs.getString("camara_mp"));
 
         // Resolvemos las FK a objetos completos
