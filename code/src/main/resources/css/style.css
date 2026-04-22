@@ -48,6 +48,7 @@
     -fx-transition: 0.3s;
 }
 
+
 .btn-network:hover {
     -fx-background-color: rgba(166, 227, 161, 0.1); /* Fondo muy sutil */
     -fx-border-color: #a6e3a1; /* Borde verde brillante */

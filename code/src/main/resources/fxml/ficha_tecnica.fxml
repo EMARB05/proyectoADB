@@ -67,7 +67,7 @@
                                -fx-cursor: hand;">
                              <graphic>
                         <HBox alignment="CENTER" spacing="8">
-                            <ImageView fitHeight="30" fitWidth="30" preserveRatio="true">
+                            <ImageView fitHeight="15" fitWidth="15" preserveRatio="true" styleClass="img-btnficha">
                                 <image>
                                     <Image url="@../img/energia.png"/>
                                 </image>
@@ -87,7 +87,7 @@
                                -fx-cursor: hand;">
                           <graphic>
                                <HBox alignment="CENTER" spacing="8">
-                            <ImageView fitHeight="30" fitWidth="30" preserveRatio="true">
+                            <ImageView fitHeight="15" fitWidth="15" preserveRatio="true" styleClass="img-btnficha">
                                 <image>
                                     <Image url="@../img/ajustes.png"/>
                                 </image>
