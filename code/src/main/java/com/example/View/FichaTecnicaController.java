@@ -8,6 +8,7 @@ import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
 import com.example.Model.Foto;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -50,33 +51,71 @@ public class FichaTecnicaController implements DispositivoAware {
     private final FotoDAO fotoDAO = new FotoDAO();
     private final ADBService adb = new ADBService();
 
-    @Override
-    public void setDispositivo(Dispositivo dispositivo) {
-        this.dispositivoActual = dispositivo;
+   @Override
+public void setDispositivo(Dispositivo dispositivo) {
+    this.dispositivoActual = dispositivo;
 
-        var modelo = dispositivo.getModelo();
-        var marca = modelo.getMarca();
-        var soc = modelo.getSoc();
+    var modelo = dispositivo.getModelo();
+    var marca = modelo.getMarca();
+    var soc = modelo.getSoc();
 
-        lblNombreModelo.setText(modelo.getNombreModelo());
-        lblMarca.setText(marca != null ? marca.getNombre() : "—");
-        lblSerial.setText("Serial: " + dispositivo.getSerialNumber());
-        lblFechaRegistro.setText("Registrado: " +
-                (dispositivo.getFechaRegistro() != null ? dispositivo.getFechaRegistro() : "—"));
-        lblSoc.setText(soc != null ? soc.getModeloSoc() : "—");
-        lblSocFabricante.setText(soc != null ? soc.getFabricante() : "—");
-        lblRam.setText(modelo.getRamGb() > 0 ? modelo.getRamGb() + " GB" : "—");
-        lblAlmacenamiento.setText(modelo.getAlmacenamientoGb() > 0 ? modelo.getAlmacenamientoGb() + " GB" : "—");
-        lblAndroid.setText(modelo.getSoVersion() != null ? modelo.getSoVersion() : "—");
-        lblPantalla.setText(modelo.getResolucionPantalla() != null ? modelo.getResolucionPantalla() + "\"" : "—");
-        lblCamara.setText(modelo.getCamaraMp() != null ? modelo.getCamaraMp() + " MP" : "—");
-        lblNotas.setText(dispositivo.getNotas() != null ? dispositivo.getNotas() : "—");
-        lblAndroidId.setText("Android ID: " + dispositivo.getAndroid_id());
+    // 1. CARGA INSTANTÁNEA (Datos que ya vienen en el objeto)
+    lblNombreModelo.setText(modelo.getNombreModelo());
+    lblMarca.setText(marca != null ? marca.getNombre() : "—");
+    lblSerial.setText("Serial: " + dispositivo.getSerialNumber());
+    lblFechaRegistro.setText("Registrado: " + (dispositivo.getFechaRegistro() != null ? dispositivo.getFechaRegistro() : "—"));
+    lblSoc.setText(soc != null ? soc.getModeloSoc() : "—");
+    lblSocFabricante.setText(soc != null ? soc.getFabricante() : "—");
+    lblRam.setText(modelo.getRamGb() > 0 ? modelo.getRamGb() + " GB" : "—");
+    lblAlmacenamiento.setText(modelo.getAlmacenamientoGb() > 0 ? modelo.getAlmacenamientoGb() + " GB" : "—");
+    lblAndroid.setText(modelo.getSoVersion() != null ? modelo.getSoVersion() : "—");
+    lblPantalla.setText(modelo.getResolucionPantalla() != null ? modelo.getResolucionPantalla() + "\"" : "—");
+    lblCamara.setText(modelo.getCamaraMp() != null ? modelo.getCamaraMp() + " MP" : "—");
+    lblNotas.setText(dispositivo.getNotas() != null ? dispositivo.getNotas() : "—");
+    lblAndroidId.setText("Android ID: " + dispositivo.getAndroid_id());
 
-        cargarFoto(dispositivo);
-        cargarBandas(modelo.getIdModelo());
-        iniciarLogcat(dispositivo.getAndroid_id());
-    }
+    // Limpiar paneles antes de la carga asíncrona
+    panelBandas.getChildren().clear();
+    imgDispositivo.setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg")));
+
+    // 2. CARGA ASÍNCRONA (En segundo plano)
+    Thread loaderThread = new Thread(() -> {
+        try {
+            // Cargar Foto
+            List<Foto> fotos = fotoDAO.obtenerPorModelo(modelo.getIdModelo());
+            if (fotos != null && !fotos.isEmpty()) {
+                File file = new File(fotos.get(0).getUrlExterna());
+                if (file.exists()) {
+                    Image img = new Image(file.toURI().toString());
+                    Platform.runLater(() -> imgDispositivo.setImage(img));
+                }
+            }
+
+            // Cargar Bandas
+            List<Banda> bandas = bandaDAO.obtenerPorModelo(modelo.getIdModelo());
+            Platform.runLater(() -> {
+                for (Banda banda : bandas) {
+                    Label chip = new Label(banda.getTipo() + " " + banda.getNumeroBanda());
+                    chip.setStyle("-fx-background-color: #313244; -fx-text-fill: #89b4fa; -fx-padding: 4 10; -fx-background-radius: 20;");
+                    panelBandas.getChildren().add(chip);
+                }
+                if (bandas.isEmpty()) {
+                    panelBandas.getChildren().add(new Label("Sin bandas registradas"));
+                }
+            });
+
+            // Iniciar ADB/Logcat (Lo más lento)
+            String serialActivo = adb.getSerialActivo(dispositivo.getAndroid_id());
+            logcatManager.iniciar(serialActivo);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    });
+    
+    loaderThread.setDaemon(true); // Para que el hilo muera si cierras la app
+    loaderThread.start();
+}
 
     // ───────────────────── FOTO ─────────────────────
     private void cargarFoto(Dispositivo dispositivo) {
