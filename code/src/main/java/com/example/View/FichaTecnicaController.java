@@ -74,48 +74,22 @@ public void setDispositivo(Dispositivo dispositivo) {
     lblNotas.setText(dispositivo.getNotas() != null ? dispositivo.getNotas() : "—");
     lblAndroidId.setText("Android ID: " + dispositivo.getAndroid_id());
 
-    // Limpiar paneles antes de la carga asíncrona
-    panelBandas.getChildren().clear();
-    imgDispositivo.setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg")));
-
-    // 2. CARGA ASÍNCRONA (En segundo plano)
-    Thread loaderThread = new Thread(() -> {
-        try {
-            // Cargar Foto
-            List<Foto> fotos = fotoDAO.obtenerPorModelo(modelo.getIdModelo());
-            if (fotos != null && !fotos.isEmpty()) {
-                File file = new File(fotos.get(0).getUrlExterna());
-                if (file.exists()) {
-                    Image img = new Image(file.toURI().toString());
-                    Platform.runLater(() -> imgDispositivo.setImage(img));
-                }
-            }
-
-            // Cargar Bandas
-            List<Banda> bandas = bandaDAO.obtenerPorModelo(modelo.getIdModelo());
+        new Thread(() -> {
             Platform.runLater(() -> {
-                for (Banda banda : bandas) {
-                    Label chip = new Label(banda.getTipo() + " " + banda.getNumeroBanda());
-                    chip.setStyle("-fx-background-color: #313244; -fx-text-fill: #89b4fa; -fx-padding: 4 10; -fx-background-radius: 20;");
-                    panelBandas.getChildren().add(chip);
-                }
-                if (bandas.isEmpty()) {
-                    panelBandas.getChildren().add(new Label("Sin bandas registradas"));
-                }
+                cargarFoto(dispositivo);
             });
-
-            // Iniciar ADB/Logcat (Lo más lento)
-            String serialActivo = adb.getSerialActivo(dispositivo.getAndroid_id());
-            logcatManager.iniciar(serialActivo);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    });
-    
-    loaderThread.setDaemon(true); // Para que el hilo muera si cierras la app
-    loaderThread.start();
-}
+        }).start();
+        new Thread(() -> {
+            Platform.runLater(() -> {
+                cargarBandas(modelo.getIdModelo());
+            });
+        }).start();
+        new Thread(() -> {
+            Platform.runLater(() -> {
+                iniciarLogcat(dispositivo.getAndroid_id());
+            });
+        }).start();
+    }
 
     // ───────────────────── FOTO ─────────────────────
     private void cargarFoto(Dispositivo dispositivo) {
