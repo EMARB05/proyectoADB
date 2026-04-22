@@ -8,6 +8,7 @@ import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
 import com.example.Model.Foto;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -73,9 +74,21 @@ public class FichaTecnicaController implements DispositivoAware {
         lblNotas.setText(dispositivo.getNotas() != null ? dispositivo.getNotas() : "—");
         lblAndroidId.setText("Android ID: " + dispositivo.getAndroid_id());
 
-        cargarFoto(dispositivo);
-        cargarBandas(modelo.getIdModelo());
-        iniciarLogcat(dispositivo.getAndroid_id());
+        new Thread(() -> {
+            Platform.runLater(() -> {
+                cargarFoto(dispositivo);
+            });
+        }).start();
+        new Thread(() -> {
+            Platform.runLater(() -> {
+                cargarBandas(modelo.getIdModelo());
+            });
+        }).start();
+        new Thread(() -> {
+            Platform.runLater(() -> {
+                iniciarLogcat(dispositivo.getAndroid_id());
+            });
+        }).start();
     }
 
     // ───────────────────── FOTO ─────────────────────
