@@ -25,13 +25,11 @@ public class LogcatManager {
     }
 
     // Inicia la captura de logcat para un dispositivo
+
     public void iniciar(String serial) throws IOException {
-        System.out.println("SERIAL:" + serial);
         if (activo)
             return;
         activo = true;
-        // No limpiamos la lista aquí para no perder lo capturado antes de un
-        // micro-corte
 
         hiloLectura = new Thread(() -> {
             while (activo) { // Bucle de persistencia para WiFi
@@ -57,7 +55,7 @@ public class LogcatManager {
                     // Error de red o interrupción, el bucle while intentará reconectar
                 }
 
-                // Espera breve antes de reintentar para no saturar la CPU
+                // Espera breve antes de reintentar
                 if (activo) {
                     try {
                         Thread.sleep(2000);

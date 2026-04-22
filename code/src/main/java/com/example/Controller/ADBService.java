@@ -25,6 +25,7 @@ public class ADBService {
      * MÉTODO MOTOR (Privado): Es el único que realmente toca el ProcessBuilder.
      * Recibe un array de strings y devuelve la salida del comando.
      */
+
     private List<String> ejecutarADB(String... comando) throws IOException {
         List<String> resultado = new ArrayList<>();
         ProcessBuilder pb = new ProcessBuilder(comando);
@@ -41,18 +42,17 @@ public class ADBService {
         return resultado;
     }
 
-
     // En ADBService — devuelve el serial activo para un android_id dado
-public String getSerialActivo(String androidId) throws IOException {
-    Map<String, String> conectados = obtenerDispositivosConectados();
-    String serial = conectados.get(androidId);
-    if (serial != null) {
-        System.out.println("[ADB] Serial activo para " + androidId + ": " + serial);
-        return serial;
+    public String getSerialActivo(String androidId) throws IOException {
+        Map<String, String> conectados = obtenerDispositivosConectados();
+        String serial = conectados.get(androidId);
+        if (serial != null) {
+            System.out.println("[ADB] Serial activo para " + androidId + ": " + serial);
+            return serial;
+        }
+        System.out.println("[ADB] No se encontró serial activo para androidId: " + androidId);
+        return androidId; // fallback
     }
-    System.out.println("[ADB] No se encontró serial activo para androidId: " + androidId);
-    return androidId; // fallback
-}
 
     /**
      * MÉTODO PARA EL CONTROLADOR (Público): No bloquea la UI (usa hilos).
@@ -207,35 +207,36 @@ public String getSerialActivo(String androidId) throws IOException {
     // --- MÉTODOS DE OBTENCIÓN DE DATOS (Sincrónicos) ---
 
     // Devuelve Map<androidId, serial> para mostrar androidId en lista
-// pero conservar el serial para comandos ADB
-public Map<String, String> obtenerDispositivosConectados() throws IOException {
-    Map<String, String> dispositivos = new LinkedHashMap<>();
-    List<String> salida = ejecutarADB("adb", "devices");
+    // pero conservar el serial para comandos ADB
+    
+    public Map<String, String> obtenerDispositivosConectados() throws IOException {
+        Map<String, String> dispositivos = new LinkedHashMap<>();
+        List<String> salida = ejecutarADB("adb", "devices");
 
-    for (String linea : salida) {
-        if (linea.isEmpty() || linea.startsWith("List of devices"))
-            continue;
-        if (linea.contains("unauthorized") || linea.contains("offline"))
-            continue;
-        if (linea.startsWith("adb-"))
-            continue;
+        for (String linea : salida) {
+            if (linea.isEmpty() || linea.startsWith("List of devices"))
+                continue;
+            if (linea.contains("unauthorized") || linea.contains("offline"))
+                continue;
+            if (linea.startsWith("adb-"))
+                continue;
 
-        if (linea.contains("\tdevice")) {
-            String serial = linea.split("\t")[0].trim();
-            try {
-                String androidId = getSecureSetting(serial, "android_id");
-                String clave = (androidId == null || androidId.isBlank()) ? serial : androidId;
-                dispositivos.put(clave, serial);
-                System.out.println("[ADB] Dispositivo detectado — androidId: " + clave + " | serial: " + serial);
-            } catch (IOException e) {
-                // Si falla la lectura del android_id usamos el serial como fallback
-                dispositivos.put(serial, serial);
-                System.out.println("[ADB] No se pudo leer android_id de " + serial + ", usando serial");
+            if (linea.contains("\tdevice")) {
+                String serial = linea.split("\t")[0].trim();
+                try {
+                    String androidId = getSecureSetting(serial, "android_id");
+                    String clave = (androidId == null || androidId.isBlank()) ? serial : androidId;
+                    dispositivos.put(clave, serial);
+                    System.out.println("[ADB] Dispositivo detectado — androidId: " + clave + " | serial: " + serial);
+                } catch (IOException e) {
+                    // Si falla la lectura del android_id usamos el serial como fallback
+                    dispositivos.put(serial, serial);
+                    System.out.println("[ADB] No se pudo leer android_id de " + serial + ", usando serial");
+                }
             }
         }
+        return dispositivos;
     }
-    return dispositivos;
-}
 
     public String getProp(String serial, String propiedad) throws IOException {
         List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "getprop", propiedad);

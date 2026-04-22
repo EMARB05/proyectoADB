@@ -25,6 +25,7 @@ public class Main extends Application {
         stage.setScene(scene);
         
         // Parar el scheduler al cerrar
+        
         MainController controller = loader.getController();
         stage.setOnCloseRequest(e -> controller.detener());
 
