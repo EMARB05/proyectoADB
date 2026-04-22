@@ -22,6 +22,10 @@
     -fx-font-weight: bold;
 }
 
+.lbl-bateria{
+    -fx-text-fill: #fefeff;
+}
+
 .card-container {
     -fx-background-color: #313244; /* Fondo oscuro de la tarjeta */
     -fx-padding: 15;
@@ -32,7 +36,9 @@
 }
 
 
-
+.btn-label{
+    -fx-text-fill: #1e1e2e
+}
 .btn-modern {
     -fx-background-color: #313244;
     -fx-background-radius: 10;
@@ -41,6 +47,7 @@
     -fx-cursor: hand;
     -fx-transition: 0.3s;
 }
+
 
 .btn-network:hover {
     -fx-background-color: rgba(166, 227, 161, 0.1); /* Fondo muy sutil */
