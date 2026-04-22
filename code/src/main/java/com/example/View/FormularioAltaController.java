@@ -1,10 +1,12 @@
 package com.example.View;
 
+import com.example.Controller.BandaDAO;
 import com.example.Controller.DispositivoDAO;
 import com.example.Controller.FotoDAO;
 import com.example.Controller.MarcaDAO;
 import com.example.Controller.ModeloDAO;
 import com.example.Controller.SocDAO;
+import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
 import com.example.Model.Foto;
 import com.example.Model.Marca;
@@ -20,6 +22,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.stage.FileChooser;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import java.io.File;
 import java.sql.SQLException;
@@ -30,23 +33,43 @@ public class FormularioAltaController implements DispositivoAware {
     @FXML
     private Label lblSerial;
     @FXML
+    private Label lblInfo;
+    @FXML
+    private VBox vboxMarca;
+    @FXML
     private TextField txtMarca;
+    @FXML
+    private VBox vboxModelo;
     @FXML
     private TextField txtModelo;
     @FXML
+    private VBox vboxSoc;
+    @FXML
     private TextField txtSoc;
+    @FXML
+    private VBox vboxRAM;
     @FXML
     private TextField txtRam;
     @FXML
+    private VBox vboxAlmacenamiento;
+    @FXML
     private TextField txtAlmacenamiento;
+    @FXML
+    private VBox vboxAndroid;
     @FXML
     private TextField txtAndroid;
     @FXML
+    private VBox vboxPantalla;
+    @FXML
     private TextField txtPantalla;
+    @FXML
+    private VBox vboxCamara;
     @FXML
     private TextField txtCamara;
     @FXML
     private TextArea txtNotas;
+    @FXML
+    private VBox camposFoto;
     @FXML
     private TextField txtRutaFoto;
 
@@ -65,8 +88,10 @@ public class FormularioAltaController implements DispositivoAware {
     private final ModeloDAO modeloDAO = new ModeloDAO();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
     private final FotoDAO fotoDAO = new FotoDAO();
+    private final BandaDAO bandaDAO = new BandaDAO();
 
     private String serial;
+    private Dispositivo dispositivoDesdeAdb;
 
     // MainController llama a este método justo después de cargar el FXML
     public void setOnGuardadoExitoso(Consumer<Dispositivo> callback) {
@@ -81,6 +106,7 @@ public class FormularioAltaController implements DispositivoAware {
 
     @Override
     public void setDispositivo(Dispositivo dispositivo) {
+        this.dispositivoDesdeAdb = dispositivo;
         this.serial = dispositivo.getSerialNumber();
         var modelo = dispositivo.getModelo();
         var marca = modelo.getMarca();
@@ -101,6 +127,28 @@ public class FormularioAltaController implements DispositivoAware {
         txtRam.setText(modelo.getRamGb() > 0 ? String.valueOf(modelo.getRamGb()) : "");
         txtAndroid.setText(modelo.getSoVersion() != null ? modelo.getSoVersion() : "");
         txtAlmacenamiento.setText(modelo.getAlmacenamientoGb() > 0 ? String.valueOf(modelo.getAlmacenamientoGb()) : "");
+        try {
+            Modelo modeloExistente = modeloDAO.buscarPorNombre(modelo.getNombreModelo());
+            if (modeloExistente != null) {
+
+                ocultarCampo(vboxSoc);
+                ocultarCampo(vboxRAM);
+                ocultarCampo(vboxAlmacenamiento);
+                ocultarCampo(vboxAndroid);
+                ocultarCampo(vboxPantalla);
+                ocultarCampo(vboxCamara);
+                ocultarCampo(camposFoto);
+
+                lblInfo.setText("Modelo ya registrado");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void ocultarCampo(VBox campo) {
+        campo.setVisible(false);
+        campo.setManaged(false);
     }
 
     @FXML
@@ -129,20 +177,34 @@ public class FormularioAltaController implements DispositivoAware {
             // 3. Modelo: Buscar por nombre antes de insertar
             String nombreModelo = txtModelo.getText().trim();
             Modelo modelo = modeloDAO.buscarPorNombre(nombreModelo);
+
             if (modelo == null) {
+                // El modelo es nuevo, lo creamos y le asociamos sus bandas
                 modelo = new Modelo(marca, nombreModelo);
                 modelo.setSoc(soc);
                 modelo.setSoVersion(txtAndroid.getText().trim());
-                modelo.setPantallaPulgadas(txtPantalla.getText().trim());
+                modelo.setResolucionPantalla(txtPantalla.getText().trim());
                 modelo.setCamaraMp(txtCamara.getText().trim());
 
                 if (!txtRam.getText().isBlank())
-                    modelo.setRamGb(Integer.parseInt(txtRam.getText().trim()));
+                    modelo.setRamGb(Double.parseDouble(txtRam.getText().trim()));
                 if (!txtAlmacenamiento.getText().isBlank())
-                    modelo.setAlmacenamientoGb(Integer.parseInt(txtAlmacenamiento.getText().trim()));
+                    modelo.setAlmacenamientoGb(Double.parseDouble(txtAlmacenamiento.getText().trim()));
 
                 int idModelo = modeloDAO.insertar(modelo);
                 modelo.setIdModelo(idModelo);
+
+                // --- LÓGICA DE BANDAS (Asociadas al Modelo) ---
+                // 'dispositivoDesdeAdb' es el objeto que cargaste en 'onSeleccionarDispositivo'
+                if (dispositivoDesdeAdb != null && dispositivoDesdeAdb.getBandasTemporales() != null) {
+                    for (Banda banda : dispositivoDesdeAdb.getBandasTemporales()) {
+                        // El método 'insertar' ahora es robusto (Insert or Ignore + Select ID)
+                        int idBanda = bandaDAO.insertar(banda);
+
+                        // Asociamos el modelo nuevo con la banda (tabla modelo_banda)
+                        bandaDAO.asociarAModelo(idModelo, idBanda);
+                    }
+                }
 
                 // Solo insertamos la foto si el MODELO es nuevo
                 String ruta = txtRutaFoto.getText();
@@ -155,7 +217,8 @@ public class FormularioAltaController implements DispositivoAware {
                 }
             }
 
-            // 4. Dispositivo: Este SIEMPRE se inserta (es una unidad física única)
+            // 4. Dispositivo: Este SIEMPRE se inserta (unidad física única)
+            // Usamos el 'modelo' (ya sea el recién creado o el encontrado en DB)
             Dispositivo dispositivo = new Dispositivo(modelo, serial, txtAndroidID.getText());
             dispositivo.setNotas(txtNotas.getText().trim());
             dispositivoDAO.insertar(dispositivo);

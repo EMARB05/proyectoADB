@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS modelo (
     ram_gb              INTEGER,
     almacenamiento_gb   INTEGER,
     so_version          TEXT,            -- "Android 13"
-    pantalla_pulgadas   TEXT,
+    resolucion_pantalla   TEXT,
     camara_mp           TEXT
 );
 
@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS dispositivo (
     id_modelo       INTEGER NOT NULL REFERENCES modelo(id_modelo),
     serial_number   TEXT NOT NULL, -- Clave de búsqueda al conectar por ADB
     android_id TEXT NOT NULL UNIQUE,  
-    estado          TEXT DEFAULT 'activo',  -- activo, baja, reparacion...
     notas           TEXT,
     fecha_registro  TEXT DEFAULT (DATE('now'))
 );
@@ -61,7 +60,7 @@ CREATE TABLE IF NOT EXISTS modelo_banda (
     PRIMARY KEY (id_modelo, id_banda)
 );
 
--- Fotos del modelo (almacenadas como BLOB o como ruta/URL)
+-- Fotos del modelo
 CREATE TABLE IF NOT EXISTS foto (
     id_foto         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_modelo       INTEGER NOT NULL REFERENCES modelo(id_modelo),

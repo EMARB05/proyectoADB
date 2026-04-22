@@ -13,25 +13,39 @@ import com.example.Model.DatabaseManager;
 
 public class BandaDAO {
     public int insertar(Banda banda) throws SQLException {
-        String sql = """
-                INSERT INTO banda (tipo, numero_banda, frecuencia_mhz, tecnologia)
+        // 1. Intentamos insertar usando 'OR IGNORE'.
+        // Si la banda (tipo + numero) ya existe, no hace nada y no da error.
+        String sqlInsert = """
+                INSERT OR IGNORE INTO banda (tipo, numero_banda, frecuencia_mhz, tecnologia)
                 VALUES (?, ?, ?, ?)
                 """;
 
         try (Connection conn = DatabaseManager.getInstance().getConexion();
-                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
+                PreparedStatement ps = conn.prepareStatement(sqlInsert)) {
             ps.setString(1, banda.getTipo());
             ps.setString(2, banda.getNumeroBanda());
             ps.setString(3, banda.getFrecuenciaMhz());
             ps.setString(4, banda.getTecnologia());
             ps.executeUpdate();
-
-            ResultSet keys = ps.getGeneratedKeys();
-            if (keys.next())
-                return keys.getInt(1);
-            throw new SQLException("No se obtuvo ID tras insertar banda");
         }
+
+        // 2. Buscamos el ID. Tanto si se acaba de crear como si ya existía,
+        // necesitamos el ID para la tabla intermedia 'modelo_banda'.
+        String sqlSelect = "SELECT id_banda FROM banda WHERE tipo = ? AND numero_banda = ?";
+
+        try (Connection conn = DatabaseManager.getInstance().getConexion();
+                PreparedStatement ps = conn.prepareStatement(sqlSelect)) {
+            ps.setString(1, banda.getTipo());
+            ps.setString(2, banda.getNumeroBanda());
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("id_banda");
+                }
+            }
+        }
+
+        throw new SQLException("Error crítico: No se pudo insertar ni recuperar la banda.");
     }
 
     public List<Banda> obtenerTodas() throws SQLException {

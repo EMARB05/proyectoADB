@@ -1,13 +1,15 @@
 package com.example.Model;
 
+import java.util.List;
+
 public class Dispositivo {
     private int idDispositivo;
     private Modelo modelo; // Objeto completo con toda la ficha técnica
     private String serialNumber; // Clave de búsqueda al conectar por ADB
     private String android_id;
-    private String estado;
     private String notas;
     private String fechaRegistro;
+    private List<Banda> bandasTemporales;
 
     public Dispositivo() {
     }
@@ -15,7 +17,7 @@ public class Dispositivo {
     public Dispositivo(Modelo modelo, String serialNumber, String android_id) {
         this.modelo = modelo;
         this.serialNumber = serialNumber;
-        this.android_id= android_id;
+        this.android_id = android_id;
     }
 
     public int getIdDispositivo() {
@@ -50,14 +52,6 @@ public class Dispositivo {
         this.serialNumber = s;
     }
 
-    public String getEstado() {
-        return estado;
-    }
-
-    public void setEstado(String e) {
-        this.estado = e;
-    }
-
     public String getNotas() {
         return notas;
     }
@@ -72,6 +66,14 @@ public class Dispositivo {
 
     public void setFechaRegistro(String f) {
         this.fechaRegistro = f;
+    }
+
+    public List<Banda> getBandasTemporales() {
+        return bandasTemporales;
+    }
+
+    public void setBandasTemporales(List<Banda> bandasTemporales) {
+        this.bandasTemporales = bandasTemporales;
     }
 
     @Override

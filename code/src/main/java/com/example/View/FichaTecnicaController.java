@@ -68,7 +68,7 @@ public class FichaTecnicaController implements DispositivoAware {
         lblRam.setText(modelo.getRamGb() > 0 ? modelo.getRamGb() + " GB" : "—");
         lblAlmacenamiento.setText(modelo.getAlmacenamientoGb() > 0 ? modelo.getAlmacenamientoGb() + " GB" : "—");
         lblAndroid.setText(modelo.getSoVersion() != null ? modelo.getSoVersion() : "—");
-        lblPantalla.setText(modelo.getPantallaPulgadas() != null ? modelo.getPantallaPulgadas() + "\"" : "—");
+        lblPantalla.setText(modelo.getResolucionPantalla() != null ? modelo.getResolucionPantalla() + "\"" : "—");
         lblCamara.setText(modelo.getCamaraMp() != null ? modelo.getCamaraMp() + " MP" : "—");
         lblNotas.setText(dispositivo.getNotas() != null ? dispositivo.getNotas() : "—");
         lblAndroidId.setText("Android ID: " + dispositivo.getAndroid_id());
