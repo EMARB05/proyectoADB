@@ -1,6 +1,7 @@
 package com.example.Controller;
 
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
@@ -15,15 +16,21 @@ public class ScrcpyService {
      * @param serialNumber El serial del dispositivo (obtenido con ADBService)
      */
     public void launch(String serialNumber) {
-        // Si ya hay una instancia corriendo, la cerramos primero
-        stop();
+    stop();
 
-      try {
-        // Obtiene la ruta absoluta real desde el classpath
-        String scrcpyPath = getClass()
-            .getResource("/scrcpy-win64-v3.3.4/scrcpy.exe")
-            .toURI()
-            .getPath();
+    try {
+        // 'user.dir' obtiene la carpeta desde donde se ejecuta tu .exe o .jar
+        String baseDir = System.getProperty("user.dir");
+        
+        // Construimos la ruta apuntando a la carpeta externa
+        File scrcpyFile = new File(baseDir, "scrcpy-win64-v3.3.4/scrcpy.exe");
+        String scrcpyPath = scrcpyFile.getAbsolutePath();
+
+        // Verificación de seguridad (opcional pero muy recomendada)
+        if (!scrcpyFile.exists()) {
+            System.err.println("ERROR: No se encuentra scrcpy en " + scrcpyPath);
+            return; 
+        }
 
         ProcessBuilder pb = new ProcessBuilder(
             scrcpyPath,
@@ -35,10 +42,10 @@ public class ScrcpyService {
         pb.redirectErrorStream(true);
         scrcpyProcess = pb.start();
 
-    } catch (IOException | URISyntaxException e) {
+    } catch (IOException e) {
         System.err.println("Error al lanzar scrcpy: " + e.getMessage());
     }
-    }
+}
 
     /**
      * Cierra la ventana de scrcpy si está abierta.
