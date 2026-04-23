@@ -71,6 +71,22 @@ public class ModeloDAO {
         }
     }
 
+    public void actualizarCampo(int idModelo, String columna, String valor) throws SQLException {
+        List<String> columnasPermitidas = List.of(
+                "so_version", "camara_mp", "resolucion_pantalla");
+        if (!columnasPermitidas.contains(columna)) {
+            throw new SQLException("Columna no permitida: " + columna);
+        }
+
+        String sql = "UPDATE modelo SET " + columna + " = ? WHERE id_modelo = ?";
+        try (Connection conn = DatabaseManager.getInstance().getConexion();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, valor.isEmpty() ? null : valor);
+            ps.setInt(2, idModelo);
+            ps.executeUpdate();
+        }
+    }
+
     // Ensambla el objeto completo: consulta marca y soc por sus IDs
     Modelo mapear(ResultSet rs) throws SQLException {
         Modelo m = new Modelo();
@@ -88,24 +104,15 @@ public class ModeloDAO {
         return m;
     }
 
-    public Modelo buscarPorNombre(String nombreModelo)throws SQLException {
+    public Modelo buscarPorNombre(String nombreModelo) throws SQLException {
         String sql = "SELECT * FROM modelo WHERE LOWER(nombre_modelo) = LOWER(?)";
 
         try (Connection conn = DatabaseManager.getInstance().getConexion();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, nombreModelo);
             ResultSet rs = pstmt.executeQuery();
-
             if (rs.next()) {
-                // Suponiendo que tu constructor o setters pueden manejar esto
-                Modelo modelo = new Modelo();
-                modelo.setIdModelo(rs.getInt("id_modelo"));
-                modelo.setNombreModelo(rs.getString("nombre_modelo"));
-                modelo.setRamGb(rs.getInt("ram_gb"));
-                modelo.setAlmacenamientoGb(rs.getInt("almacenamiento_gb"));
-                modelo.setSoVersion(rs.getString("so_version"));
-                // El objeto Marca y SoC se suelen cargar con un JOIN o en otro paso
-                return modelo;
+                return mapear(rs);
             }
         }
         return null;

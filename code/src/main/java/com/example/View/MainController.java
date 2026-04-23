@@ -214,7 +214,7 @@ private void ejecutarInstalacionMasiva() {
         controller.setRootPane(rootPane);
         controller.setOnGuardadoExitoso(dispositivoGuardado -> {
             try {
-                cargarPanel("/fxml/ficha_tecnica.fxml", dispositivoGuardado);
+                cargarPanel("/fxml/vista_diagnostico.fxml", dispositivoGuardado);
             } catch (IOException e) {
                 lblEstadoAdb.setText("● Error al cargar la ficha técnica");
                 e.printStackTrace();
