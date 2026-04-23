@@ -21,11 +21,13 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class MainController {
@@ -47,6 +49,17 @@ public class MainController {
     // Mapa interno: androidId -> serial (serial solo para comandos ADB, nunca se
     // muestra)
     private final Map<String, String> mapaAndroidIdSerial = new LinkedHashMap<>();
+
+    @FXML
+    private VBox dropZone;
+    @FXML
+    private ListView<String> listaApks;
+
+    @FXML
+private void ejecutarInstalacionMasiva() {
+    System.out.println("Iniciando instalación masiva...");
+    // Aquí irá tu bucle de ADB install
+}
 
     // ───────────────────── INIT ─────────────────────
     @FXML
@@ -100,6 +113,7 @@ public class MainController {
 
     // ───────────────────── LISTA ─────────────────────
     private void actualizarLista(Map<String, String> dispositivos) {
+        if (lblEstadoAdb == null) return;
         if (dispositivos.isEmpty()) {
             lblEstadoAdb.setStyle("-fx-text-fill: #f38ba8; -fx-font-size: 13px;");
             lblEstadoAdb.setText("● Ningún dispositivo conectado");
@@ -225,4 +239,24 @@ public class MainController {
         if (scheduler != null)
             scheduler.shutdown();
     }
+
+    @FXML
+private void onMostrarMasivo() {
+    try {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/vista_masiva.fxml"));
+        // Importante: No uses Parent si vas a meterlo en un StackPane que ya existe
+        Node vistaMasiva = loader.load();
+
+        // OPCIÓN CORRECTA: Cambiar solo el contenido del panelCentral
+        // Esto mantiene la lista de dispositivos y el label de estado visibles
+        panelCentral.getChildren().setAll(vistaMasiva);
+
+    } catch (IOException e) {
+        e.printStackTrace();
+        lblEstadoAdb.setText("● Error al cargar vista masiva");
+    }
+}
+    
+
+   
 }

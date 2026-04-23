@@ -1,17 +1,25 @@
 package com.example.Controller;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import com.example.Model.Banda;
 import com.example.Model.Dispositivo;
@@ -495,4 +503,144 @@ public class ADBService {
         ejecutarADB("adb", "-s", serial, "shell", "rm", rutaRemotaActual);
         rutaRemotaActual = null;
     }
+    // Añadir al final de ADBService.java
+public List<String> obtenerSoloSeriales() throws IOException {
+    Map<String, String> dispositivos = obtenerDispositivosConectados();
+    // Extraemos solo los valores (los seriales) del mapa
+    return new ArrayList<>(dispositivos.values());
+}
+public void ejecutarComandoDirectoSync(String... args) throws Exception {
+    List<String> fullCmd = new ArrayList<>();
+    fullCmd.add("adb");
+    for (String arg : args)
+        fullCmd.add(arg);
+
+    System.out.println("[SYNC] Ejecutando: " + String.join(" ", fullCmd)); // ← log
+    
+    ProcessBuilder pb = new ProcessBuilder(fullCmd);
+    pb.redirectErrorStream(true);
+
+    Process proceso = pb.start();
+    try (var reader = new java.io.BufferedReader(
+            new java.io.InputStreamReader(proceso.getInputStream()))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+            System.out.println("[ADB] " + line);
+        }
+    }
+
+    int exitCode = proceso.waitFor();
+    System.out.println("[SYNC] Exit code: " + exitCode); // ← log
+    
+    if (exitCode != 0) {
+        throw new Exception("ADB falló con código: " + exitCode);
+    }
+}
+
+// En ADBService — nuevo método que detecta y maneja ambos casos
+public void instalarAPK(String serial, String pathArchivo) throws Exception {
+    if (pathArchivo.endsWith(".apk")) {
+        // Instalación simple — ya funciona
+        ejecutarComandoDirectoSync("-s", serial, "install", "-r", pathArchivo);
+
+    } else if (pathArchivo.endsWith(".xapk") || pathArchivo.endsWith(".apks") || pathArchivo.endsWith(".apkm"))  {
+        // Extraer y instalar como splits
+        instalarSplitDesdeZip(serial, pathArchivo);
+    }
+}
+
+private void instalarSplitDesdeZip(String serial, String pathZip) throws Exception {
+    Path tempDir = Files.createTempDirectory("splits_");
+
+    try {
+        String abi = obtenerAbiDispositivo(serial);
+        System.out.println("[ZIP] ABI del dispositivo: " + abi);
+
+        // Primera pasada: recoger todos los .apk y detectar qué ABIs hay disponibles
+        List<String> todosLosSplits = new ArrayList<>();
+        List<String> splitsAbi = new ArrayList<>();
+
+        try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(pathZip)) {
+            java.util.Enumeration<? extends ZipEntry> entries = zipFile.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (!entry.getName().endsWith(".apk")) continue;
+
+                String nombreEntry = Path.of(entry.getName()).getFileName().toString();
+                Path destino = tempDir.resolve(nombreEntry);
+
+                try (java.io.InputStream is = zipFile.getInputStream(entry)) {
+                    Files.copy(is, destino, StandardCopyOption.REPLACE_EXISTING);
+                }
+
+                todosLosSplits.add(destino.toString());
+
+                if (esSplitArquitectura(nombreEntry)) {
+                    splitsAbi.add(nombreEntry);
+                    System.out.println("[ZIP] Split ABI detectado: " + nombreEntry);
+                }
+            }
+        }
+
+        if (todosLosSplits.isEmpty()) throw new Exception("No se encontraron APKs dentro del archivo.");
+
+        // Segunda pasada: decidir qué splits usar
+        List<String> splitsFinales = new ArrayList<>();
+
+        boolean hayAbiCompatible = splitsAbi.stream().anyMatch(n -> coincideAbi(n, abi));
+        System.out.println("[ZIP] ¿Hay ABI compatible (" + abi + ")? " + hayAbiCompatible);
+
+        for (String path : todosLosSplits) {
+            String nombre = Path.of(path).getFileName().toString();
+
+            if (esSplitArquitectura(nombre)) {
+                if (hayAbiCompatible && !coincideAbi(nombre, abi)) {
+                    // Solo filtramos si HAY un split compatible — si no, incluimos todos
+                    System.out.println("[ZIP] Saltando (ABI no compatible): " + nombre);
+                    continue;
+                }
+            }
+
+            splitsFinales.add(path);
+            System.out.println("[ZIP] Incluido: " + nombre);
+        }
+
+        System.out.println("[ZIP] Splits finales a instalar: " + splitsFinales.size());
+
+        List<String> cmd = new ArrayList<>();
+        cmd.add("-s"); cmd.add(serial);
+        cmd.add("install-multiple"); cmd.add("-r");
+        cmd.addAll(splitsFinales);
+
+        ejecutarComandoDirectoSync(cmd.toArray(new String[0]));
+
+    } finally {
+        Files.walk(tempDir)
+             .sorted(Comparator.reverseOrder())
+             .map(Path::toFile)
+             .forEach(File::delete);
+    }
+}
+
+// Detecta el ABI principal del dispositivo
+private String obtenerAbiDispositivo(String serial) throws IOException {
+    List<String> salida = ejecutarADB("adb", "-s", serial, "shell", "getprop", "ro.product.cpu.abi");
+    return salida.isEmpty() ? "arm64-v8a" : salida.get(0).trim();
+}
+
+// Comprueba si el split es específico de una arquitectura
+private boolean esSplitArquitectura(String nombre) {
+    return nombre.contains("x86_64") || nombre.contains("x86")
+        || nombre.contains("arm64") || nombre.contains("armeabi_v7a")
+        || nombre.contains("armeabi") || nombre.contains("mips");
+}
+
+// Comprueba si el split de arquitectura coincide con el ABI del dispositivo
+private boolean coincideAbi(String nombre, String abi) {
+    if (abi.contains("arm64")) return nombre.contains("arm64");
+    if (abi.contains("armeabi-v7a") || abi.contains("armeabi_v7a")) return nombre.contains("armeabi_v7a");
+    if (abi.contains("x86_64")) return nombre.contains("x86_64");
+    if (abi.contains("x86")) return nombre.contains("x86") && !nombre.contains("x86_64");
+    return true; // si no reconocemos el ABI, incluimos todo
+}
 }

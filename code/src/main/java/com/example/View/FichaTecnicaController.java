@@ -84,31 +84,41 @@ public void setDispositivo(Dispositivo dispositivo) {
     }
 
     // ───────────────────── FOTO ─────────────────────
-    private void cargarFoto(Dispositivo dispositivo) {
-        try {
-            List<Foto> fotos = fotoDAO.obtenerPorModelo(dispositivo.getModelo().getIdModelo());
-            if (fotos != null && !fotos.isEmpty()) {
-                String ruta = fotos.get(0).getUrlExterna();
-                if (ruta != null && !ruta.isEmpty()) {
-                    File file = new File(ruta);
-                    if (file.exists()) {
-                        imgDispositivo.setImage(new Image(file.toURI().toString()));
-                        return;
-                    }
-                }
+   private void cargarFoto(Dispositivo dispositivo) {
+    try {
+        List<Foto> fotos = fotoDAO.obtenerPorModelo(dispositivo.getModelo().getIdModelo());
+        Image imagenFinal;
+
+        if (fotos != null && !fotos.isEmpty()) {
+            String ruta = fotos.get(0).getUrlExterna();
+            File file = new File(ruta);
+            if (file.exists()) {
+                imagenFinal = new Image(file.toURI().toString());
+            } else {
+                imagenFinal = new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg"));
             }
-            imgDispositivo.setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg")));
-        } catch (SQLException e) {
-            e.printStackTrace();
-            imgDispositivo.setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg")));
+        } else {
+            imagenFinal = new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg"));
         }
+
+        // USAMOS PLATFORM.RUNLATER PARA ASIGNAR LA IMAGEN
+        Platform.runLater(() -> imgDispositivo.setImage(imagenFinal));
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+        Platform.runLater(() -> imgDispositivo.setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg"))));
     }
+}
 
     // ───────────────────── BANDAS ─────────────────────
-    private void cargarBandas(int idModelo) {
-        panelBandas.getChildren().clear();
-        try {
-            List<Banda> bandas = bandaDAO.obtenerPorModelo(idModelo);
+   private void cargarBandas(int idModelo) {
+    try {
+        List<Banda> bandas = bandaDAO.obtenerPorModelo(idModelo);
+
+        // TODO lo que modifique el panelBandas debe ir en Platform.runLater
+        Platform.runLater(() -> {
+            panelBandas.getChildren().clear(); // <--- Aquí ya no dará error
+
             for (Banda banda : bandas) {
                 Label chip = new Label(banda.getTipo() + " " + banda.getNumeroBanda());
                 chip.setStyle(
@@ -117,15 +127,17 @@ public void setDispositivo(Dispositivo dispositivo) {
                         "-fx-font-size: 12px;");
                 panelBandas.getChildren().add(chip);
             }
+
             if (bandas.isEmpty()) {
                 Label vacio = new Label("Sin bandas registradas");
                 vacio.setStyle("-fx-text-fill: #6c7086; -fx-font-size: 12px;");
                 panelBandas.getChildren().add(vacio);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        });
+    } catch (SQLException e) {
+        e.printStackTrace();
     }
+}
 
     // ───────────────────── AJUSTES ─────────────────────
     @FXML

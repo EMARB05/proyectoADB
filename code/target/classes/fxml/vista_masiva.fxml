@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.example.View.MasivoController" 
+      spacing="20" alignment="TOP_CENTER" 
+      style="-fx-background-color: #1e1e2e; -fx-padding: 40;">
+    
+    <Label text="Despliegue Masivo de Aplicaciones" 
+           style="-fx-text-fill: #cdd6f4; -fx-font-size: 24px; -fx-font-weight: bold;"/>
+    
+    <VBox fx:id="dropZone" alignment="CENTER" spacing="15" 
+          prefHeight="250" maxWidth="600"
+          style="-fx-border-color: #cba6f7; -fx-border-width: 2; -fx-border-style: dashed; 
+                 -fx-border-radius: 15; -fx-background-color: #181825;">
+        <Label text="📥" style="-fx-font-size: 50px;"/>
+        <Label text="Arrastra aquí tus archivos .apk/.XAPK" style="-fx-text-fill: #a6adc8;"/>
+    </VBox>
+
+    <HBox spacing="20" alignment="CENTER">
+    <VBox spacing="10">
+        <Label text="APKs a instalar" style="-fx-text-fill: white;"/>
+        <ListView fx:id="listaApks" prefHeight="200" prefWidth="250"/>
+    </VBox>
+
+    <VBox spacing="10">
+        <Label text="Selecciona Dispositivos" style="-fx-text-fill: white;"/>
+        <HBox spacing="10">
+        <Button text="Refrescar" onAction="#cargarDispositivos" 
+                style="-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-font-weight: bold;"/>
+        <Button text="Seleccionar Todos" onAction="#seleccionarTodosDispositivos"
+                style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-size: 11px;"/>
+        <Button text="Desmarcar Todos" onAction="#desmarcarTodosDispositivos"
+                style="-fx-background-color: #eba0ac; -fx-text-fill: #1e1e2e; -fx-font-size: 11px;"/>
+    </HBox>
+        <ListView fx:id="listaDestinos" prefHeight="200" prefWidth="250"/>
+    </VBox>
+</HBox>
+
+     <!-- ✅ NUEVO: Sección de progreso -->
+    <VBox spacing="8" maxWidth="600" fillWidth="true">
+        <Label fx:id="labelEstado" 
+               text="Listo para instalar." 
+               style="-fx-text-fill: #a6adc8; -fx-font-size: 13px;"/>
+        <ProgressBar fx:id="progressBar" 
+                     progress="0" 
+                     prefWidth="600" prefHeight="14"
+                     style="-fx-accent: #a6e3a1;"/>
+    </VBox>
+
+    <HBox spacing="10" alignment="CENTER">
+        <Button text="LIMPIAR LISTA" 
+                onAction="#limpiarLista"
+                style="-fx-background-color: #f38ba8; -fx-text-fill: #1e1e2e; 
+                       -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 10;"/>
+
+        <!-- ✅ NUEVO: fx:id para poder deshabilitarlo desde el controller -->
+        <Button fx:id="btnInstalar"
+                text="INICIAR INSTALACIÓN" 
+                onAction="#ejecutarInstalacionMasiva"
+                style="-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e; 
+                       -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 10;"/>
+    </HBox>
+
+</VBox>
