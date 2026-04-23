@@ -40,7 +40,6 @@
         <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" spacing="6">
             <Label text="Marca" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
             <TextField fx:id="txtMarca" 
-                    disable="true" 
                     promptText="Ej: Samsung" 
                     style="-fx-background-color: #1e1e2e; -fx-text-fill: #7f849c; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8; -fx-opacity: 0.8;"/>
         </VBox>
@@ -48,7 +47,6 @@
         <VBox GridPane.columnIndex="1" GridPane.rowIndex="0" spacing="6">
             <Label text="Modelo" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
             <TextField fx:id="txtModelo" 
-                    disable="true" 
                     promptText="Ej: Galaxy S22" 
                     style="-fx-background-color: #1e1e2e; -fx-text-fill: #7f849c; -fx-border-color: #313244; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 8; -fx-opacity: 0.8;"/>
         </VBox>
