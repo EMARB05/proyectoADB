@@ -24,6 +24,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -84,6 +85,9 @@ public class FichaTecnicaController implements DispositivoAware {
     private Button btnEditarNotas;
     @FXML
     private Button btnGuardarNotas;
+    // Añade esto a tus variables @FXML
+    @FXML
+    private VBox hoverOverlay;
 
     private final ModeloDAO modeloDAO = new ModeloDAO();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
@@ -119,6 +123,8 @@ public class FichaTecnicaController implements DispositivoAware {
 
         new Thread(() -> {
             cargarFoto(dispositivo);
+            imgDispositivo.getParent().setOnMouseEntered(e -> hoverOverlay.setVisible(true));
+            imgDispositivo.getParent().setOnMouseExited(e -> hoverOverlay.setVisible(false));
             Platform.runLater(() -> {
                 cargarBandas(modelo.getIdModelo());
                 iniciarLogcat(dispositivo.getAndroid_id());
@@ -144,6 +150,48 @@ public class FichaTecnicaController implements DispositivoAware {
     @FXML
     private void onEditarNotas() {
         activarEdicionArea(lblNotas, txtNotasEdit, btnEditarNotas);
+    }
+
+    @FXML
+    private void onEditarFoto() {
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Seleccionar Imagen del Modelo");
+        fileChooser.getExtensionFilters().add(
+                new javafx.stage.FileChooser.ExtensionFilter("Imágenes", "*.png", "*.jpg", "*.jpeg"));
+
+        File archivoSeleccionado = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
+
+        if (archivoSeleccionado != null) {
+            actualizarFotoModelo(archivoSeleccionado);
+        }
+    }
+
+    private void actualizarFotoModelo(File nuevaFoto) {
+        try {
+            int idModelo = dispositivoActual.getModelo().getIdModelo();
+            String nuevaRuta = nuevaFoto.getAbsolutePath();
+
+            // 1. Obtener la foto actual para saber si insertar o actualizar
+            List<Foto> fotosExistentes = fotoDAO.obtenerPorModelo(idModelo);
+
+            if (fotosExistentes.isEmpty()) {
+            } else {
+                fotoDAO.eliminar(fotosExistentes.get(0).getIdFoto());
+            }
+
+            Foto fotoNueva = new Foto();
+            fotoNueva.setIdModelo(idModelo);
+            fotoNueva.setUrlExterna(nuevaRuta);
+            fotoNueva.setDescripcion("Foto de " + dispositivoActual.getModelo().getNombreModelo());
+            fotoDAO.insertar(fotoNueva);
+
+            imgDispositivo.setImage(new Image(nuevaFoto.toURI().toString()));
+            mostrarToast("✓ Foto del modelo actualizada");
+
+        } catch (Exception e) {
+            mostrarToast("✗ Error al actualizar la foto");
+            e.printStackTrace();
+        }
     }
 
     private void activarEdicion(Label label, TextField campo, Button btn) {
@@ -364,8 +412,8 @@ public class FichaTecnicaController implements DispositivoAware {
     private void onGuardarNotas() {
         String valor = txtNotasEdit.getText().trim();
         try {
-            dispositivoDAO.actualizar(dispositivoActual);
             dispositivoActual.setNotas(valor);
+            dispositivoDAO.actualizar(dispositivoActual);
             lblNotas.setText(valor.isEmpty() ? "—" : valor);
             cancelarEdicion(lblNotas, txtNotasEdit, btnEditarNotas);
             mostrarToast("✓ Notas actualizadas");

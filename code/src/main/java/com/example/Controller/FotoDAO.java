@@ -13,7 +13,6 @@ import com.example.Model.Foto;
 
 public class FotoDAO {
 public int insertar(Foto foto) throws SQLException {
-        // Corregido: Solo 3 columnas = 3 interrogantes
         String sql = "INSERT INTO foto (id_modelo, url_externa, descripcion) VALUES (?, ?, ?)";
 
         try (Connection conn = DatabaseManager.getInstance().getConexion();

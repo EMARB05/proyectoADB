@@ -18,11 +18,21 @@
                   style="-fx-background-color: #181825; -fx-background-radius: 12;
                          -fx-padding: 20;">
 
-                <StackPane minWidth="180" minHeight="180" style="-fx-background-color: #313244;">
-                    <ImageView fx:id="imgDispositivo"
-                               fitWidth="180" fitHeight="180"
-                               preserveRatio="true"/>
-                </StackPane>
+              <StackPane minWidth="180" minHeight="180" 
+                     onMouseClicked="#onEditarFoto"
+                     styleClass="image-container"
+                     style="-fx-background-color: #313244; -fx-cursor: hand; -fx-background-radius: 12; -fx-overflow-hidden: true;">
+              
+              <ImageView fx:id="imgDispositivo"
+                            fitWidth="180" fitHeight="180"
+                            preserveRatio="true" />
+                            
+              <VBox fx:id="hoverOverlay" alignment="CENTER" mouseTransparent="true"
+                     style="-fx-background-color: rgba(0,0,0,0.4);" 
+                     visible="false">
+                     <Label text="Cambiar Foto" style="-fx-text-fill: white; -fx-font-weight: bold;"/>
+              </VBox>
+              </StackPane>
 
                 <VBox spacing="8" HBox.hgrow="ALWAYS" minWidth="0">
                     <Label fx:id="lblNombreModelo" text="—"
