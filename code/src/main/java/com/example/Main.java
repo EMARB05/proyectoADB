@@ -7,12 +7,13 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
+import com.example.Controller.AdbManager;
 import com.example.View.MainController;
 
 public class Main extends Application {
-
     @Override
     public void start(Stage stage) throws IOException {
+        AdbManager.inicializar();
         FXMLLoader loader = new FXMLLoader(
             getClass().getResource("/fxml/main.fxml")
         );

@@ -1,6 +1,7 @@
 com\example\View\FormularioAltaController.class
 com\example\Model\Foto.class
 com\example\Main.class
+com\example\View\MasivoController.class
 com\example\View\DispositivoAware.class
 com\example\View\LaboratorioController.class
 com\example\View\AdbWifiController$AdbMode.class

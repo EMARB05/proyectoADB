@@ -35,22 +35,28 @@ public class ADBService {
      * Recibe un array de strings y devuelve la salida del comando.
      */
 
-    private List<String> ejecutarADB(String... comando) throws IOException {
-        List<String> resultado = new ArrayList<>();
-        ProcessBuilder pb = new ProcessBuilder(comando);
-        pb.redirectErrorStream(true);
-        Process proceso = pb.start();
+private List<String> ejecutarADB(String... comando) throws IOException {
+    List<String> resultado = new ArrayList<>();
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(proceso.getInputStream()))) {
-            String linea;
-            while ((linea = reader.readLine()) != null) {
-                resultado.add(linea);
-            }
-        }
-        return resultado;
+    // Sustituye "adb" por la ruta del embebido si existe
+    String adbDir = System.getProperty("aea.adb.path");
+    if (adbDir != null && comando.length > 0 && comando[0].equals("adb")) {
+        comando[0] = adbDir + File.separator + "adb.exe";
     }
 
+    ProcessBuilder pb = new ProcessBuilder(comando);
+    pb.redirectErrorStream(true);
+
+    Process proceso = pb.start();
+    try (BufferedReader reader = new BufferedReader(
+            new InputStreamReader(proceso.getInputStream()))) {
+        String linea;
+        while ((linea = reader.readLine()) != null) {
+            resultado.add(linea);
+        }
+    }
+    return resultado;
+}
     // En ADBService — devuelve el serial activo para un android_id dado
     public String getSerialActivo(String androidId) throws IOException {
         Map<String, String> conectados = obtenerDispositivosConectados();
@@ -474,15 +480,22 @@ public class ADBService {
         ejecutarADB("adb", "-s", serial, "shell", "rm", rutaTemporal);
     }
 
-    public Process iniciarGrabacion(String serial) throws IOException {
-        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        rutaRemotaActual = "/sdcard/video_" + timeStamp + ".mp4";
-        // máx 180 segundos por limitación de ADB
-        ProcessBuilder pb = new ProcessBuilder(
-                "adb", "-s", serial, "shell", "screenrecord", "--time-limit", "180", rutaRemotaActual);
-        pb.redirectErrorStream(true);
-        return pb.start();
+ public Process iniciarGrabacion(String serial) throws IOException {
+    String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+    rutaRemotaActual = "/sdcard/video_" + timeStamp + ".mp4";
+
+    ProcessBuilder pb = new ProcessBuilder(
+            "adb", "-s", serial, "shell", "screenrecord", "--time-limit", "180", rutaRemotaActual);
+    pb.redirectErrorStream(true);
+
+    String adbDir = System.getProperty("aea.adb.path");
+    if (adbDir != null) {
+        Map<String, String> env = pb.environment();
+        env.put("PATH", adbDir + File.pathSeparator + env.getOrDefault("PATH", ""));
     }
+
+    return pb.start();
+}
 
     public void enviarSenalParada(String serial) {
         ejecutarComandoSincrono(serial, "shell pkill -l SIGINT screenrecord");

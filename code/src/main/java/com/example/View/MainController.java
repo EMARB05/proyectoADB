@@ -21,7 +21,6 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.Parent;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -32,44 +31,26 @@ import javafx.stage.Stage;
 
 public class MainController {
 
-    @FXML
-    private Label lblEstadoAdb;
-    @FXML
-    private ListView<String> listaDispositivos;
-    @FXML
-    private StackPane panelCentral;
-    @FXML
-    private javafx.scene.layout.VBox panelLista;
-    @FXML
-    private StackPane rootPane;
+    @FXML private Label lblEstadoAdb;
+    @FXML private ListView<String> listaDispositivos;
+    @FXML private StackPane panelCentral;
+    @FXML private javafx.scene.layout.VBox panelLista;
+    @FXML private StackPane rootPane;
+    @FXML private VBox dropZone;
+    @FXML private ListView<String> listaApks;
+
     private final ADBService adbService = new ADBService();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
     private ScheduledExecutorService scheduler;
-
-    // Mapa interno: androidId -> serial (serial solo para comandos ADB, nunca se
-    // muestra)
     private final Map<String, String> mapaAndroidIdSerial = new LinkedHashMap<>();
-
-    @FXML
-    private VBox dropZone;
-    @FXML
-    private ListView<String> listaApks;
-
-    @FXML
-private void ejecutarInstalacionMasiva() {
-    System.out.println("Iniciando instalación masiva...");
-    // Aquí irá tu bucle de ADB install
-}
 
     // ───────────────────── INIT ─────────────────────
     @FXML
     public void initialize() {
         Platform.runLater(() -> {
             Stage stage = (Stage) panelLista.getScene().getWindow();
-            if (stage != null)
-                setupResponsive(stage);
+            if (stage != null) setupResponsive(stage);
         });
-
         iniciarDeteccionAutomatica();
     }
 
@@ -98,12 +79,13 @@ private void ejecutarInstalacionMasiva() {
     }
 
     // ───────────────────── DETECCIÓN AUTOMÁTICA ─────────────────────
-
     private void iniciarDeteccionAutomatica() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
             try {
+                // ADB en hilo secundario ✔
                 Map<String, String> dispositivos = adbService.obtenerDispositivosConectados();
+                // UI en hilo FX ✔
                 Platform.runLater(() -> actualizarLista(dispositivos));
             } catch (IOException e) {
                 Platform.runLater(() -> lblEstadoAdb.setText("● Error al ejecutar ADB"));
@@ -114,6 +96,7 @@ private void ejecutarInstalacionMasiva() {
     // ───────────────────── LISTA ─────────────────────
     private void actualizarLista(Map<String, String> dispositivos) {
         if (lblEstadoAdb == null) return;
+
         if (dispositivos.isEmpty()) {
             lblEstadoAdb.setStyle("-fx-text-fill: #f38ba8; -fx-font-size: 13px;");
             lblEstadoAdb.setText("● Ningún dispositivo conectado");
@@ -122,18 +105,15 @@ private void ejecutarInstalacionMasiva() {
             lblEstadoAdb.setText("● " + dispositivos.size() + " dispositivo(s) conectado(s)");
         }
 
-        // Actualiza el mapa interno
         mapaAndroidIdSerial.clear();
         mapaAndroidIdSerial.putAll(dispositivos);
 
-        // La lista solo muestra android_ids
         List<String> androidIds = new ArrayList<>(dispositivos.keySet());
         if (!listaDispositivos.getItems().equals(androidIds)) {
             listaDispositivos.setItems(FXCollections.observableArrayList(androidIds));
         }
 
-        // Celda simple — mostramos directamente el android_id
-        listaDispositivos.setCellFactory(lv -> new ListCell<String>() {
+        listaDispositivos.setCellFactory(lv -> new ListCell<>() {
             @Override
             protected void updateItem(String androidId, boolean empty) {
                 super.updateItem(androidId, empty);
@@ -152,111 +132,125 @@ private void ejecutarInstalacionMasiva() {
     // ───────────────────── REFRESCAR ─────────────────────
     @FXML
     private void onRefrescar() {
-        try {
-            Map<String, String> dispositivos = adbService.obtenerDispositivosConectados();
-            actualizarLista(dispositivos);
-        } catch (IOException e) {
-            lblEstadoAdb.setText("● Error al ejecutar ADB");
-            e.printStackTrace();
-        }
+        // Feedback inmediato en UI ✔
+        lblEstadoAdb.setText("● Buscando dispositivos...");
+
+        // ADB en hilo secundario ✔
+        new Thread(() -> {
+            try {
+                Map<String, String> dispositivos = adbService.obtenerDispositivosConectados();
+                // UI en hilo FX ✔
+                Platform.runLater(() -> actualizarLista(dispositivos));
+            } catch (IOException e) {
+                Platform.runLater(() -> {
+                    lblEstadoAdb.setText("● Error al ejecutar ADB");
+                    e.printStackTrace();
+                });
+            }
+        }).start();
     }
 
     // ───────────────────── SELECCIONAR ─────────────────────
-
     @FXML
     private void onSeleccionarDispositivo() {
         String androidId = listaDispositivos.getSelectionModel().getSelectedItem();
-        if (androidId == null)
-            return;
+        if (androidId == null) return;
         String serial = mapaAndroidIdSerial.get(androidId);
-        if (serial == null)
-            return;
+        if (serial == null) return;
 
+        lblEstadoAdb.setText("● Cargando dispositivo...");
+
+        // BD y ADB en hilo secundario ✔
         new Thread(() -> {
             try {
                 Dispositivo dispositivo = dispositivoDAO.buscarPorAndroidId(androidId);
+
                 if (dispositivo == null) {
+                    // ADB pesado en hilo secundario ✔
                     Dispositivo desdeAdb = adbService.obtenerProps(serial);
                     List<Banda> bandas = adbService.obtenerBandas(serial);
                     desdeAdb.setBandasTemporales(bandas);
+
+                    // load() y UI en hilo FX ✔
                     Platform.runLater(() -> {
                         try {
-                            cargarFormularioAlta(desdeAdb);
+                            FXMLLoader loader = new FXMLLoader(
+                                    getClass().getResource("/fxml/formulario_alta.fxml"));
+                            Node panel = loader.load();
+                            FormularioAltaController controller = loader.getController();
+                            controller.setDispositivo(desdeAdb);
+                            controller.setRootPane(rootPane);
+                            controller.setOnGuardadoExitoso(dispositivoGuardado -> {
+                                // Callback puntual — ya en hilo FX, load() permitido ✔
+                                try {
+                                    FXMLLoader l = new FXMLLoader(
+                                            getClass().getResource("/fxml/vista_diagnostico.fxml"));
+                                    Node p = l.load();
+                                    DispositivoAware ctrl = l.getController();
+                                    ctrl.setDispositivo(dispositivoGuardado);
+                                    panelCentral.getChildren().setAll(p);
+                                } catch (IOException e) {
+                                    lblEstadoAdb.setText("● Error al cargar la ficha técnica");
+                                }
+                            });
+                            panelCentral.getChildren().setAll(panel);
+                            lblEstadoAdb.setStyle("-fx-text-fill: #a6e3a1; -fx-font-size: 13px;");
+                            lblEstadoAdb.setText("● Dispositivo nuevo detectado");
                         } catch (IOException e) {
                             lblEstadoAdb.setText("● Error al cargar formulario");
                             e.printStackTrace();
                         }
                     });
+
                 } else {
+                    // load() y UI en hilo FX ✔
                     Platform.runLater(() -> {
                         try {
-                            cargarPanel("/fxml/vista_diagnostico.fxml", dispositivo);
+                            FXMLLoader loader = new FXMLLoader(
+                                    getClass().getResource("/fxml/vista_diagnostico.fxml"));
+                            Node panel = loader.load();
+                            DispositivoAware controller = loader.getController();
+                            controller.setDispositivo(dispositivo);
+                            panelCentral.getChildren().setAll(panel);
+                            lblEstadoAdb.setStyle("-fx-text-fill: #a6e3a1; -fx-font-size: 13px;");
+                            lblEstadoAdb.setText("● " + mapaAndroidIdSerial.size() + " dispositivo(s) conectado(s)");
                         } catch (IOException e) {
                             lblEstadoAdb.setText("● Error al cargar panel");
                             e.printStackTrace();
                         }
                     });
                 }
+
             } catch (IOException | SQLException e) {
-                Platform.runLater(() -> lblEstadoAdb.setText("● Error al cargar dispositivo"));
+                Platform.runLater(() ->
+                        lblEstadoAdb.setText("● Error al cargar dispositivo"));
                 e.printStackTrace();
             }
         }).start();
     }
 
     // ───────────────────── NAVEGACIÓN ─────────────────────
-    private void cargarFormularioAlta(Dispositivo desdeAdb) throws IOException {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/formulario_alta.fxml"));
-        Node panel = loader.load();
-
-        FormularioAltaController controller = loader.getController();
-        controller.setDispositivo(desdeAdb);
-        controller.setRootPane(rootPane);
-        controller.setOnGuardadoExitoso(dispositivoGuardado -> {
-            try {
-                cargarPanel("/fxml/vista_diagnostico.fxml", dispositivoGuardado);
-            } catch (IOException e) {
-                lblEstadoAdb.setText("● Error al cargar la ficha técnica");
-                e.printStackTrace();
-            }
-        });
-
-        panelCentral.getChildren().setAll(panel);
+    // ───────────────────── INSTALACIÓN MASIVA ─────────────────────
+    @FXML
+    private void ejecutarInstalacionMasiva() {
+        System.out.println("Iniciando instalación masiva...");
     }
 
-    private void cargarPanel(String fxmlPath, Dispositivo dispositivo) throws IOException {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
-        Node panel = loader.load();
-
-        DispositivoAware controller = loader.getController();
-        controller.setDispositivo(dispositivo);
-
-        panelCentral.getChildren().setAll(panel);
+    @FXML
+    private void onMostrarMasivo() {
+        // load() en hilo FX — acción puntual del usuario ✔
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/vista_masiva.fxml"));
+            Node vistaMasiva = loader.load();
+            panelCentral.getChildren().setAll(vistaMasiva);
+        } catch (IOException e) {
+            e.printStackTrace();
+            lblEstadoAdb.setText("● Error al cargar vista masiva");
+        }
     }
 
     // ───────────────────── STOP ─────────────────────
     public void detener() {
-        if (scheduler != null)
-            scheduler.shutdown();
+        if (scheduler != null) scheduler.shutdown();
     }
-
-    @FXML
-private void onMostrarMasivo() {
-    try {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/vista_masiva.fxml"));
-        // Importante: No uses Parent si vas a meterlo en un StackPane que ya existe
-        Node vistaMasiva = loader.load();
-
-        // OPCIÓN CORRECTA: Cambiar solo el contenido del panelCentral
-        // Esto mantiene la lista de dispositivos y el label de estado visibles
-        panelCentral.getChildren().setAll(vistaMasiva);
-
-    } catch (IOException e) {
-        e.printStackTrace();
-        lblEstadoAdb.setText("● Error al cargar vista masiva");
-    }
-}
-    
-
-   
 }
