@@ -45,7 +45,8 @@ public class MasivoController {
                 db.getFiles().forEach(file -> {
                     String nombre = file.getName().toLowerCase();
                     // ✅ Ahora acepta los tres formatos
-                    if (nombre.endsWith(".apk") || nombre.endsWith(".xapk") || nombre.endsWith(".apks") || nombre.endsWith(".apkm")) {
+                    if (nombre.endsWith(".apk") || nombre.endsWith(".xapk") || nombre.endsWith(".apks")
+                            || nombre.endsWith(".apkm")) {
                         listaApks.getItems().add(file.getAbsolutePath());
                     }
                 });
@@ -126,13 +127,18 @@ public class MasivoController {
     }
 
     private void refrescarDispositivos() {
-        try {
-            listaDestinos.getItems().clear();
-            Map<String, String> dispositivos = adb.obtenerDispositivosConectados();
-            listaDestinos.getItems().addAll(dispositivos.keySet());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        new Thread(() -> {
+            try {
+                Map<String, String> dispositivos = adb.obtenerDispositivosConectados();
+                Platform.runLater(() -> {
+                    listaDestinos.getItems().clear();
+                    listaDestinos.getItems().addAll(dispositivos.keySet());
+
+                });
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
     @FXML
