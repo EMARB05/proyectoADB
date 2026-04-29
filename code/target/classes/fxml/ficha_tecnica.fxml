@@ -63,7 +63,7 @@
                                 <ImageView fitHeight="15" fitWidth="15" preserveRatio="true">
                                     <image><Image url="@../img/energia.png"/></image>
                                 </ImageView>
-                                <Label text="Laboratorio Energía" styleClass="btn-label"/>
+                                <Label text="Gestión batería" styleClass="btn-label"/>
                             </HBox>
                         </graphic>
                     </Button>
