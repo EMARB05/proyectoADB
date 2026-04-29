@@ -1,6 +1,7 @@
 com\example\View\FormularioAltaController.class
 com\example\Model\Foto.class
 com\example\Main.class
+com\example\View\MasivoController.class
 com\example\View\DispositivoAware.class
 com\example\View\LaboratorioController.class
 com\example\View\AdbWifiController$AdbMode.class
@@ -24,6 +25,7 @@ com\example\Controller\ADBService.class
 com\example\Controller\SocDAO.class
 com\example\View\GestionPantallaController.class
 com\example\View\LogcatController.class
+com\example\Controller\AdbManager.class
 com\example\Model\Banda.class
 com\example\View\AdbWifiController.class
 com\example\View\RedImsController.class

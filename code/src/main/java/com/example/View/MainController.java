@@ -31,22 +31,16 @@ import javafx.stage.Stage;
 
 public class MainController {
 
-    @FXML
-    private Label lblEstadoAdb;
-    @FXML
-    private ListView<String> listaDispositivos;
-    @FXML
-    private StackPane panelCentral;
-    @FXML
-    private javafx.scene.layout.VBox panelLista;
-    @FXML
-    private StackPane rootPane;
+    @FXML private Label lblEstadoAdb;
+    @FXML private ListView<String> listaDispositivos;
+    @FXML private StackPane panelCentral;
+    @FXML private javafx.scene.layout.VBox panelLista;
+    @FXML private StackPane rootPane;
+  
+
     private final ADBService adbService = new ADBService();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
     private ScheduledExecutorService scheduler;
-
-    // Mapa interno: androidId -> serial (serial solo para comandos ADB, nunca se
-    // muestra)
     private final Map<String, String> mapaAndroidIdSerial = new LinkedHashMap<>();
 
     @FXML
@@ -61,10 +55,8 @@ public class MainController {
     public void initialize() {
         Platform.runLater(() -> {
             Stage stage = (Stage) panelLista.getScene().getWindow();
-            if (stage != null)
-                setupResponsive(stage);
+            if (stage != null) setupResponsive(stage);
         });
-
         iniciarDeteccionAutomatica();
     }
 
@@ -93,7 +85,6 @@ public class MainController {
     }
 
     // ───────────────────── DETECCIÓN AUTOMÁTICA ─────────────────────
-
     private void iniciarDeteccionAutomatica() {
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r,"adb-poller");
@@ -104,7 +95,9 @@ public class MainController {
             if(consultaAdbEnCurso) return;
             consultaAdbEnCurso = true;
             try {
+                // ADB en hilo secundario ✔
                 Map<String, String> dispositivos = adbService.obtenerDispositivosConectados();
+                // UI en hilo FX ✔
                 Platform.runLater(() -> actualizarLista(dispositivos));
             } catch (IOException e) {
                 Platform.runLater(() -> lblEstadoAdb.setText("● Error al ejecutar ADB"));
@@ -126,18 +119,15 @@ public class MainController {
             lblEstadoAdb.setText("● " + dispositivos.size() + " dispositivo(s) conectado(s)");
         }
 
-        // Actualiza el mapa interno
         mapaAndroidIdSerial.clear();
         mapaAndroidIdSerial.putAll(dispositivos);
 
-        // La lista solo muestra android_ids
         List<String> androidIds = new ArrayList<>(dispositivos.keySet());
         if (!listaDispositivos.getItems().equals(androidIds)) {
             listaDispositivos.setItems(FXCollections.observableArrayList(androidIds));
         }
 
-        // Celda simple — mostramos directamente el android_id
-        listaDispositivos.setCellFactory(lv -> new ListCell<String>() {
+        listaDispositivos.setCellFactory(lv -> new ListCell<>() {
             @Override
             protected void updateItem(String androidId, boolean empty) {
                 super.updateItem(androidId, empty);
@@ -172,20 +162,22 @@ public class MainController {
     }
 
     // ───────────────────── SELECCIONAR ─────────────────────
-
     @FXML
     private void onSeleccionarDispositivo() {
         String androidId = listaDispositivos.getSelectionModel().getSelectedItem();
-        if (androidId == null)
-            return;
+        if (androidId == null) return;
         String serial = mapaAndroidIdSerial.get(androidId);
-        if (serial == null)
-            return;
+        if (serial == null) return;
 
+        lblEstadoAdb.setText("● Cargando dispositivo...");
+
+        // BD y ADB en hilo secundario ✔
         new Thread(() -> {
             try {
                 Dispositivo dispositivo = dispositivoDAO.buscarPorAndroidId(androidId);
+
                 if (dispositivo == null) {
+                    // ADB pesado en hilo secundario ✔
                     Dispositivo desdeAdb = adbService.obtenerProps(serial);
                     List<Banda> bandas = adbService.obtenerBandas(serial);
                     desdeAdb.setBandasTemporales(bandas);
@@ -197,6 +189,7 @@ public class MainController {
                     Platform.runLater(() -> {
                         cargarFormularioAlta(desdeAdb, controller, panel);
                     });
+
                 } else {
                     FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/vista_diagnostico.fxml"));
                     Node panel = loader.load();
@@ -207,8 +200,10 @@ public class MainController {
                         panelCentral.getChildren().setAll(panel);
                     });
                 }
+
             } catch (IOException | SQLException e) {
-                Platform.runLater(() -> lblEstadoAdb.setText("● Error al cargar dispositivo"));
+                Platform.runLater(() ->
+                        lblEstadoAdb.setText("● Error al cargar dispositivo"));
                 e.printStackTrace();
             }
         }).start();

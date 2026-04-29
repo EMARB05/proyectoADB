@@ -1,6 +1,7 @@
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Controller\FotoDAO.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Model\Dispositivo.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Controller\SocDAO.java
+C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Controller\AdbManager.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Controller\ModeloDAO.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\View\AjustesRapidosController.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Controller\BandaDAO.java
@@ -10,6 +11,7 @@ C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Main.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Model\Banda.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\View\RedImsController.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\View\FichaTecnicaController.java
+C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\View\MasivoController.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Model\Soc.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\View\DispositivoAware.java
 C:\Users\user\Desktop\proyectoADB\code\src\main\java\com\example\Launcher.java
