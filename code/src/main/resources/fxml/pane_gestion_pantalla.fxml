@@ -35,10 +35,10 @@
                             </FXCollections>
                         </items>
                     </ComboBox>
-                    <Button text="✓ Set" 
+                    <Button text="✓ Aplicar" 
                             onAction="#cambiarResolucion"
                             style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"/>
-                    <Button text="Reset" 
+                    <Button text="Restablecer" 
                             onAction="#resetearResolucion"
                             style="-fx-background-color: #f5d59a; -fx-text-fill: #2e281e; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"/>
                 </HBox>
