@@ -40,11 +40,19 @@ public class DiagnosticoController implements DispositivoAware {
     private final ObservableList<PasoPrueba> pasos = FXCollections.observableArrayList();
     private Dispositivo dispositivoActual;
 
+    // Método para recibir el handler del Main y pasarlo abajo
+    public void setNavegacionHandler(NavegacionHandler handler) {
+        if (fichaTecnicaController != null) {
+            fichaTecnicaController.setNavegacionHandler(handler);
+        }
+    }
+
     @FXML
     public void initialize() {
         // Vinculamos la lista de la lógica con la lista de la pantalla
         listaPasos.setItems(pasos);
-        pasos.add(new PasoPrueba("Preparando Dispositivo...", "shell input keyevent KEYCODE_WAKEUP && wm dismiss-keyguard"));
+        pasos.add(new PasoPrueba("Preparando Dispositivo...",
+                "shell input keyevent KEYCODE_WAKEUP && wm dismiss-keyguard"));
 
         // Creamos unos pasos de prueba por defecto
         pasos.add(new PasoPrueba("Levantar Interfaz WiFi", "shell svc wifi enable && sleep 6"));
@@ -93,68 +101,74 @@ public class DiagnosticoController implements DispositivoAware {
     }
 
     @FXML
-private void abrirLaboratorio() {
-    try {
-        // Ajusta la ruta según tu estructura de paquetes (com/example/View/...)
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LaboratorioBateria.fxml"));
-        Parent root = loader.load();
-
-        Stage stage = new Stage();
-        stage.setTitle("AEA Suite - Laboratorio de Rendimiento");
-        stage.setScene(new Scene(root));
-        
-        // Esto hace que la ventana sea "Modal" (opcional: bloquea la principal hasta cerrar esta)
-        // stage.initModality(Modality.APPLICATION_MODAL);
-        
-        stage.show();
-    } catch (IOException e) {
-        System.err.println("No se pudo encontrar el archivo FXML del laboratorio.");
-        e.printStackTrace();
-    }
-}
-
-   @FXML
-private void ejecutarScript() {
-    if (dispositivoActual == null || pasos.isEmpty()) return;
-
-    new Thread(() -> {
-        ADBService adb = new ADBService();
-
-        // Resuelve el serial activo por android_id — funciona por USB y WiFi
-        String serialActivo;
+    private void abrirLaboratorio() {
         try {
-            serialActivo = adb.getSerialActivo(dispositivoActual.getAndroid_id());
+            // Ajusta la ruta según tu estructura de paquetes (com/example/View/...)
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LaboratorioBateria.fxml"));
+            Parent root = loader.load();
+
+            Stage stage = new Stage();
+            stage.setTitle("AEA Suite - Laboratorio de Rendimiento");
+            stage.setScene(new Scene(root));
+
+            // Esto hace que la ventana sea "Modal" (opcional: bloquea la principal hasta
+            // cerrar esta)
+            // stage.initModality(Modality.APPLICATION_MODAL);
+
+            stage.show();
         } catch (IOException e) {
-            serialActivo = dispositivoActual.getSerialNumber(); // fallback al de la BD
-            System.out.println("[DIAG] No se pudo resolver serial activo, usando BD: " + serialActivo);
+            System.err.println("No se pudo encontrar el archivo FXML del laboratorio.");
+            e.printStackTrace();
         }
+    }
 
-        final String serial = serialActivo;
-        System.out.println("[DIAG] Ejecutando script con serial: " + serial);
+    @FXML
+    private void ejecutarScript() {
+        if (dispositivoActual == null || pasos.isEmpty())
+            return;
 
-        for (PasoPrueba paso : pasos) {
-            javafx.application.Platform.runLater(() -> {
-                paso.setEstado("EJECUTANDO");
-                listaPasos.refresh();
+        new Thread(() -> {
+            ADBService adb = new ADBService();
+
+            // Resuelve el serial activo por android_id — funciona por USB y WiFi
+            String serialActivo;
+            try {
+                serialActivo = adb.getSerialActivo(dispositivoActual.getAndroid_id());
+            } catch (IOException e) {
+                serialActivo = dispositivoActual.getSerialNumber(); // fallback al de la BD
+                System.out.println("[DIAG] No se pudo resolver serial activo, usando BD: " + serialActivo);
+            }
+
+            final String serial = serialActivo;
+            System.out.println("[DIAG] Ejecutando script con serial: " + serial);
+
+            for (PasoPrueba paso : pasos) {
+                javafx.application.Platform.runLater(() -> {
+                    paso.setEstado("EJECUTANDO");
+                    listaPasos.refresh();
+                });
+
+                boolean exito = adb.ejecutarPasoSync(serial, paso.getComando());
+
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                }
+
+                javafx.application.Platform.runLater(() -> {
+                    paso.setEstado(exito ? "OK" : "ERROR");
+                    listaPasos.refresh();
+                });
+            }
+
+            Platform.runLater(() -> {
+                btnInforme.setDisable(false);
+                btnEjecutar.setDisable(false);
+                System.out.println("[DIAG] Secuencia completada.");
             });
+        }).start();
+    }
 
-            boolean exito = adb.ejecutarPasoSync(serial, paso.getComando());
-
-            try { Thread.sleep(1000); } catch (InterruptedException e) {}
-
-            javafx.application.Platform.runLater(() -> {
-                paso.setEstado(exito ? "OK" : "ERROR");
-                listaPasos.refresh();
-            });
-        }
-
-        Platform.runLater(() -> {
-            btnInforme.setDisable(false);
-            btnEjecutar.setDisable(false);
-            System.out.println("[DIAG] Secuencia completada.");
-        });
-    }).start();
-}
     // --- SCRIPTS DE RED ---
     @FXML
     private void addWifiOn() {
@@ -202,18 +216,18 @@ private void ejecutarScript() {
     }
 
     @FXML
-private void btnGestionarClick() {
-    try {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("LaboratorioBateria.fxml"));
-        Scene scene = new Scene(loader.load());
-        Stage stage = new Stage();
-        stage.setTitle("Análisis de Rendimiento - AEA Suite");
-        stage.setScene(scene);
-        stage.show();
-    } catch (Exception e) {
-        e.printStackTrace();
+    private void btnGestionarClick() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("LaboratorioBateria.fxml"));
+            Scene scene = new Scene(loader.load());
+            Stage stage = new Stage();
+            stage.setTitle("Análisis de Rendimiento - AEA Suite");
+            stage.setScene(scene);
+            stage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
-}
 
     @FXML
     private void generarInformePDF() {

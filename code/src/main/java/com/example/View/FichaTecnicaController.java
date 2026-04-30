@@ -13,6 +13,7 @@ import com.example.Model.Foto;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -96,6 +97,12 @@ public class FichaTecnicaController implements DispositivoAware {
     private final BandaDAO bandaDAO = new BandaDAO();
     private final FotoDAO fotoDAO = new FotoDAO();
     private final ADBService adb = new ADBService();
+
+    private NavegacionHandler navegacionHandler;
+
+    public void setNavegacionHandler(NavegacionHandler handler) {
+        this.navegacionHandler = handler;
+    }
 
     @Override
     public void setDispositivo(Dispositivo dispositivo) {
@@ -243,60 +250,60 @@ public class FichaTecnicaController implements DispositivoAware {
     }
 
     // ───────────────────── FOTO ─────────────────────
-   private void cargarFoto(Dispositivo dispositivo) {
-    try {
-        List<Foto> fotos = fotoDAO.obtenerPorModelo(dispositivo.getModelo().getIdModelo());
-        Image imagenFinal;
+    private void cargarFoto(Dispositivo dispositivo) {
+        try {
+            List<Foto> fotos = fotoDAO.obtenerPorModelo(dispositivo.getModelo().getIdModelo());
+            Image imagenFinal;
 
-        if (fotos != null && !fotos.isEmpty()) {
-            String ruta = fotos.get(0).getUrlExterna();
-            File file = new File(ruta);
-            if (file.exists()) {
-                imagenFinal = new Image(file.toURI().toString());
+            if (fotos != null && !fotos.isEmpty()) {
+                String ruta = fotos.get(0).getUrlExterna();
+                File file = new File(ruta);
+                if (file.exists()) {
+                    imagenFinal = new Image(file.toURI().toString());
+                } else {
+                    imagenFinal = new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg"));
+                }
             } else {
                 imagenFinal = new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg"));
             }
-        } else {
-            imagenFinal = new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg"));
+
+            // USAMOS PLATFORM.RUNLATER PARA ASIGNAR LA IMAGEN
+            Platform.runLater(() -> imgDispositivo.setImage(imagenFinal));
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            Platform.runLater(() -> imgDispositivo
+                    .setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg"))));
         }
-
-        // USAMOS PLATFORM.RUNLATER PARA ASIGNAR LA IMAGEN
-        Platform.runLater(() -> imgDispositivo.setImage(imagenFinal));
-
-    } catch (SQLException e) {
-        e.printStackTrace();
-        Platform.runLater(() -> imgDispositivo.setImage(new Image(getClass().getResourceAsStream("/img/device_placeholder.jpg"))));
     }
-}
 
     // ───────────────────── BANDAS ─────────────────────
-   private void cargarBandas(int idModelo) {
-    try {
-        List<Banda> bandas = bandaDAO.obtenerPorModelo(idModelo);
+    private void cargarBandas(int idModelo) {
+        try {
+            List<Banda> bandas = bandaDAO.obtenerPorModelo(idModelo);
 
-        // TODO lo que modifique el panelBandas debe ir en Platform.runLater
-        Platform.runLater(() -> {
-            panelBandas.getChildren().clear(); // <--- Aquí ya no dará error
+            Platform.runLater(() -> {
+                panelBandas.getChildren().clear();
 
-            for (Banda banda : bandas) {
-                Label chip = new Label(banda.getTipo() + " " + banda.getNumeroBanda());
-                chip.setStyle(
-                        "-fx-background-color: #313244; -fx-text-fill: #89b4fa;" +
-                                "-fx-padding: 4 10 4 10; -fx-background-radius: 20;" +
-                                "-fx-font-size: 12px;");
-                panelBandas.getChildren().add(chip);
-            }
+                for (Banda banda : bandas) {
+                    Label chip = new Label(banda.getTipo() + " " + banda.getNumeroBanda());
+                    chip.setStyle(
+                            "-fx-background-color: #313244; -fx-text-fill: #89b4fa;" +
+                                    "-fx-padding: 4 10 4 10; -fx-background-radius: 20;" +
+                                    "-fx-font-size: 12px;");
+                    panelBandas.getChildren().add(chip);
+                }
 
-            if (bandas.isEmpty()) {
-                Label vacio = new Label("Sin bandas registradas");
-                vacio.setStyle("-fx-text-fill: #6c7086; -fx-font-size: 12px;");
-                panelBandas.getChildren().add(vacio);
-            }
-        });
-    } catch (SQLException e) {
-        e.printStackTrace();
+                if (bandas.isEmpty()) {
+                    Label vacio = new Label("Sin bandas registradas");
+                    vacio.setStyle("-fx-text-fill: #6c7086; -fx-font-size: 12px;");
+                    panelBandas.getChildren().add(vacio);
+                }
+            });
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
-}
 
     // ───────────────────── AJUSTES ─────────────────────
     @FXML
@@ -373,6 +380,13 @@ public class FichaTecnicaController implements DispositivoAware {
         stage.initModality(Modality.NONE);
         stage.setOnCloseRequest(null);
         stage.show();
+    }
+
+    @FXML
+    private void onActualizarAPNs() throws IOException {
+        if (navegacionHandler != null) {
+            navegacionHandler.cambiarVistaCentral("/fxml/comparador_apn.fxml", dispositivoActual, null);
+        }
     }
 
     @FXML

@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import com.example.Controller.ADBService;
 import com.example.Controller.DispositivoDAO;
@@ -29,14 +30,18 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class MainController {
+public class MainController implements NavegacionHandler {
 
-    @FXML private Label lblEstadoAdb;
-    @FXML private ListView<String> listaDispositivos;
-    @FXML private StackPane panelCentral;
-    @FXML private javafx.scene.layout.VBox panelLista;
-    @FXML private StackPane rootPane;
-  
+    @FXML
+    private Label lblEstadoAdb;
+    @FXML
+    private ListView<String> listaDispositivos;
+    @FXML
+    private StackPane panelCentral;
+    @FXML
+    private javafx.scene.layout.VBox panelLista;
+    @FXML
+    private StackPane rootPane;
 
     private final ADBService adbService = new ADBService();
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
@@ -47,7 +52,7 @@ public class MainController {
     private VBox dropZone;
     @FXML
     private ListView<String> listaApks;
-    
+
     private volatile boolean consultaAdbEnCurso = false;
 
     // ───────────────────── INIT ─────────────────────
@@ -55,7 +60,8 @@ public class MainController {
     public void initialize() {
         Platform.runLater(() -> {
             Stage stage = (Stage) panelLista.getScene().getWindow();
-            if (stage != null) setupResponsive(stage);
+            if (stage != null)
+                setupResponsive(stage);
         });
         iniciarDeteccionAutomatica();
     }
@@ -87,12 +93,13 @@ public class MainController {
     // ───────────────────── DETECCIÓN AUTOMÁTICA ─────────────────────
     private void iniciarDeteccionAutomatica() {
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r,"adb-poller");
+            Thread t = new Thread(r, "adb-poller");
             t.setDaemon(true);
             return t;
         });
         scheduler.scheduleAtFixedRate(() -> {
-            if(consultaAdbEnCurso) return;
+            if (consultaAdbEnCurso)
+                return;
             consultaAdbEnCurso = true;
             try {
                 // ADB en hilo secundario ✔
@@ -101,7 +108,7 @@ public class MainController {
                 Platform.runLater(() -> actualizarLista(dispositivos));
             } catch (IOException e) {
                 Platform.runLater(() -> lblEstadoAdb.setText("● Error al ejecutar ADB"));
-            }finally{
+            } finally {
                 consultaAdbEnCurso = false;
             }
         }, 0, 3, TimeUnit.SECONDS);
@@ -165,9 +172,11 @@ public class MainController {
     @FXML
     private void onSeleccionarDispositivo() {
         String androidId = listaDispositivos.getSelectionModel().getSelectedItem();
-        if (androidId == null) return;
+        if (androidId == null)
+            return;
         String serial = mapaAndroidIdSerial.get(androidId);
-        if (serial == null) return;
+        if (serial == null)
+            return;
 
         lblEstadoAdb.setText("● Cargando dispositivo...");
 
@@ -182,56 +191,81 @@ public class MainController {
                     List<Banda> bandas = adbService.obtenerBandas(serial);
                     desdeAdb.setBandasTemporales(bandas);
 
-                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/formulario_alta.fxml"));
-                    Node panel = loader.load();
-                    FormularioAltaController controller = loader.getController();
-
-                    Platform.runLater(() -> {
-                        cargarFormularioAlta(desdeAdb, controller, panel);
+                    cambiarVistaCentral("/fxml/formulario_alta.fxml", desdeAdb, (dispositivoGuardado) -> {
+                        cambiarVistaCentral("/fxml/vista_diagnostico.fxml", dispositivoGuardado, null);
                     });
 
                 } else {
-                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/vista_diagnostico.fxml"));
-                    Node panel = loader.load();
-                    DispositivoAware controller = loader.getController();
-
-                    Platform.runLater(() -> {
-                        controller.setDispositivo(dispositivo);
-                        panelCentral.getChildren().setAll(panel);
-                    });
+                    cambiarVistaCentral("/fxml/vista_diagnostico.fxml", dispositivo, null);
                 }
 
             } catch (IOException | SQLException e) {
-                Platform.runLater(() ->
-                        lblEstadoAdb.setText("● Error al cargar dispositivo"));
+                Platform.runLater(() -> lblEstadoAdb.setText("● Error al cargar dispositivo"));
                 e.printStackTrace();
             }
         }).start();
     }
 
     // ───────────────────── NAVEGACIÓN ─────────────────────
-    private void cargarFormularioAlta(Dispositivo desdeAdb, FormularioAltaController controller, Node panel) {
-        controller.setDispositivo(desdeAdb);
-        controller.setRootPane(rootPane);
-        controller.setOnGuardadoExitoso(dispositivoGuardado -> {
-            new Thread(() -> {
-                try {
-                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/vista_diagnostico.fxml"));
-                    Node pnl = loader.load();
-                    DispositivoAware ctrl = loader.getController();
+    // private void cargarFormularioAlta(Dispositivo desdeAdb,
+    // FormularioAltaController controller, Node panel) {
+    // controller.setDispositivo(desdeAdb);
+    // controller.setRootPane(rootPane);
+    // controller.setOnGuardadoExitoso(dispositivoGuardado -> {
+    // new Thread(() -> {
+    // try {
+    // FXMLLoader loader = new
+    // FXMLLoader(getClass().getResource("/fxml/vista_diagnostico.fxml"));
+    // Node pnl = loader.load();
+    // DispositivoAware ctrl = loader.getController();
 
-                    Platform.runLater(() -> {
-                        ctrl.setDispositivo(dispositivoGuardado);
-                        panelCentral.getChildren().setAll(pnl);
-                    });
-                } catch (IOException e) {
-                    lblEstadoAdb.setText("● Error al cargar la ficha técnica");
-                    e.printStackTrace();
+    // Platform.runLater(() -> {
+    // ctrl.setDispositivo(dispositivoGuardado);
+    // panelCentral.getChildren().setAll(pnl);
+    // });
+    // } catch (IOException e) {
+    // lblEstadoAdb.setText("● Error al cargar la ficha técnica");
+    // e.printStackTrace();
+    // }
+    // }).start();
+    // });
+
+    // panelCentral.getChildren().setAll(panel);
+    // }
+
+    @Override
+    public void cambiarVistaCentral(String fxmlPath, Dispositivo dispositivo, Consumer<Dispositivo> alFinalizar) {
+        Platform.runLater(() -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+                Node panel = loader.load();
+                Object controller = loader.getController();
+
+                if (controller instanceof DispositivoAware && dispositivo != null) {
+                    ((DispositivoAware) controller).setDispositivo(dispositivo);
                 }
-            }).start();
-        });
 
-        panelCentral.getChildren().setAll(panel);
+                if (controller instanceof DiagnosticoController) {
+                    ((DiagnosticoController) controller).setNavegacionHandler(this);
+                    ((DiagnosticoController) controller).setDispositivo(dispositivo);
+                }
+
+                if (controller instanceof ComparadorApnController) {
+                    ((ComparadorApnController) controller).setNavegacionHandler(this);
+                    ((ComparadorApnController) controller).setDispositivo(dispositivo);
+                }
+
+                if (controller instanceof FormularioAltaController && alFinalizar != null) {
+                    ((FormularioAltaController) controller).setOnGuardadoExitoso(dispositivoGuardado -> {
+                        alFinalizar.accept(dispositivoGuardado);
+                    });
+                }
+
+                panelCentral.getChildren().setAll(panel);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     // ───────────────────── STOP ─────────────────────
