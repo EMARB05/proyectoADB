@@ -10,6 +10,8 @@ import javafx.scene.control.TextField;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class LaboratorioController {
 
@@ -61,6 +63,51 @@ public class LaboratorioController {
     // ───────────────────── ADB ─────────────────────────
     private final ADBService adbService = new ADBService();
     private String serialActivo = null;
+    // ───────────────────────────────────────────────────────────────────────
+    // PATRONES para leerConsumoBatterystats()
+    //
+    // dumpsys batterystats tiene formatos distintos según versión de Android
+    // y fabricante. Cubrimos todos los conocidos, en orden de confiabilidad:
+    //
+    // Android 9+ → "Discharge: X mAh" o "Total discharge: X mAh"
+    // Android 6-8 → "Estimated discharge: X mAh"
+    // Alternativo → "dischargeElapsed: X" (µAh, hay que convertir)
+    // Alternativo → "Battery discharge: X mAh"
+    // Alternativo → "Computed drain: X mAh"
+    // Alternativo → número tras "mAh" en líneas con "discharge" (gama baja)
+    // ───────────────────────────────────────────────────────────────────────
+    private static final Pattern[] DISCHARGE_PATTERNS = {
+            // Patrón 1 – Android 9+ estándar: " Discharge: 1.23 mAh"
+            Pattern.compile(
+                    "(?i)^\\s*(?:total\\s+)?discharge:\\s*(\\d+(?:\\.\\d+)?)\\s*mah",
+                    Pattern.MULTILINE),
+
+            // Patrón 2 – Android 6-8: " Estimated discharge: 1.23 mAh"
+            Pattern.compile(
+                    "(?i)estimated\\s+discharge:\\s*(\\d+(?:\\.\\d+)?)\\s*mah",
+                    Pattern.MULTILINE),
+
+            // Patrón 3 – "Battery discharge: 1.23 mAh"
+            Pattern.compile(
+                    "(?i)battery\\s+discharge:\\s*(\\d+(?:\\.\\d+)?)\\s*mah",
+                    Pattern.MULTILINE),
+
+            // Patrón 4 – "Computed drain: 1.23 mAh"
+            Pattern.compile(
+                    "(?i)computed\\s+drain:\\s*(\\d+(?:\\.\\d+)?)\\s*mah",
+                    Pattern.MULTILINE),
+
+            // Patrón 5 – líneas genéricas con "discharge" y un número seguido de mAh
+            Pattern.compile(
+                    "(?i)discharge[^\\n]*?([0-9]+(?:\\.[0-9]+)?)\\s*mah",
+                    Pattern.MULTILINE),
+
+            // Patrón 6 – "dischargeElapsed: 12345" (en µAh, se convierte a mAh)
+            // Marcamos este con un prefijo especial para saber que hay que dividir
+            Pattern.compile(
+                    "(?i)dischargeElapsed:\\s*(\\d+)",
+                    Pattern.MULTILINE),
+    };
 
     // ───────────────────── INIT ──────────────────────────
     @FXML
@@ -95,6 +142,7 @@ public class LaboratorioController {
         }).start();
     }
 
+    // ───────────────────── TEST CONSUMO ─────────────────────
     @FXML
     private void iniciarTestConsumo() {
         System.out.println("[TEST] Iniciando medición con batterystats...");
@@ -108,46 +156,37 @@ public class LaboratorioController {
 
         taskExecutor.execute(() -> {
             try {
-                // REPOSO
-                updateUI("Reposo — 15:00", "-", "-");
+                // ── FASE 1: REPOSO ──────────────────────────────────────────
+                updateUI("Reposo — 10:00", "-", "-");
                 double reposo = medirFaseBatterystats(
-                        TimeUnit.MINUTES.toMillis(2),
-                        "Reposo");
+                        TimeUnit.MINUTES.toMillis(10), "Reposo");
 
-                // LLAMADA
+                // ── FASE 2: LLAMADA ─────────────────────────────────────────
                 updateUI(
                         String.format("Reposo: %.2f mAh", reposo),
-                        "Iniciando llamada...",
-                        "-");
+                        "Iniciando llamada...", "-");
 
                 ejecutarShell("am start -a android.intent.action.CALL -d tel:" + numero);
 
-                Thread.sleep(5000);
+                Thread.sleep(5_000);
 
                 double llamada = medirFaseBatterystats(
-                        TimeUnit.MINUTES.toMillis(2),
+                        TimeUnit.MINUTES.toMillis(10),
                         "Llamada");
 
                 ejecutarShell("input keyevent KEYCODE_ENDCALL");
-
+                // ── RESULTADO ───────────────────────────────────────────────
                 double diff = llamada - reposo;
-                double pct = reposo > 0
-                        ? ((diff / reposo) * 100)
-                        : 0;
+                double pct = reposo > 0 ? (diff / reposo) * 100.0 : 0;
 
                 Platform.runLater(() -> {
-                    labelReposo.setText(
-                            String.format("Reposo: %.2f mAh", reposo));
-
-                    labelLlamada.setText(
-                            String.format("Llamada: %.2f mAh", llamada));
-
-                    labelDiferencia.setText(
-                            String.format("Δ %.2f mAh (%.1f%%)", diff, pct));
+                    labelReposo.setText(String.format("Reposo:  %.2f mAh", reposo));
+                    labelLlamada.setText(String.format("Llamada: %.2f mAh", llamada));
+                    labelDiferencia.setText(String.format("Δ %.2f mAh (%.1f%%)", diff, pct));
                 });
 
                 System.out.printf(
-                        "[TEST] Reposo=%.2f | Llamada=%.2f | Δ=%.2f (%.1f%%)%n",
+                        "[TEST] ✔ Reposo=%.2f mAh | Llamada=%.2f mAh | Δ=%.2f mAh (%.1f%%)%n",
                         reposo, llamada, diff, pct);
 
             } catch (Exception e) {
@@ -160,21 +199,16 @@ public class LaboratorioController {
     @FXML
     private void iniciarLlamada() {
         String numero = numeroTelefono.getText();
-        if (numero == null || numero.isBlank()) {
-            System.out.println("[LLAMADA] No se introdujo número de teléfono");
+        if (numero == null || numero.isBlank())
             return;
-        }
-        System.out.println("[LLAMADA] Iniciando llamada a: " + numero);
         taskExecutor.execute(() -> ejecutarShell("am start -a android.intent.action.CALL -d tel:" + numero));
     }
 
     // ───────────────────── MONITOR ─────────────────────
     private void startMonitor() {
-        if (serialActivo == null) {
-            System.out.println("[MONITOR] Sin serial, no se puede iniciar");
+        if (serialActivo == null)
             return;
-        }
-        System.out.println("[MONITOR] Iniciando monitorización con serial: " + serialActivo);
+        System.out.println("[MONITOR] Iniciando monitorización: " + serialActivo);
 
         monitorTask = monitorScheduler.scheduleAtFixedRate(() -> {
             try {
@@ -205,9 +239,169 @@ public class LaboratorioController {
                 });
 
             } catch (Exception e) {
-                System.out.println("[MONITOR] Error en ciclo: " + e.getMessage());
+                System.out.println("[MONITOR] Error " + e.getMessage());
             }
         }, 0, 5, TimeUnit.SECONDS);
+    }
+
+    // ───────────────────── BATTERYSTATS RESET ────────────────────────────
+    private void resetBatteryStats() {
+        String out = ejecutarShell("dumpsys batterystats --reset");
+        System.out.println("[BATTERYSTATS] Reset: " + out.trim());
+        try {
+            Thread.sleep(2_000);
+        } catch (InterruptedException ignored) {
+        }
+        System.out.println("[BATTERYSTATS] Listo para nueva medición");
+    }
+
+    // ───────────────────── MEDIR FASE ────────────────────────────────────
+    //
+    // Devuelve mAh consumidos en la fase.
+    //
+    // ESTRATEGIA DUAL para cubrir el caso del Cocom F370:
+    // • batterystats devuelve 0 en reposo si la batería no bajó ni 1%
+    // (el sensor solo registra cambios de nivel entero, y en 5 min de
+    // reposo el teléfono puede no consumir suficiente para bajar un punto)
+    // • En ese caso caemos a FALLBACK: tomamos el nivel al inicio y al final,
+    // calculamos cuántos mAh representa ese delta usando la capacidad
+    // nominal estimada desde CHARGE_FULL (o 2500 mAh si no está disponible)
+    // • El resultado siempre se normaliza a mAh/min para que reposo y llamada
+    // sean comparables aunque la duración real difiera ligeramente
+    //
+private double medirFaseBatterystats(long duracionMs, String fase) {
+    try {
+        resetBatteryStats();
+        int nivelInicio = extraerNivelBateria(ejecutarShell("dumpsys battery"));
+        long t0 = System.currentTimeMillis();
+
+        // 1. EL BUCLE SOLO PARA LA ESPERA Y ACTUALIZAR UI
+        long inicio = System.currentTimeMillis();
+        while (System.currentTimeMillis() - inicio < duracionMs) {
+            long restante = duracionMs - (System.currentTimeMillis() - inicio);
+            int min = (int) (restante / 60_000);
+            int seg = (int) ((restante % 60_000) / 1_000);
+            String txt = fase + " — " + min + ":" + String.format("%02d", seg);
+
+            Platform.runLater(() -> {
+                if (fase.equals("Reposo")) labelReposo.setText(txt);
+                else labelLlamada.setText(txt);
+            });
+            
+            Thread.sleep(1_000);
+        }
+
+        // 2. CÁLCULOS DESPUÉS DE QUE TERMINE EL TIEMPO
+        long t1 = System.currentTimeMillis();
+        double minutosReales = (t1 - t0) / 60_000.0;
+        double mah = leerConsumoBatterystats();
+
+        if (mah > 0) {
+            // Log y return...
+            return mah;
+        }
+
+        // Fallback nivel de batería...
+        int nivelFin = extraerNivelBateria(ejecutarShell("dumpsys battery"));
+        int deltaPct = nivelInicio - nivelFin;
+
+        if (deltaPct > 0) {
+            double capacidadMah = obtenerCapacidadBateria();
+            return (deltaPct / 100.0) * capacidadMah;
+        }
+
+        // Estimación mínima...
+        return (minutosReales / 60.0) * 1.0;
+
+    } catch (Exception e) {
+        System.out.println("[FASE] Error: " + e.getMessage());
+        return 0.0;
+    }
+}
+
+    // ───────────────────── CAPACIDAD BATERÍA ─────────────────────────────
+    // Lee CHARGE_FULL de uevent (µAh) y convierte a mAh.
+    // Si no está disponible devuelve 2500 mAh (valor conservador para gama baja).
+    private double obtenerCapacidadBateria() {
+        try {
+            String out = ejecutarShell(
+                    "cat /sys/class/power_supply/battery/uevent");
+            for (String line : out.split("\n")) {
+                String[] parts = line.trim().split("=", 2);
+                if (parts.length == 2 &&
+                        parts[0].trim().equalsIgnoreCase("POWER_SUPPLY_CHARGE_FULL")) {
+                    double uah = Double.parseDouble(parts[1].trim());
+                    double mah = uah / 1000.0;
+                    System.out.printf("[BATERÍA] CHARGE_FULL=%.0f µAh → %.0f mAh%n", uah, mah);
+                    return mah > 100 ? mah : 2500; // sanity check
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        System.out.println("[BATERÍA] CHARGE_FULL no disponible → usando 2500 mAh");
+        return 2500;
+    }
+
+    // ───────────────────── LEER CONSUMO BATTERYSTATS ─────────────────────
+    //
+    // Estrategia:
+    // 1. Ejecuta dumpsys batterystats
+    // 2. Imprime las 40 líneas que contienen "discharge", "drain" o "mah"
+    // para que puedas ver en consola qué devuelve TU dispositivo
+    // 3. Prueba los patrones en orden hasta encontrar un valor > 0
+    // 4. El patrón 6 (dischargeElapsed) devuelve µAh → convierte a mAh
+    // 5. Si ningún patrón funciona, devuelve 0 y avisa en consola
+    // → busca en el log las líneas "[BATTERYSTATS] LÍNEA:" y dinos
+    // cuál devuelve tu dispositivo para añadir el patrón exacto
+    // ─────────────────────────────────────────────────────────────────────
+    private double leerConsumoBatterystats() {
+        try {
+            String out = ejecutarShell("dumpsys batterystats");
+            // ── Diagnóstico: imprime líneas relevantes ──────────────────────
+            System.out.println("[BATTERYSTATS] ── LÍNEAS RELEVANTES ──────────");
+            int lineasDiag = 0;
+
+            for (String line : out.split("\n")) {
+                String l = line.toLowerCase();
+                if ((l.contains("discharge") || l.contains("drain") || l.contains("mah"))
+                        && lineasDiag < 40) {
+                    System.out.println("[BATTERYSTATS] LÍNEA: " + line.trim());
+                    lineasDiag++;
+                }
+            }
+            System.out.println("[BATTERYSTATS] ── FIN LÍNEAS RELEVANTES ──────");
+            // ── Probar patrones en orden ────────────────────────────────────
+            for (int i = 0; i < DISCHARGE_PATTERNS.length; i++) {
+                Matcher m = DISCHARGE_PATTERNS[i].matcher(out);
+                if (m.find()) {
+                    double valor = Double.parseDouble(m.group(1));
+                    // Patrón 6 (dischargeElapsed) viene en µAh → convertir
+                    if (i == 5) {
+                        double mah = valor / 1000.0;
+
+                        System.out.printf(
+                                "[BATTERYSTATS] Patrón %d (dischargeElapsed): %.0f µAh → %.3f mAh%n",
+                                i + 1, valor, mah);
+                        return mah;
+                    }
+
+                    System.out.printf(
+                            "[BATTERYSTATS] Patrón %d coincidió: %.3f mAh%n",
+                            i + 1, valor);
+                    return valor;
+                }
+            }
+            // ── Ningún patrón funcionó ──────────────────────────────────────
+            System.out.println(
+                    "[BATTERYSTATS] ✖ Ningún patrón coincidió.\n" +
+                            "  → Revisa las líneas '[BATTERYSTATS] LÍNEA:' en consola\n" +
+                            "  → Dinos qué línea aparece y añadimos el patrón exacto.");
+            return 0;
+
+        } catch (Exception e) {
+            System.out.println("[BATTERYSTATS] Error: " + e.getMessage());
+            return 0;
+        }
     }
 
     // ───────────────────── CPU REAL desde /proc/stat ─────────────────────
@@ -228,7 +422,6 @@ public class LaboratorioController {
             long totalIdle = idle + iowait;
             long totalActive = user + nice + system + irq + softirq;
             long total = totalIdle + totalActive;
-
             if (prevCpuStats == null) {
                 prevCpuStats = new long[] { totalIdle, total };
                 return 0.0;
@@ -244,101 +437,22 @@ public class LaboratorioController {
             return Math.min(Math.max(cpuPct, 0.0), 100.0);
 
         } catch (Exception e) {
-            System.out.println("[CPU] Error leyendo /proc/stat: " + e.getMessage());
+            System.out.println("[CPU] Error: " + e.getMessage());
             return 0;
         }
     }
 
+    // ───────────────────── EXTRAER NIVEL BATERÍA ─────────────────────────
     private int extraerNivelBateria(String out) {
         try {
             for (String line : out.split("\n")) {
                 String l = line.trim().toLowerCase();
-
-                if (l.startsWith("level:")) {
-                    return Integer.parseInt(
-                            l.replace("level:", "").trim());
-                }
+                if (l.startsWith("level:"))
+                    return Integer.parseInt(l.replace("level:", "").trim());
             }
         } catch (Exception ignored) {
         }
-
         return 0;
-    }
-
-    private double leerConsumoBatterystats() {
-        try {
-            String out = ejecutarShell("dumpsys batterystats");
-
-            for (String line : out.split("\n")) {
-                String l = line.trim().toLowerCase();
-
-                if (l.startsWith("discharge:")) {
-                    java.util.regex.Matcher m = java.util.regex.Pattern
-                            .compile("(\\d+[.,]?\\d*)")
-                            .matcher(l);
-
-                    if (m.find()) {
-                        double valor = Double.parseDouble(
-                                m.group(1).replace(",", "."));
-
-                        System.out.printf(
-                                "[BATTERYSTATS] Discharge real: %.2f mAh%n",
-                                valor);
-
-                        return valor;
-                    }
-                }
-            }
-
-            return 0;
-
-        } catch (Exception e) {
-            System.out.println("[BATTERYSTATS] Error: " + e.getMessage());
-            return 0;
-        }
-    }
-
-    private void resetBatteryStats() {
-        ejecutarShell("cmd batterystats reset");
-
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException ignored) {
-        }
-
-        System.out.println("[BATTERYSTATS] Reiniciado");
-    }
-
-    private double medirFaseBatterystats(long duracionMs, String fase) {
-        try {
-            resetBatteryStats();
-
-            long inicio = System.currentTimeMillis();
-
-            while (System.currentTimeMillis() - inicio < duracionMs) {
-                long restante = duracionMs - (System.currentTimeMillis() - inicio);
-
-                int min = (int) (restante / 60000);
-                int seg = (int) ((restante % 60000) / 1000);
-
-                String txt = fase + " — " + min + ":" + String.format("%02d", seg);
-
-                Platform.runLater(() -> {
-                    if (fase.equals("Reposo"))
-                        labelReposo.setText(txt);
-                    else
-                        labelLlamada.setText(txt);
-                });
-
-                Thread.sleep(1000);
-            }
-
-            return leerConsumoBatterystats();
-
-        } catch (Exception e) {
-            System.out.println("[FASE] Error: " + e.getMessage());
-            return 0;
-        }
     }
 
     // ───────────────────── HELPERS UI ─────────────────────

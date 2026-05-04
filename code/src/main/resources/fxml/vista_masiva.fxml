@@ -17,7 +17,7 @@
           style="-fx-border-color: #cba6f7; -fx-border-width: 2; -fx-border-style: dashed; 
                  -fx-border-radius: 15; -fx-background-color: #181825;">
         <Label text="📥" style="-fx-font-size: 50px;"/>
-        <Label text="Arrastra aquí tus archivos .apk/.XAPK" style="-fx-text-fill: #a6adc8;"/>
+        <Label text="Arrastra aquí tus archivos .apk/.XAPK/.apkm" style="-fx-text-fill: #a6adc8;"/>
     </VBox>
 
     <HBox spacing="20" alignment="CENTER">
