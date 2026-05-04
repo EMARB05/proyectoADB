@@ -42,6 +42,7 @@ public class ApnComparator {
 
         if (apnExcel.apn == null) return resultado;
 
+        System.out.println("BUSCANDO -> MCC: [" + mcc + "] MNC: [" + mnc + "] APN: [" + apnExcel.apn + "]");
         // Buscamos el APN en el XML por mcc+mnc+apn
         XmlApnParser.ApnEntry apnXml =
             xmlParser.buscarApn(mcc, mnc, apnExcel.apn);
