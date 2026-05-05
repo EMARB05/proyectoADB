@@ -60,6 +60,14 @@
                         </VBox>
                     </graphic>
                 </Button>
+                 <Button onAction="#exportarApnXml" styleClass="btn-hw,btn-modern">
+            <graphic>
+                <VBox alignment="CENTER" spacing="5">
+                    <FontIcon iconLiteral="fas-file-export" iconSize="24" iconColor="#94e2d5"/>
+                    <Label text="EXPORT APNs" style="-fx-font-size: 9px;"/>
+                </VBox>
+            </graphic>
+        </Button>
             </FlowPane>
         </VBox>
 
@@ -95,6 +103,8 @@
                 </Button>
             </FlowPane>
         </VBox>
+
+     
 
         <ListView fx:id="listaPasos" VBox.vgrow="ALWAYS"
                   style="-fx-text-fill: #6a0dad;"/>

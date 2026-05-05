@@ -12,12 +12,8 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.text.*;
 import javafx.stage.FileChooser;
-
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 import java.util.function.BiConsumer;
 

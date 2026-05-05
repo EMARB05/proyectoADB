@@ -2,12 +2,13 @@ package com.example.View;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import com.example.Controller.ADBService;
 import com.example.Model.Dispositivo;
 import javafx.fxml.FXML;
@@ -455,6 +456,51 @@ public class DiagnosticoController implements DispositivoAware {
         return true;
     }
 
+    @FXML
+    private void exportarApnXml() {
+        if (dispositivoActual == null)
+            return;
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Exportar APNs a XML");
+        fileChooser.setInitialFileName("apns_" + dispositivoActual.getSerialNumber() + ".xml");
+
+        // Configurar ruta por defecto a Documentos
+        String userHome = System.getProperty("user.home");
+        File documentosDir = new File(userHome, "Documents");
+        if (documentosDir.exists()) {
+            fileChooser.setInitialDirectory(documentosDir);
+        }
+
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Archivo XML", "*.xml"));
+
+        File file = fileChooser.showSaveDialog(btnEjecutar.getScene().getWindow());
+        if (file == null)
+            return;
+
+        new Thread(() -> {
+            try {
+                ADBService adb = new ADBService();
+                String serial = adb.getSerialActivo(dispositivoActual.getAndroid_id());
+                String xmlContent = adb.exportarApnsXml(serial);
+
+                Files.writeString(file.toPath(), xmlContent);
+
+                // IMPORTANTE: Volver al hilo de la interfaz para mostrar el Toast
+                javafx.application.Platform.runLater(() -> {
+                    fichaTecnicaController.mostrarToast("✅ Exportado en: " + file.getAbsolutePath());
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                // Opcional: Mostrar Toast de error
+                javafx.application.Platform.runLater(() -> {
+                    fichaTecnicaController.mostrarToast("❌ Error al exportar el archivo");
+                });
+            }
+        }).start();
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // LLAMADA ENTRE 2 DISPOSITIVOS
     //
@@ -470,49 +516,46 @@ public class DiagnosticoController implements DispositivoAware {
     // 9. Llamada activa 10s → Tel.2 cuelga
     // 10. Si ambas rondas funcionaron → OK
     // ─────────────────────────────────────────────────────────────────────────
-    private boolean ejecutarLlamadaEntreDos(PasoPrueba paso) {
-        String s1 = llamadaEntreDosSerial1;
-        String s2 = llamadaEntreDosSerial2;
-        String numero1 = llamadaEntreDosNumero1;
-        String numero2 = llamadaEntreDosNumero2;
+  private boolean ejecutarLlamadaEntreDos(PasoPrueba paso) {
+    String s1 = llamadaEntreDosSerial1;
+    String s2 = llamadaEntreDosSerial2;
+    String numero1 = llamadaEntreDosNumero1;
+    String numero2 = llamadaEntreDosNumero2;
 
-        if (s1 == null || s2 == null || numero1 == null || numero2 == null) {
-            System.out.println("[ENTRE2] Seriales o números no configurados");
-            return false;
-        }
+    if (s1 == null || s2 == null || numero1 == null || numero2 == null) {
+        System.out.println("[ENTRE2] Seriales o números no configurados");
+        return false;
+    }
 
-        System.out.printf("[ENTRE2] Iniciando prueba: %s (%s) ↔ %s (%s)%n",
-                s1, numero1, s2, numero2);
+    System.out.printf("[ENTRE2] Iniciando prueba: %s (%s) ↔ %s (%s)%n",
+            s1, numero1, s2, numero2);
 
-        boolean ronda1Ok = false;
-        boolean ronda2Ok = false;
+    boolean ronda1Ok = false;
+    boolean ronda2Ok = false;
 
-        try {
-            // ── RONDA 1: Tel.1 → Tel.2 ───────────────────────────────────────
-            actualizarEstadoPaso(paso, "Ronda 1: Preparando pantallas...");
+    try {
+        // ── RONDA 1: Tel.1 → Tel.2 ───────────────────────────────────────
+        actualizarEstadoPaso(paso, "Ronda 1: Preparando pantallas...");
+        despertarDispositivo(s1);
+        despertarDispositivo(s2);
+        Thread.sleep(1_500);
 
-            // Encender y desbloquear AMBOS antes de empezar
-            despertarDispositivo(s1);
-            despertarDispositivo(s2);
-            Thread.sleep(1_500);
+        System.out.println("[ENTRE2] Ronda 1: Tel.1 llama a Tel.2...");
+        actualizarEstadoPaso(paso, "Ronda 1: Tel.1 → Tel.2");
+        ejecutarShellEnSerial(s1, "am start -a android.intent.action.CALL -d tel:" + numero2);
 
-            System.out.println("[ENTRE2] Ronda 1: Tel.1 llama a Tel.2...");
-            actualizarEstadoPaso(paso, "Ronda 1: Tel.1 → Tel.2");
+        // Espera inteligente — contesta en cuanto suena, máximo 15s
+        actualizarEstadoPaso(paso, "Ronda 1: Esperando que suene...");
+        boolean sono1 = esperarHastaQueSuene(s2, 15);
 
-            ejecutarShellEnSerial(s1,
-                    "am start -a android.intent.action.CALL -d tel:" + numero2);
-
-            // Esperar que la llamada llegue al receptor (más margen)
-            actualizarEstadoPaso(paso, "Ronda 1: Esperando que suene...");
-            Thread.sleep(6_000);
-
-            // Despertar Tel.2 justo antes de contestar por si se apagó
+        if (!sono1 || !llamadaActiva(s1)) {
+            System.out.println("[ENTRE2] Ronda 1 FAIL — no sonó en Tel.2 o Tel.1 no estableció llamada");
+            ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
+            ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
+            ronda1Ok = false;
+        } else {
             despertarDispositivo(s2);
             Thread.sleep(500);
-
-            // Contestar — doble intento por seguridad
-            ejecutarShellEnSerial(s2, "input keyevent KEYCODE_CALL");
-            Thread.sleep(1_000);
             ejecutarShellEnSerial(s2, "input keyevent KEYCODE_CALL");
             System.out.println("[ENTRE2] Tel.2 contestó");
 
@@ -523,32 +566,33 @@ public class DiagnosticoController implements DispositivoAware {
             ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
             System.out.println("[ENTRE2] Ronda 1 finalizada ✔");
             ronda1Ok = true;
+        }
 
-            // Pausa entre rondas — dar tiempo a que el sistema registre fin de llamada
-            actualizarEstadoPaso(paso, "Pausa entre rondas...");
-            Thread.sleep(4_000);
+        // Pausa entre rondas — siempre se ejecuta aunque Ronda 1 fallara
+        actualizarEstadoPaso(paso, "Pausa entre rondas...");
+        Thread.sleep(4_000);
 
-            // ── RONDA 2: Tel.2 → Tel.1 ───────────────────────────────────────
-            // Volver a despertar ambos por si se apagaron durante la pausa
-            despertarDispositivo(s1);
-            despertarDispositivo(s2);
-            Thread.sleep(1_500);
+        // ── RONDA 2: Tel.2 → Tel.1 ─── siempre se ejecuta ───────────────
+        despertarDispositivo(s1);
+        despertarDispositivo(s2);
+        Thread.sleep(1_500);
 
-            System.out.println("[ENTRE2] Ronda 2: Tel.2 llama a Tel.1...");
-            actualizarEstadoPaso(paso, "Ronda 2: Tel.2 → Tel.1");
+        System.out.println("[ENTRE2] Ronda 2: Tel.2 llama a Tel.1...");
+        actualizarEstadoPaso(paso, "Ronda 2: Tel.2 → Tel.1");
+        ejecutarShellEnSerial(s2, "am start -a android.intent.action.CALL -d tel:" + numero1);
 
-            ejecutarShellEnSerial(s2,
-                    "am start -a android.intent.action.CALL -d tel:" + numero1);
+        // Espera inteligente — contesta en cuanto suena, máximo 15s
+        actualizarEstadoPaso(paso, "Ronda 2: Esperando que suene...");
+        boolean sono2 = esperarHastaQueSuene(s1, 15);
 
-            actualizarEstadoPaso(paso, "Ronda 2: Esperando que suene...");
-            Thread.sleep(6_000);
-
-            // Despertar Tel.1 justo antes de contestar
+        if (!sono2 || !llamadaActiva(s2)) {
+            System.out.println("[ENTRE2] Ronda 2 FAIL — no sonó en Tel.1 o Tel.2 no estableció llamada");
+            ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
+            ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
+            ronda2Ok = false;
+        } else {
             despertarDispositivo(s1);
             Thread.sleep(500);
-
-            ejecutarShellEnSerial(s1, "input keyevent KEYCODE_CALL");
-            Thread.sleep(1_000);
             ejecutarShellEnSerial(s1, "input keyevent KEYCODE_CALL");
             System.out.println("[ENTRE2] Tel.1 contestó");
 
@@ -559,20 +603,48 @@ public class DiagnosticoController implements DispositivoAware {
             ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
             System.out.println("[ENTRE2] Ronda 2 finalizada ✔");
             ronda2Ok = true;
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.out.println("[ENTRE2] Test interrumpido");
         }
 
-        boolean exito = ronda1Ok && ronda2Ok;
-        System.out.printf("[ENTRE2] Resultado: Ronda1=%s | Ronda2=%s → %s%n",
-                ronda1Ok ? "OK" : "FAIL",
-                ronda2Ok ? "OK" : "FAIL",
-                exito ? "PASS ✔" : "FAIL ✖");
-        return exito;
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        System.out.println("[ENTRE2] Test interrumpido");
     }
 
+    boolean exito = ronda1Ok && ronda2Ok;
+    System.out.printf("[ENTRE2] Resultado: Ronda1=%s | Ronda2=%s → %s%n",
+            ronda1Ok ? "OK" : "FAIL",
+            ronda2Ok ? "OK" : "FAIL",
+            exito ? "PASS ✔" : "FAIL ✖");
+    return exito;
+}
+
+// Espera activamente hasta que el receptor detecte la llamada entrante
+// Comprueba cada segundo hasta maxSegundos — contesta en cuanto suena
+private boolean esperarHastaQueSuene(String serialReceptor, int maxSegundos) {
+    System.out.println("[ENTRE2] Esperando que suene en: " + serialReceptor);
+    for (int i = 0; i < maxSegundos; i++) {
+        try {
+            Thread.sleep(1_000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+        String out = ejecutarShellEnSerial(serialReceptor, "dumpsys telephony.registry");
+        if (out.contains("mCallState=1")) { // RINGING = sonando
+            System.out.println("[ENTRE2] ¡Está sonando! (tardó " + (i + 1) + "s)");
+            return true;
+        }
+    }
+    System.out.println("[ENTRE2] No sonó en " + maxSegundos + "s — timeout");
+    return false;
+}
+
+// Verifica si el dispositivo tiene una llamada activa o sonando
+private boolean llamadaActiva(String serial) {
+    String out = ejecutarShellEnSerial(serial, "dumpsys telephony.registry");
+    return out.contains("mCallState=2") || // OFFHOOK = llamada activa
+           out.contains("mCallState=1");   // RINGING = sonando
+}
     private String obtenerSerialADBActual() {
         if (dispositivoActual == null)
             return null;
@@ -606,84 +678,7 @@ public class DiagnosticoController implements DispositivoAware {
     //
     // Devuelve el número como String (ej "+34612345678") o null si no se encontró.
     // ─────────────────────────────────────────────────────────────────────────
-    private String detectarNumeroTelefono(String serial) {
-
-        // ── Estrategia 1: getline1number por iphonesubinfo ────────────────────
-        // En Android 12+ el slot 0 es la llamada 11 (con i32 1 para subId)
-        // La salida real es: Result: Parcel(... "612345678")
-        // El número está entre las últimas comillas simples de la línea "Result:"
-        for (String cmd : new String[] {
-                "service call iphonesubinfo 11 i32 1", // Android 12+
-                "service call iphonesubinfo 6 i32 1", // Android 8-11
-                "service call iphonesubinfo 5 i32 1" // fallback
-        }) {
-            try {
-                String out = ejecutarShellEnSerial(serial, cmd);
-                System.out.println("[TEL] " + serial + " raw iphonesubinfo: " + out);
-
-                // El número aparece en el Parcel como caracteres separados por puntos
-                // Ejemplo: "6.1.2.3.4.5.6.7.8" o directamente "'612345678'"
-                // Extraemos solo dígitos y + de la parte después de "Result:"
-                int resultIdx = out.indexOf("Result:");
-                if (resultIdx >= 0) {
-                    String resultPart = out.substring(resultIdx);
-                    // Buscar contenido entre comillas simples (el número real)
-                    java.util.regex.Matcher m = java.util.regex.Pattern
-                            .compile("'([+0-9][0-9]{6,})'")
-                            .matcher(resultPart);
-                    if (m.find()) {
-                        String num = m.group(1);
-                        System.out.println("[TEL] " + serial + " via iphonesubinfo: " + num);
-                        return num;
-                    }
-                }
-            } catch (Exception e) {
-                System.out.println("[TEL] iphonesubinfo error: " + e.getMessage());
-            }
-        }
-
-        // ── Estrategia 2: telephony.registry ─────────────────────────────────
-        // Busca líneas con "mPhoneNumber=" o "PhoneNumber=" que tengan
-        // un número real (al menos 7 dígitos, no todo ceros)
-        try {
-            String out = ejecutarShellEnSerial(serial, "dumpsys telephony.registry");
-            java.util.regex.Matcher m = java.util.regex.Pattern
-                    .compile("(?:mPhoneNumber|PhoneNumber|number)\\s*=\\s*([+0-9]{7,})")
-                    .matcher(out);
-            while (m.find()) {
-                String num = m.group(1);
-                // Descartar si es todo ceros o demasiado largo (basura)
-                if (!num.matches("0+") && num.length() <= 15) {
-                    System.out.println("[TEL] " + serial + " via telephony.registry: " + num);
-                    return num;
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("[TEL] telephony.registry error: " + e.getMessage());
-        }
-
-        // ── Estrategia 3: settings ────────────────────────────────────────────
-        for (String setting : new String[] {
-                "settings get global line1_number",
-                "settings get secure line1_number",
-                "getprop net.phone.number"
-        }) {
-            try {
-                String out = ejecutarShellEnSerial(serial, setting).trim();
-                if (!out.isBlank() && !out.equals("null")) {
-                    String num = out.replaceAll("[^0-9+]", "");
-                    if (num.length() >= 7 && num.length() <= 15 && !num.matches("0+")) {
-                        System.out.println("[TEL] " + serial + " via settings: " + num);
-                        return num;
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        System.out.println("[TEL] " + serial + " → número no detectado por ninguna estrategia");
-        return null;
-    }
+    
 
     // ─────────────────────────────────────────────────────────────────────────
     // OBTENER SERIALES ADB CONECTADOS
@@ -911,14 +906,14 @@ public class DiagnosticoController implements DispositivoAware {
 
     @FXML
     private void addWifiOn() {
-                pasos.add(new PasoPrueba("Levantar Interfaz WiFi",
+        pasos.add(new PasoPrueba("Levantar Interfaz WiFi",
                 "shell svc wifi enable && sleep 6"));
     }
 
     @FXML
     private void addWifiOff() {
-        
-                pasos.add(new PasoPrueba("Apagar WiFi",
+
+        pasos.add(new PasoPrueba("Apagar WiFi",
                 "shell svc wifi disable && sleep 2"));
     }
 
@@ -926,7 +921,6 @@ public class DiagnosticoController implements DispositivoAware {
     private void addPingStep() {
         pasos.add(new PasoPrueba("Ping Google", "shell ping -c 3 8.8.8.8"));
     }
-
 
     @FXML
     private void addSoundTest() {
@@ -948,11 +942,12 @@ public class DiagnosticoController implements DispositivoAware {
         pasos.clear();
         btnInforme.setDisable(true);
     }
+
     // ─────────────────────────────────────────────────────────────────────────
     // NAVEGACIÓN
     // ─────────────────────────────────────────────────────────────────────────
     @FXML
-private void abrirLaboratorio() {
+    private void abrirLaboratorio() {
         try {
             FXMLLoader loader = new FXMLLoader(
                     getClass().getResource("/fxml/LaboratorioBateria.fxml"));
@@ -964,8 +959,9 @@ private void abrirLaboratorio() {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        }
-        @FXML
+    }
+
+    @FXML
     private void btnGestionarClick() {
         try {
             FXMLLoader loader = new FXMLLoader(
@@ -984,119 +980,181 @@ private void abrirLaboratorio() {
     // ─────────────────────────────────────────────────────────────────────────
 
     @FXML
-    private void generarInformePDF() {
-        if (dispositivoActual == null || pasos.isEmpty())
-            return;
+private void generarInformePDF() {
+    if (dispositivoActual == null || pasos.isEmpty()) return;
 
-        FileChooser fc = new FileChooser();
-        fc.setTitle("Guardar Informe PDF");
-// Carpeta por defecto: Documentos
-        String userHome = System.getProperty("user.home");
-        File documentosPath = new File(userHome, "Documents");
-        if (documentosPath.exists()) {
-            fc.setInitialDirectory(documentosPath);
-        }
+    FileChooser fc = new FileChooser();
+    fc.setTitle("Guardar Informe PDF");
+    String userHome = System.getProperty("user.home");
+    File documentosPath = new File(userHome, "Documents");
+    if (documentosPath.exists()) fc.setInitialDirectory(documentosPath);
 
-        fc.setInitialFileName("Informe_Diagnostico_" + dispositivoActual.getSerialNumber() + ".pdf");
-        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documento PDF", "*.pdf"));
+    fc.setInitialFileName("Informe_Diagnostico_" + dispositivoActual.getSerialNumber() + ".pdf");
+    fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documento PDF", "*.pdf"));
 
-        File file = fc.showSaveDialog(btnInforme.getScene().getWindow());
+    File file = fc.showSaveDialog(btnInforme.getScene().getWindow());
+    if (file == null) return;
 
-        // Si el usuario cancela la selección, salimos
-        if (file == null)
-            return;
+    ADBService adb = new ADBService();
+    String serial;
+    try {
+        serial = adb.getSerialActivo(dispositivoActual.getAndroid_id());
+    } catch (IOException e) {
+        serial = dispositivoActual.getSerialNumber();
+    }
+    Map<String, String> specs = adb.obtenerSpecsHardware(serial);
 
-        try (PDDocument doc = new PDDocument()) {
-            PDPage page = new PDPage();
-            doc.addPage(page);
+    try (PDDocument doc = new PDDocument()) {
+        PDPage page = new PDPage();
+        doc.addPage(page);
 
-            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
-                // Título
+        try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+
+            // ── TÍTULO ───────────────────────────────────────────────────────
+            cs.beginText();
+            cs.setFont(PDType1Font.HELVETICA_BOLD, 18);
+            cs.newLineAtOffset(50, 750);
+            cs.showText("CERTIFICADO DE DIAGN" + limpiar("OSTICO") + " T" + limpiar("ECNICO"));
+            cs.endText();
+
+            // Línea separadora
+            cs.setLineWidth(1f);
+            cs.moveTo(50, 738);
+            cs.lineTo(550, 738);
+            cs.stroke();
+
+            // Fecha
+            cs.beginText();
+            cs.setFont(PDType1Font.HELVETICA, 10);
+            cs.newLineAtOffset(50, 724);
+            cs.showText("Fecha: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+            cs.endText();
+
+            // ── IDENTIFICACIÓN ───────────────────────────────────────────────
+            int y = 700;
+            y = dibujarSeccion(cs, "IDENTIFICACION DEL DISPOSITIVO", y);
+            y = dibujarFila(cs, "Modelo",     limpiar(dispositivoActual.getModelo().getNombreModelo()), y);
+            y = dibujarFila(cs, "Marca",      limpiar(dispositivoActual.getModelo().getMarca().getNombre()), y);
+            y = dibujarFila(cs, "S/N",        limpiar(dispositivoActual.getSerialNumber()), y);
+            y = dibujarFila(cs, "Android ID", limpiar(dispositivoActual.getAndroid_id()), y);
+            y = dibujarFila(cs, "IMEI",       limpiar(specs.getOrDefault("IMEI", "N/A")), y);
+
+            // ── SOFTWARE ─────────────────────────────────────────────────────
+            y -= 8;
+            y = dibujarSeccion(cs, "SOFTWARE", y);
+            y = dibujarFila(cs, "Version Android",  limpiar(specs.getOrDefault("Android", "N/A")), y);
+            y = dibujarFila(cs, "Parche seguridad", limpiar(specs.getOrDefault("Parche", "N/A")), y);
+
+            // ── HARDWARE ─────────────────────────────────────────────────────
+            y -= 8;
+            y = dibujarSeccion(cs, "HARDWARE", y);
+            y = dibujarFila(cs, "CPU",            limpiar(specs.getOrDefault("CPU", "N/A")), y);
+            y = dibujarFila(cs, "RAM",            limpiar(specs.getOrDefault("RAM", "N/A")), y);
+            y = dibujarFila(cs, "Almacenamiento", limpiar(specs.getOrDefault("Storage", "N/A")), y);
+            y = dibujarFila(cs, "Resolucion",     limpiar(specs.getOrDefault("Resolucion", "N/A")), y);
+            y = dibujarFila(cs, "DPI",            limpiar(specs.getOrDefault("DPI", "N/A")), y);
+
+            // ── BATERÍA ──────────────────────────────────────────────────────
+            y -= 8;
+            y = dibujarSeccion(cs, "BATERIA", y);
+            y = dibujarFila(cs, "Nivel",  limpiar(specs.getOrDefault("Bateria", "N/A")), y);
+            y = dibujarFila(cs, "Estado", limpiar(specs.getOrDefault("EstadoCarga", "N/A")), y);
+
+            // ── RESULTADOS DE PRUEBAS ────────────────────────────────────────
+            y -= 8;
+            y = dibujarSeccion(cs, "RESULTADOS DE PRUEBAS", y);
+
+            for (PasoPrueba paso : pasos) {
+                String nombreLimpio = limpiar(paso.getNombre());
+
                 cs.beginText();
-                cs.setFont(PDType1Font.HELVETICA_BOLD, 18);
-                cs.newLineAtOffset(50, 750);
-                cs.showText("CERTIFICADO DE DIAGNÓSTICO TÉCNICO");
-                cs.endText();
-
-                cs.setLineWidth(1f);
-                cs.moveTo(50, 740);
-                cs.lineTo(550, 740);
-                cs.stroke();
-
-                // Datos dispositivo
-                cs.beginText();
-                cs.setFont(PDType1Font.HELVETICA, 12);
-                cs.setLeading(15f);
-                cs.newLineAtOffset(50, 710);
-                cs.showText("Fecha: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
-                cs.newLine();
-                cs.showText("Dispositivo: " + dispositivoActual.getModelo().getNombreModelo());
-                cs.newLine();
-                cs.showText("S/N: " + dispositivoActual.getSerialNumber());
-                cs.newLine();
-                cs.showText("Android ID: " + dispositivoActual.getAndroid_id());
-                cs.endText();
-
-                // Tabla de pruebas
-                int y = 620;
-                cs.beginText();
-                cs.setFont(PDType1Font.HELVETICA_BOLD, 12);
-                cs.newLineAtOffset(50, y);
-                cs.showText("PRUEBA");
-                cs.newLineAtOffset(400, 0);
-                cs.showText("RESULTADO");
-                cs.endText();
- y -= 20;
-
-                for (PasoPrueba paso : pasos) {
-                    // Limpieza de caracteres Unicode para evitar errores de fuente
-                    String nombreLimpio = paso.getNombre()
-                            .replace("➤", ">")
-                            .replaceAll("[^\\x00-\\x7F]", "");
-
-                    cs.beginText();
-                    cs.setFont(PDType1Font.HELVETICA, 11);
-                    cs.setNonStrokingColor(java.awt.Color.BLACK);
-                    cs.newLineAtOffset(50, y);
-                    cs.showText(nombreLimpio);
-                    cs.endText();
-
-                    cs.beginText();
-                    cs.setFont(PDType1Font.HELVETICA, 11); // Re-set font para el PASS/FAIL
-                    cs.newLineAtOffset(450, y);
-                    if ("OK".equals(paso.getEstado())) {
-                        cs.setNonStrokingColor(new java.awt.Color(34, 139, 34));
-                        cs.showText("PASS");
-                    } else {
-                        cs.setNonStrokingColor(java.awt.Color.RED);
-                        cs.showText("FAIL");
-                    }
-                    cs.endText();
-                    y -= 20;
-                }
-
-                // Veredicto
-                y -= 30;
-                cs.beginText();
-                cs.setFont(PDType1Font.HELVETICA_BOLD, 14);
+                cs.setFont(PDType1Font.HELVETICA, 9);
                 cs.setNonStrokingColor(java.awt.Color.BLACK);
-                cs.newLineAtOffset(50, y);
+                cs.newLineAtOffset(55, y);
+                cs.showText(nombreLimpio);
                 cs.endText();
+
+                cs.beginText();
+                cs.setFont(PDType1Font.HELVETICA_BOLD, 9);
+                cs.newLineAtOffset(450, y);
+                if ("OK".equals(paso.getEstado())) {
+                    cs.setNonStrokingColor(new java.awt.Color(34, 139, 34));
+                    cs.showText("PASS");
+                } else {
+                    cs.setNonStrokingColor(java.awt.Color.RED);
+                    cs.showText("FAIL");
+                }
+                cs.endText();
+               
+
+                y -= 14;
             }
 
-            // Intento de guardado final
-            try {
-                doc.save(file);
-                System.out.println("PDF creado con éxito en: " + file.getAbsolutePath());
-            } catch (IOException e) {
-                mostrarAlertaError("Error de Acceso",
-                        "No se pudo sobrescribir el archivo.\n\n" +
-                                "Asegúrate de que el PDF no esté abierto en Chrome, Adobe o Word.");
-            }
-                    } catch (Exception e) {
-            e.printStackTrace();
-            mostrarAlertaError("Error Crítico", "Ocurrió un error inesperado al generar el PDF.");
+            // ── VEREDICTO FINAL ──────────────────────────────────────────────
+            y -= 15;
+            
+            cs.fill();
+
+            cs.beginText();
+            cs.setFont(PDType1Font.HELVETICA_BOLD, 12);
+            cs.setNonStrokingColor(java.awt.Color.WHITE);
+            cs.newLineAtOffset(55, y + 2);
+          
+            cs.endText();
+
         }
+
+        try {
+            doc.save(file);
+            fichaTecnicaController.mostrarToast("PDF guardado: " + file.getAbsolutePath());
+            pasos.clear();
+            btnInforme.setDisable(true);
+        } catch (IOException e) {
+            mostrarAlertaError("Error de Acceso", "No se pudo guardar. Cierra el archivo si esta abierto.");
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        mostrarAlertaError("Error Critico", "Error al generar el PDF.");
+    }
+}
+
+    private int dibujarSeccion(PDPageContentStream cs, String titulo, int y) throws IOException {
+        cs.setNonStrokingColor(new java.awt.Color(30, 30, 60));
+        cs.addRect(50, y - 4, 500, 16);
+        cs.fill();
+
+        cs.beginText();
+        cs.setNonStrokingColor(java.awt.Color.WHITE);
+        cs.setFont(PDType1Font.HELVETICA_BOLD, 10);
+        cs.newLineAtOffset(55, y);
+        cs.showText(titulo);
+        cs.endText();
+
+        cs.setNonStrokingColor(java.awt.Color.BLACK);
+        return y - 20;
+    }
+
+    private int dibujarFila(PDPageContentStream cs, String clave, String valor, int y) throws IOException {
+        cs.beginText();
+        cs.setFont(PDType1Font.HELVETICA_BOLD, 9);
+        cs.newLineAtOffset(55, y);
+        cs.showText(limpiar(clave) + ":");
+        cs.endText();
+
+        cs.beginText();
+        cs.setFont(PDType1Font.HELVETICA, 9);
+        cs.newLineAtOffset(200, y);
+        cs.showText(limpiar(valor));
+        cs.endText();
+
+        return y - 14;
+    }
+
+    private String limpiar(String texto) {
+        return texto.replaceAll("[\\n\\r\\t]", " ")
+                .replaceAll("[^\\x20-\\x7E]", "")
+                .trim();
     }
 
     private void mostrarAlertaError(String titulo, String mensaje) {

@@ -10,7 +10,9 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,37 +35,72 @@ public class ADBService {
      * Recibe un array de strings y devuelve la salida del comando.
      */
 
-private List<String> ejecutarADB(String... comando) throws IOException {
-    List<String> resultado = new ArrayList<>();
+    private List<String> ejecutarADB(String... comando) throws IOException {
+        List<String> resultado = new ArrayList<>();
 
-    // Sustituye "adb" por la ruta del embebido ANTES de arrancar el proceso
-    String adbDir = System.getProperty("aea.adb.path");
-    if (adbDir != null && comando.length > 0 && comando[0].equals("adb")) {
-        comando[0] = adbDir + File.separator + "adb.exe";
+        // Sustituye "adb" por la ruta del embebido ANTES de arrancar el proceso
+        String adbDir = System.getProperty("aea.adb.path");
+        if (adbDir != null && comando.length > 0 && comando[0].equals("adb")) {
+            comando[0] = adbDir + File.separator + "adb.exe";
+        }
+
+        ProcessBuilder pb = new ProcessBuilder(comando);
+        pb.redirectErrorStream(true);
+        Process proceso = pb.start(); // ← ahora sí arranca con la ruta correcta
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(proceso.getInputStream()))) {
+            String linea;
+            while ((linea = reader.readLine()) != null) {
+                resultado.add(linea);
+            }
+        } finally {
+            proceso.destroy();
+            try {
+                proceso.waitFor();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        return resultado;
     }
 
-    ProcessBuilder pb = new ProcessBuilder(comando);
-    pb.redirectErrorStream(true);
-    Process proceso = pb.start(); // ← ahora sí arranca con la ruta correcta
+    public String exportarApnsXml(String serial) throws IOException {
+        // Consulta la base de datos de APNs del sistema via ADB
+        List<String> salida = ejecutarADB("adb", "-s", serial, "shell",
+                "content", "query",
+                "--uri", "content://telephony/carriers",
+                "--projection", "name:apn:mcc:mnc:type:protocol:bearer_bitmask:numeric");
 
-    try (BufferedReader reader = new BufferedReader(
-            new InputStreamReader(proceso.getInputStream()))) {
-        String linea;
-        while ((linea = reader.readLine()) != null) {
-            resultado.add(linea);
+        // Construir XML
+        StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<apns>\n");
+
+        for (String linea : salida) {
+            if (!linea.startsWith("Row:"))
+                continue;
+
+            xml.append("    <apn");
+
+            // Parsear cada campo: "name=Movistar, apn=movistar.es, ..."
+            Matcher mat = Pattern.compile("(\\w+)=([^,]+)").matcher(
+                    linea.replaceFirst("Row:\\s*\\d+\\s+", ""));
+
+            while (mat.find()) {
+                String campo = mat.group(1).trim();
+                String valor = mat.group(2).trim();
+                valor = valor.replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;")
+                        .replace("\"", "&quot;");
+                xml.append("\n        ").append(campo).append("=\"").append(valor).append("\"");
+            }
+            xml.append("\n    />\n");
         }
-    } finally {
-        proceso.destroy();
-        try {
-            proceso.waitFor();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+
+        xml.append("</apns>");
+        return xml.toString();
     }
-    return resultado;
-}
 
-   
     // En ADBService — devuelve el serial activo para un android_id dado
     public String getSerialActivo(String androidId) throws IOException {
         Map<String, String> conectados = obtenerDispositivosConectados();
@@ -146,21 +183,165 @@ private List<String> ejecutarADB(String... comando) throws IOException {
         return "";
     }
 
+    public Map<String, String> obtenerSpecsHardware(String serial) {
+        Map<String, String> specs = new HashMap<>();
+        try {
+            // RAM en GB
+            String ramRaw = ejecutarComandoSincrono(serial, "shell cat /proc/meminfo | grep MemTotal");
+            String ramKb = ramRaw.replaceAll("[^0-9]", "").trim();
+            if (!ramKb.isEmpty()) {
+                long gb = Math.round(Long.parseLong(ramKb) / 1024.0 / 1024.0);
+                specs.put("RAM", gb + " GB");
+            }
+
+            // Resolución
+            String res = ejecutarComandoSincrono(serial, "shell wm size");
+            specs.put("Resolucion", res.replace("Physical size: ", "").trim());
+
+            // DPI
+            String dpi = ejecutarComandoSincrono(serial, "shell wm density");
+            specs.put("DPI", dpi.replace("Physical density: ", "").trim() + " ppi");
+
+            // Storage — solo el tamaño total
+            // Storage — múltiples estrategias
+            String storage = "N/A";
+
+            // Estrategia 1: df -h /data (Xiaomi y la mayoría)
+            String dfData = ejecutarComandoSincrono(serial, "shell df -h /data");
+            String lineaData = Arrays.stream(dfData.split("\n"))
+                    .filter(l -> l.contains("/data") && !l.startsWith("Filesystem"))
+                    .findFirst().orElse("");
+            if (!lineaData.isBlank()) {
+                String[] cols = lineaData.trim().replaceAll("\\s+", " ").split(" ");
+                if (cols.length >= 2)
+                    storage = cols[1]; // columna Size
+            }
+
+            // Estrategia 2: df -h /storage/emulated (COOCAA y otros)
+            if (storage.equals("N/A") || storage.isBlank()) {
+                String dfEmulated = ejecutarComandoSincrono(serial, "shell df -h /storage/emulated");
+                String lineaEmulated = Arrays.stream(dfEmulated.split("\n"))
+                        .filter(l -> !l.startsWith("Filesystem") && !l.isBlank())
+                        .findFirst().orElse("");
+                if (!lineaEmulated.isBlank()) {
+                    String[] cols = lineaEmulated.trim().replaceAll("\\s+", " ").split(" ");
+                    if (cols.length >= 2)
+                        storage = cols[1];
+                }
+            }
+
+            // Estrategia 3: getprop del fabricante
+            if (storage.equals("N/A") || storage.isBlank()) {
+                String prop = ejecutarComandoSincrono(serial, "shell getprop ro.product.storage");
+                if (!prop.isBlank() && !prop.equals("null"))
+                    storage = prop.trim();
+            }
+
+            // Estrategia 4: stat del filesystem
+            if (storage.equals("N/A") || storage.isBlank()) {
+                String stat = ejecutarComandoSincrono(serial, "shell stat -f /data");
+                Matcher mStat = Pattern.compile("Block size:\\s*(\\d+).*Blocks:\\s*Total:\\s*(\\d+)",
+                        Pattern.DOTALL).matcher(stat);
+                if (mStat.find()) {
+                    long bytes = Long.parseLong(mStat.group(1)) * Long.parseLong(mStat.group(2));
+                    storage = Math.round(bytes / 1024.0 / 1024.0 / 1024.0) + " GB";
+                }
+            }
+
+            specs.put("Storage", storage);
+
+            // CPU
+            String cpu = ejecutarComandoSincrono(serial, "shell getprop ro.product.board");
+            specs.put("CPU", cpu.trim());
+
+            // Android version
+            String android = ejecutarComandoSincrono(serial, "shell getprop ro.build.version.release");
+            specs.put("Android", "Android " + android.trim());
+
+            // Parche de seguridad
+            String patch = ejecutarComandoSincrono(serial, "shell getprop ro.build.version.security_patch");
+            specs.put("Parche", patch.trim());
+
+            // Batería — un solo dumpsys para todo
+            String batteryDump = ejecutarComandoSincrono(serial, "shell dumpsys battery");
+            System.out.println("[BATTERY DUMP] " + batteryDump); // ← para ver qué llega
+
+            String nivelCarga = "N/A";
+            String estadoCarga = "N/A";
+
+            for (String linea : batteryDump.split("\n")) {
+                String trim = linea.trim();
+                if (trim.startsWith("level:")) {
+                    nivelCarga = trim.replace("level:", "").trim() + "%";
+                }
+                if (trim.startsWith("status:")) {
+                    String estadoRaw = trim.replaceAll("status:\\s*", "").trim();
+                    estadoCarga = switch (estadoRaw) {
+                        case "1" -> "Desconocido";
+                        case "2" -> "Cargando";
+                        case "3" -> "Cargando";
+                        case "4" -> "No cargando";
+                        case "5" -> "Cargado";
+                        default -> "Estado: " + estadoRaw;
+                    };
+                }
+
+                // Fuentes de carga — si ninguna está activa, corregimos el estado
+                boolean acPowered = batteryDump.contains("AC powered: true");
+                boolean usbPowered = batteryDump.contains("USB powered: true");
+                boolean wirelessPowered = batteryDump.contains("Wireless powered: true");
+
+                if (!acPowered && !usbPowered && !wirelessPowered) {
+                    estadoCarga = "No cargando";
+                }
+            }
+
+            specs.put("Bateria", nivelCarga);
+            specs.put("EstadoCarga", estadoCarga);
+
+            // IMEI — parsear formato Parcel multilínea
+            String rawImei = ejecutarComandoSincrono(serial,
+                    "shell service call iphonesubinfo 1 s16 com.android.shell");
+
+            String imei = "N/A";
+            // Extraer todos los caracteres entre comillas simples del Parcel
+            // Formato: '3.5.0.1.' '6.0.6.0.0.0.2.1.' '0.8.1...'
+            StringBuilder imeiBuilder = new StringBuilder();
+            Matcher mImei = Pattern.compile("'([0-9a-fA-F. ]+)'").matcher(rawImei);
+            while (mImei.find()) {
+                // Cada grupo tiene dígitos separados por puntos: "3.5.0.1."
+                String grupo = mImei.group(1).replace(".", "").replace(" ", "");
+                imeiBuilder.append(grupo);
+            }
+            String candidato = imeiBuilder.toString().replaceAll("[^0-9]", "");
+            // El IMEI son 15 dígitos — cogemos los primeros 15
+            if (candidato.length() >= 15) {
+                imei = candidato.substring(0, 15);
+            }
+
+            specs.put("IMEI", imei);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return specs;
+    }
+
     // Métodos lanzados desde el PC
     // public void ejecutarComandoDirecto(String... args) {
-    //     new Thread(() -> {
-    //         try {
-    //             List<String> fullCmd = new ArrayList<>();
-    //             fullCmd.add("adb");
-    //             for (String arg : args)
-    //                 fullCmd.add(arg);
+    // new Thread(() -> {
+    // try {
+    // List<String> fullCmd = new ArrayList<>();
+    // fullCmd.add("adb");
+    // for (String arg : args)
+    // fullCmd.add(arg);
 
-    //             ejecutarADB(fullCmd.toArray(new String[0]));
-    //             System.out.println("ADB Directo ejecutado: " + String.join(" ", fullCmd));
-    //         } catch (IOException e) {
-    //             System.err.println("Error ADB Directo: " + e.getMessage());
-    //         }
-    //     }).start();
+    // ejecutarADB(fullCmd.toArray(new String[0]));
+    // System.out.println("ADB Directo ejecutado: " + String.join(" ", fullCmd));
+    // } catch (IOException e) {
+    // System.err.println("Error ADB Directo: " + e.getMessage());
+    // }
+    // }).start();
     // }
 
     public String[] getVolteEstado(String serial) throws IOException {
@@ -487,22 +668,22 @@ private List<String> ejecutarADB(String... comando) throws IOException {
         ejecutarADB("adb", "-s", serial, "shell", "rm", rutaTemporal);
     }
 
- public Process iniciarGrabacion(String serial) throws IOException {
-    String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-    rutaRemotaActual = "/sdcard/video_" + timeStamp + ".mp4";
+    public Process iniciarGrabacion(String serial) throws IOException {
+        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        rutaRemotaActual = "/sdcard/video_" + timeStamp + ".mp4";
 
-    ProcessBuilder pb = new ProcessBuilder(
-            "adb", "-s", serial, "shell", "screenrecord", "--time-limit", "180", rutaRemotaActual);
-    pb.redirectErrorStream(true);
+        ProcessBuilder pb = new ProcessBuilder(
+                "adb", "-s", serial, "shell", "screenrecord", "--time-limit", "180", rutaRemotaActual);
+        pb.redirectErrorStream(true);
 
-    String adbDir = System.getProperty("aea.adb.path");
-    if (adbDir != null) {
-        Map<String, String> env = pb.environment();
-        env.put("PATH", adbDir + File.pathSeparator + env.getOrDefault("PATH", ""));
+        String adbDir = System.getProperty("aea.adb.path");
+        if (adbDir != null) {
+            Map<String, String> env = pb.environment();
+            env.put("PATH", adbDir + File.pathSeparator + env.getOrDefault("PATH", ""));
+        }
+
+        return pb.start();
     }
-
-    return pb.start();
-}
 
     public void enviarSenalParada(String serial) {
         ejecutarComandoSincrono(serial, "shell pkill -l SIGINT screenrecord");
