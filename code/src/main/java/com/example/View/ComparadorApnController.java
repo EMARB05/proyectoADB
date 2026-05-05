@@ -16,7 +16,6 @@ import java.io.File;
 import java.util.*;
 import java.util.function.BiConsumer;
 
-import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.InlineCssTextArea;
@@ -43,7 +42,8 @@ public class ComparadorApnController implements DispositivoAware {
     private ScrollPane scrollExcel;
     @FXML
     private StackPane contenedorXml;
-
+@FXML
+private VBox overlayCarga;
     private InlineCssTextArea codeAreaXml;
     private Dispositivo dispositivoActual;
     private BiConsumer<String, Dispositivo> onCargarVista;
@@ -78,16 +78,15 @@ public class ComparadorApnController implements DispositivoAware {
     public void initialize() {
         codeAreaXml = new InlineCssTextArea();
         codeAreaXml.setEditable(false);
-        codeAreaXml.setParagraphGraphicFactory(LineNumberFactory.get(codeAreaXml)); // Números de línea
+        codeAreaXml.setParagraphGraphicFactory(LineNumberFactory.get(codeAreaXml));
 
-        // Estilo base oscuro (Catppuccin)
+        // ESTILO BASE: Fondo oscuro y forzamos el color de la letra por CSS inline
         codeAreaXml.setStyle(
-                "-fx-background-color: #11111b; " +
-                        "-fx-text-fill: #cdd6f4; " +
-                        "-fx-font-family: 'JetBrains Mono', monospace; " +
-                        "-fx-font-size: 12px;");
+                "-fx-background-color: #1e1e2e; -fx-fill: #cdd6f4; -fx-font-family: 'Consolas'; -fx-font-size: 13px;");
 
-        contenedorXml.getChildren().add(new VirtualizedScrollPane<>(codeAreaXml));
+        VirtualizedScrollPane<InlineCssTextArea> vsPane = new VirtualizedScrollPane<>(codeAreaXml);
+        VBox.setVgrow(vsPane, Priority.ALWAYS);
+        contenedorXml.getChildren().add(vsPane);
     }
 
     // ───────────────────── SELECCIÓN DE ARCHIVOS ─────────────────────
@@ -163,109 +162,100 @@ public class ComparadorApnController implements DispositivoAware {
 
     // ───────────────────── CARGA DE OPERADOR ─────────────────────
 
-    private void cargarOperador(Operador operador) {
-        lblOperadorActual.setText(operador.pais + "   " + operador.nombre +
-                "   ( mcc=\"" + operador.mcc + "\"  mnc=\"" + operador.mnc + "\" )");
+private void cargarOperador(Operador operador) {
+    // 1. Mostrar feedback visual inmediatamente
+    mostrarCargando(true);
+    
+    lblOperadorActual.setText(operador.pais + "   " + operador.nombre +
+            "   ( mcc=\"" + operador.mcc + "\"  mnc=\"" + operador.mnc + "\" )");
 
-        // Iniciamos el hilo secundario para no congelar la app mientras procesamos
-        new Thread(() -> {
-            // 1. Procesamiento pesado en segundo plano
+    new Thread(() -> {
+        try {
             List<ApnExcel> apnsExcel = excelParser.obtenerApnsOperador(operador);
-
             resultadosActuales.clear();
             for (ApnExcel apnExcel : apnsExcel) {
-                ResultadoComparacion r = ApnComparator.comparar(
-                        apnExcel, xmlParser, operador.mcc, operador.mnc);
-                resultadosActuales.add(r);
+                resultadosActuales.add(ApnComparator.comparar(apnExcel, xmlParser, operador.mcc, operador.mnc));
             }
 
-            // Unimos las 45.000 líneas en un solo String (fuera del hilo de UI)
             String textoCompleto = String.join("\n", xmlParser.getLineas());
 
-            // 2. Volvemos al hilo de JavaFX para actualizar la vista
             Platform.runLater(() -> {
-                // CARGA EL TEXTO
-                codeAreaXml.replaceText(textoCompleto);
+                codeAreaXml.clear();
+                codeAreaXml.append(textoCompleto, "-fx-fill: #cdd6f4;");
 
-                // ESPERA DE ASIMILACIÓN (PauseTransition es clave con archivos grandes)
-                javafx.animation.PauseTransition delayCarga = new javafx.animation.PauseTransition(
-                        javafx.util.Duration.millis(300)); // Subimos a 300ms por seguridad
-
-                delayCarga.setOnFinished(e -> {
-                    // PINTADO Y SCROLL (dentro de renderizarHighlightsXml ya llamas a scrollear)
+                // Pequeña pausa para que el hilo de renderizado de RichText respire
+                javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
+                        javafx.util.Duration.millis(300));
+                pause.setOnFinished(e -> {
                     renderizarHighlightsXml();
-
-                    // UI SECUNDARIA
                     renderizarTablaExcel(apnsExcel, operador);
                     panelBotones.setVisible(true);
                     panelBotones.setManaged(true);
                     btnAniadir.setDisable(resultadosActuales.isEmpty());
+                    
+                    // 2. Ocultar feedback visual al terminar
+                    mostrarCargando(false);
                 });
-
-                delayCarga.play();
+                pause.play();
             });
-        }).start(); // <--- ¡ASEGÚRATE DE QUE ESTE .start() ESTÉ AQUÍ!
+        } catch (Exception e) {
+            e.printStackTrace();
+            Platform.runLater(() -> mostrarCargando(false));
+        }
+    }).start();
+}
+
+// MÉTODO HELPER PARA LA ANIMACIÓN
+private void mostrarCargando(boolean mostrar) {
+    if (overlayCarga == null) return;
+
+    if (mostrar) {
+        overlayCarga.setVisible(true);
+        javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(javafx.util.Duration.millis(200), overlayCarga);
+        fadeIn.setFromValue(overlayCarga.getOpacity());
+        fadeIn.setToValue(1.0);
+        fadeIn.play();
+    } else {
+        javafx.animation.FadeTransition fadeOut = new javafx.animation.FadeTransition(javafx.util.Duration.millis(300), overlayCarga);
+        fadeOut.setFromValue(1.0);
+        fadeOut.setToValue(0.0);
+        fadeOut.setOnFinished(e -> overlayCarga.setVisible(false));
+        fadeOut.play();
     }
+}
 
     // ───────────────────── RENDER XML ─────────────────────
 
     private void renderizarHighlightsXml() {
-        // 1. LIMPIEZA INICIAL
-        // Es fundamental limpiar para que no se acumulen colores de búsquedas
-        // anteriores
-        for (int i = 0; i < codeAreaXml.getParagraphs().size(); i++) {
-            codeAreaXml.setParagraphStyle(i, "");
+        if (codeAreaXml == null)
+            return;
+        int total = codeAreaXml.getParagraphs().size();
+
+        // DEFINICIÓN DE ESTILOS: Forzamos el color claro (-fx-fill) en ambos
+        String estiloNormal = "-fx-fill: #cdd6f4;";
+        String estiloResaltado = "-fx-background-color: #3e4452; -fx-fill: #ffffff; -fx-font-weight: bold; -fx-border-color: #61afef; -fx-border-width: 0 0 0 5;";
+
+        for (int i = 0; i < total; i++) {
+            codeAreaXml.setParagraphStyle(i, estiloNormal);
         }
 
-        // 2. APLICAR COLORES
-        boolean huboCoincidencias = false;
-        for (ResultadoComparacion r : resultadosActuales) {
-            if (r.apnXml != null) {
-                huboCoincidencias = true;
-                String estilo = "-fx-background-color: #313244; -fx-border-color: #89b4fa; -fx-border-width: 0 0 0 3;";
-
-                for (int i = r.apnXml.lineaInicio; i <= r.apnXml.lineaFin; i++) {
-                    if (i >= 0 && i < codeAreaXml.getParagraphs().size()) {
-                        codeAreaXml.setParagraphStyle(i, estilo);
-                    }
+        int lineaMasArriba = Integer.MAX_VALUE;
+        for (ResultadoComparacion res : resultadosActuales) {
+            if (res.apnXml != null && res.apnXml.lineaInicio >= 0) {
+                if (res.apnXml.lineaInicio < lineaMasArriba)
+                    lineaMasArriba = res.apnXml.lineaInicio;
+                for (int i = res.apnXml.lineaInicio; i <= res.apnXml.lineaFin; i++) {
+                    if (i < total)
+                        codeAreaXml.setParagraphStyle(i, estiloResaltado);
                 }
             }
         }
 
-        // 3. SCROLL CON RETRASO (La clave del éxito)
-        // Usamos un delay un poco más largo (200ms) porque 45k líneas pesan mucho.
-        if (huboCoincidencias) {
-            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
-                    javafx.util.Duration.millis(200));
-            pause.setOnFinished(e -> scrollear());
-            pause.play();
+        if (lineaMasArriba != Integer.MAX_VALUE) {
+            final int destino = lineaMasArriba;
+            Platform.runLater(() -> codeAreaXml.showParagraphAtTop(destino));
         }
     }
-
-    private void scrollear() {
-        resultadosActuales.stream()
-                .filter(r -> r.apnXml != null)
-                .findFirst()
-                .ifPresent(r -> {
-                    int linea = r.apnXml.lineaInicio;
-
-                    System.out.println("DEBUG: Intentando scrollear a línea: " + linea);
-
-                    // Forzamos un layout antes de scrollear
-                    codeAreaXml.requestLayout();
-
-                    Platform.runLater(() -> {
-                        if (linea >= 0 && linea < codeAreaXml.getParagraphs().size()) {
-                            // Intento 1: El estándar
-                            codeAreaXml.showParagraphAtTop(linea);
-
-                            // Intento 2: Forzar si el primero falla (hacer "scroll" manual al párrafo)
-                            codeAreaXml.scrollYToPixel(linea * 15.0); // 15 es el alto estimado de línea
-                        }
-                    });
-                });
-    }
-
     // ───────────────────── RENDER EXCEL ─────────────────────
 
     private void renderizarTablaExcel(List<ApnExcel> apnsExcel, Operador operador) {
