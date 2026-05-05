@@ -12,6 +12,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.function.BiConsumer;
 
@@ -41,8 +42,11 @@ public class ComparadorApnController implements DispositivoAware {
     private ScrollPane scrollExcel;
     @FXML
     private StackPane contenedorXml;
-@FXML
-private VBox overlayCarga;
+    @FXML
+    private VBox overlayCarga;
+    @FXML
+    private Label lblMensajeCarga;
+
     private InlineCssTextArea codeAreaXml;
     private Dispositivo dispositivoActual;
     private BiConsumer<String, Dispositivo> onCargarVista;
@@ -51,13 +55,16 @@ private VBox overlayCarga;
     private File archivoXlsx;
     private XmlApnParser xmlParser;
     private ExcelApnParser excelParser;
+    private List<String> lineasXmlMemoria;
+    private String mccActual = "";
+    private String mncActual = "";
 
     // Lista de operadores del XLSX con coincidencias en el XML
     private List<Operador> operadoresConCoincidencias = new ArrayList<>();
     private int indiceOperadorActual = -1;
-
     // Resultados de comparación del operador actual
     private List<ResultadoComparacion> resultadosActuales = new ArrayList<>();
+
     private NavegacionHandler navegacionHandler;
 
     public void setNavegacionHandler(NavegacionHandler handler) {
@@ -131,6 +138,7 @@ private VBox overlayCarga;
         new Thread(() -> {
             try {
                 xmlParser = new XmlApnParser(archivoXml);
+                lineasXmlMemoria = new ArrayList<>(xmlParser.getLineas());
                 excelParser = new ExcelApnParser(archivoXlsx);
 
                 // Buscamos operadores del XLSX que tengan coincidencias en el XML
@@ -161,67 +169,74 @@ private VBox overlayCarga;
 
     // ───────────────────── CARGA DE OPERADOR ─────────────────────
 
-private void cargarOperador(Operador operador) {
-    // 1. Mostrar feedback visual inmediatamente
-    mostrarCargando(true);
-    
-    lblOperadorActual.setText(operador.pais + "   " + operador.nombre +
-            "   ( mcc=\"" + operador.mcc + "\"  mnc=\"" + operador.mnc + "\" )");
+    private void cargarOperador(Operador operador) {
+        // 1. Mostrar feedback visual inmediatamente
+        mostrarCargando(true, "Procesando siguiente operador...");
 
-    new Thread(() -> {
-        try {
-            List<ApnExcel> apnsExcel = excelParser.obtenerApnsOperador(operador);
-            resultadosActuales.clear();
-            for (ApnExcel apnExcel : apnsExcel) {
-                resultadosActuales.add(ApnComparator.comparar(apnExcel, xmlParser, operador.mcc, operador.mnc));
-            }
+        lblOperadorActual.setText(operador.pais + "   " + operador.nombre +
+                "   ( mcc=\"" + operador.mcc + "\"  mnc=\"" + operador.mnc + "\" )");
 
-            String textoCompleto = String.join("\n", xmlParser.getLineas());
+        this.mccActual = operador.mcc;
+        this.mncActual = operador.mnc;
 
-            Platform.runLater(() -> {
-                codeAreaXml.clear();
-                codeAreaXml.append(textoCompleto, "-fx-fill: #cdd6f4;");
+        new Thread(() -> {
+            try {
+                List<ApnExcel> apnsExcel = excelParser.obtenerApnsOperador(operador);
+                resultadosActuales.clear();
+                for (ApnExcel apnExcel : apnsExcel) {
+                    resultadosActuales.add(ApnComparator.comparar(apnExcel, xmlParser, operador.mcc, operador.mnc));
+                }
 
-                // Pequeña pausa para que el hilo de renderizado de RichText respire
-                javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
-                        javafx.util.Duration.millis(300));
-                pause.setOnFinished(e -> {
-                    renderizarHighlightsXml();
-                    renderizarTablaExcel(apnsExcel, operador);
-                    panelBotones.setVisible(true);
-                    panelBotones.setManaged(true);
-                    btnAniadir.setDisable(resultadosActuales.isEmpty());
-                    
-                    // 2. Ocultar feedback visual al terminar
-                    mostrarCargando(false);
+                String textoCompleto = String.join("\n", xmlParser.getLineas());
+
+                Platform.runLater(() -> {
+                    codeAreaXml.clear();
+                    codeAreaXml.append(textoCompleto, "-fx-fill: #cdd6f4;");
+
+                    // Pequeña pausa para que el hilo de renderizado de RichText respire
+                    javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
+                            javafx.util.Duration.millis(300));
+                    pause.setOnFinished(e -> {
+                        renderizarHighlightsXml();
+                        renderizarTablaExcel(apnsExcel, operador);
+                        panelBotones.setVisible(true);
+                        panelBotones.setManaged(true);
+                        btnAniadir.setDisable(resultadosActuales.isEmpty());
+
+                        // 2. Ocultar feedback visual al terminar
+                        mostrarCargando(false, "");
+                    });
+                    pause.play();
                 });
-                pause.play();
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-            Platform.runLater(() -> mostrarCargando(false));
-        }
-    }).start();
-}
-
-// MÉTODO HELPER PARA LA ANIMACIÓN
-private void mostrarCargando(boolean mostrar) {
-    if (overlayCarga == null) return;
-
-    if (mostrar) {
-        overlayCarga.setVisible(true);
-        javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(javafx.util.Duration.millis(200), overlayCarga);
-        fadeIn.setFromValue(overlayCarga.getOpacity());
-        fadeIn.setToValue(1.0);
-        fadeIn.play();
-    } else {
-        javafx.animation.FadeTransition fadeOut = new javafx.animation.FadeTransition(javafx.util.Duration.millis(300), overlayCarga);
-        fadeOut.setFromValue(1.0);
-        fadeOut.setToValue(0.0);
-        fadeOut.setOnFinished(e -> overlayCarga.setVisible(false));
-        fadeOut.play();
+            } catch (Exception e) {
+                e.printStackTrace();
+                Platform.runLater(() -> mostrarCargando(false, ""));
+            }
+        }).start();
     }
-}
+
+    // MÉTODO HELPER PARA LA ANIMACIÓN
+    private void mostrarCargando(boolean mostrar, String mensaje) {
+        if (overlayCarga == null)
+            return;
+
+        if (mostrar) {
+            lblMensajeCarga.setText(mensaje);
+            overlayCarga.setVisible(true);
+            javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(
+                    javafx.util.Duration.millis(200), overlayCarga);
+            fadeIn.setFromValue(overlayCarga.getOpacity());
+            fadeIn.setToValue(1.0);
+            fadeIn.play();
+        } else {
+            javafx.animation.FadeTransition fadeOut = new javafx.animation.FadeTransition(
+                    javafx.util.Duration.millis(300), overlayCarga);
+            fadeOut.setFromValue(1.0);
+            fadeOut.setToValue(0.0);
+            fadeOut.setOnFinished(e -> overlayCarga.setVisible(false));
+            fadeOut.play();
+        }
+    }
 
     // ───────────────────── RENDER XML ─────────────────────
 
@@ -278,16 +293,18 @@ private void mostrarCargando(boolean mostrar) {
             String colorTitulo = "#ffff00";
 
             if (resultado != null && resultado.apnXml != null) {
-                String carrierXml = "";
+                String identificadorXML = "";
                 Map<String, String> attrs = resultado.apnXml.atributos;
                 if (attrs.containsKey("carrier")) {
-                    carrierXml = attrs.get("carrier").trim();
+                    identificadorXML = attrs.get("carrier").trim();
+                } else if (attrs.containsKey("name")) {
+                    identificadorXML = attrs.get("name").trim();
                 }
 
                 boolean coincideExacto = false;
-                if (!carrierXml.isEmpty()) {
+                if (!identificadorXML.isEmpty()) {
                     for (String tituloCandidatoExcel : apnExcel.titulosCandidatos) {
-                        if (tituloCandidatoExcel.equals(carrierXml)) {
+                        if (tituloCandidatoExcel.equals(identificadorXML)) {
                             coincideExacto = true;
                             break;
                         }
@@ -350,24 +367,76 @@ private void mostrarCargando(boolean mostrar) {
 
     @FXML
     private void onAniadir() {
-        new Thread(() -> {
-            try {
-                File nuevo = XmlApnWriter.guardarNuevaVersion(
-                        archivoXml, resultadosActuales);
+        mostrarCargando(true, "Añadiendo cambios...");
 
-                // El XML base para los siguientes operadores es el nuevo
-                archivoXml = nuevo;
-                xmlParser = new XmlApnParser(nuevo);
+        javafx.animation.PauseTransition delayInicial = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(300));
 
-                Platform.runLater(() -> {
-                    mostrarToast("✓ Guardado: " + nuevo.getName());
-                    siguienteOperador();
-                });
-            } catch (Exception e) {
-                Platform.runLater(() -> mostrarToast("✗ Error al guardar: " + e.getMessage()));
-                e.printStackTrace();
-            }
-        }).start();
+        delayInicial.setOnFinished(ev -> {
+            new Thread(() -> {
+                try {
+                    // Lógica de procesamiento de líneas en memoria
+                    List<String> nuevasLineas = new ArrayList<>(lineasXmlMemoria);
+
+                    for (ResultadoComparacion r : resultadosActuales) {
+                        if (!r.tieneDiferencias())
+                            continue;
+
+                        if (!r.existeEnXml) {
+                            // Inserción de nuevo APN
+                            String bloqueNuevo = XmlApnWriter.construirApnXmlVertical(r.apnExcel, mccActual, mncActual);
+                            int puntoIdx = XmlApnWriter.buscarLineaCierre(nuevasLineas);
+                            if (puntoIdx != -1)
+                                nuevasLineas.add(puntoIdx, bloqueNuevo);
+                        } else if (r.apnXml != null && r.apnXml.lineaInicio >= 0) {
+                            // Modificación de APN existente
+                            for (Diferencia d : r.diferencias) {
+                                boolean modificado = false;
+                                for (int i = r.apnXml.lineaInicio; i <= r.apnXml.lineaFin; i++) {
+                                    if (i >= nuevasLineas.size())
+                                        break;
+                                    String lineaMod = XmlApnWriter.aplicarDiferencia(nuevasLineas.get(i), d);
+                                    if (!nuevasLineas.get(i).equals(lineaMod)) {
+                                        nuevasLineas.set(i, lineaMod);
+                                        modificado = true;
+                                        break;
+                                    }
+                                }
+                                if (!modificado && d.esNuevo) {
+                                    int fin = r.apnXml.lineaFin;
+                                    if (fin < nuevasLineas.size()) {
+                                        nuevasLineas.set(fin,
+                                                XmlApnWriter.insertarAtributoEstiloVertical(nuevasLineas.get(fin), d));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    lineasXmlMemoria = nuevasLineas;
+
+                    Platform.runLater(() -> {
+                        xmlParser.setLineas(new ArrayList<>(lineasXmlMemoria));
+                        codeAreaXml.replaceText(String.join("\n", lineasXmlMemoria));
+                        renderizarHighlightsXml();
+                        siguienteOperador();
+                        mostrarCargando(false, "");
+                        Platform.runLater(() -> {
+                            mostrarToast("✓ Operador actualizado");
+                        });
+                    });
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    Platform.runLater(() -> {
+                        mostrarCargando(false, "");
+                        mostrarToast("Error al actualizar operador");
+                    });
+                }
+            }).start();
+        });
+
+        delayInicial.play();
     }
 
     @FXML
@@ -378,14 +447,24 @@ private void mostrarCargando(boolean mostrar) {
     private void siguienteOperador() {
         indiceOperadorActual++;
         if (indiceOperadorActual >= operadoresConCoincidencias.size()) {
-            lblOperadorActual.setText("✓ Todos los operadores procesados");
-            panelBotones.setVisible(false);
-            panelBotones.setManaged(false);
-            areaXml.clear();
-            gridExcel.getChildren().clear();
+            finalizarProceso();
             return;
         }
         cargarOperador(operadoresConCoincidencias.get(indiceOperadorActual));
+    }
+
+    private void finalizarProceso() {
+        try {
+            File archivoFinal = XmlApnWriter.guardarArchivoFinal(archivoXml, lineasXmlMemoria);
+            lblOperadorActual.setText("✓ Proceso completado. Archivo guardado.");
+            mostrarToast("Archivo guardado: " + archivoFinal.getName());
+
+            // Limpieza de UI
+            panelBotones.setVisible(false);
+            codeAreaXml.setEditable(false);
+        } catch (IOException e) {
+            mostrarToast("Error al guardar archivo final");
+        }
     }
 
     // ───────────────────── VOLVER ─────────────────────
@@ -416,10 +495,10 @@ private void mostrarCargando(boolean mostrar) {
                         "-fx-padding: 12 24; -fx-background-radius: 24; -fx-font-size: 13px;" +
                         "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 12, 0, 0, 4);");
         toast.setOpacity(0);
+        toast.setMouseTransparent(true);
         StackPane.setAlignment(toast, javafx.geometry.Pos.BOTTOM_CENTER);
-        StackPane.setMargin(toast, new Insets(0, 0, 32, 0));
+        StackPane.setMargin(toast, new javafx.geometry.Insets(0, 0, 32, 0));
         rootPane.getChildren().add(toast);
-
         javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(javafx.util.Duration.millis(300),
                 toast);
         fadeIn.setFromValue(0);
@@ -430,6 +509,12 @@ private void mostrarCargando(boolean mostrar) {
         fadeOut.setFromValue(1);
         fadeOut.setToValue(0);
         fadeOut.setOnFinished(e -> rootPane.getChildren().remove(toast));
-        new javafx.animation.SequentialTransition(fadeIn, pausa, fadeOut).play();
+        javafx.animation.PauseTransition delayEntrada = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(150));
+        new javafx.animation.SequentialTransition(
+                delayEntrada,
+                fadeIn,
+                pausa,
+                fadeOut).play();
     }
 }

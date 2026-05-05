@@ -1,4 +1,3 @@
-// src/main/java/com/example/Controller/XmlApnWriter.java
 package com.example.Controller;
 
 import java.io.*;
@@ -8,56 +7,10 @@ import java.util.regex.*;
 
 public class XmlApnWriter {
 
-    // Aplica las diferencias al XML y guarda como nueva versión
-    public static File guardarNuevaVersion(
-            File archivoOriginal,
-            List<ApnComparator.ResultadoComparacion> resultados) throws IOException {
-
-        List<String> lineas = Files.readAllLines(archivoOriginal.toPath());
-
-        for (ApnComparator.ResultadoComparacion r : resultados) {
-            if (!r.tieneDiferencias()) continue;
-
-            if (!r.existeEnXml) {
-                // APN nuevo — lo añadimos antes del cierre </apns>
-                String nuevoApn = construirApnXml(r.apnExcel);
-                int lineaCierre = buscarLineaCierre(lineas);
-                if (lineaCierre >= 0) lineas.add(lineaCierre, nuevoApn);
-                continue;
-            }
-
-            // APN existente — modificamos sus atributos
-            int lineaApn = r.apnXml.lineaInicio;
-            if (lineaApn < 0 || lineaApn >= lineas.size()) continue;
-
-            String lineaActual = lineas.get(lineaApn);
-            for (ApnComparator.Diferencia d : r.diferencias) {
-                lineaActual = aplicarDiferencia(lineaActual, d, lineaApn, lineas);
-            }
-            lineas.set(lineaApn, lineaActual);
-        }
-
-        File destino = calcularNombreVersion(archivoOriginal);
-        Files.write(destino.toPath(), lineas);
-        return destino;
-    }
-
-    // Aplica una diferencia a una línea del XML
-    private static String aplicarDiferencia(String linea,
-                                             ApnComparator.Diferencia d,
-                                             int lineaIdx,
-                                             List<String> lineas) {
-        if (d.esNuevo && d.valorXml == null) {
-            // Campo nuevo — lo insertamos como nuevo atributo
-            // Buscamos el cierre "/> " de ese APN para insertar antes
-            if (linea.contains("/>")) {
-                return linea.replace("/>",
-                    " " + d.campo + "=\"" + d.valorExcel + "\"/>");
-            }
-        }
-        // Campo existente con valor diferente — reemplazamos
-        Pattern pat = Pattern.compile(
-            d.campo + "=\"[^\"]*\"", Pattern.CASE_INSENSITIVE);
+    // Cambiado a PUBLIC y eliminados parámetros unused
+    public static String aplicarDiferencia(String linea, ApnComparator.Diferencia d) {
+        // Buscamos si el atributo ya existe en esta línea
+        Pattern pat = Pattern.compile(d.campo + "=\"[^\"]*\"", Pattern.CASE_INSENSITIVE);
         Matcher mat = pat.matcher(linea);
         if (mat.find()) {
             return mat.replaceFirst(d.campo + "=\"" + d.valorExcel + "\"");
@@ -65,44 +18,75 @@ public class XmlApnWriter {
         return linea;
     }
 
-    private static String construirApnXml(ExcelApnParser.ApnExcel apn) {
-        StringBuilder sb = new StringBuilder("    <apn");
-        for (Map.Entry<String, String> e : apn.campos.entrySet()) {
-            sb.append(" ").append(e.getKey())
-              .append("=\"").append(e.getValue()).append("\"");
+    // NUEVO MÉTODO para insertar atributos que no existían
+    public static String insertarAtributoEstiloVertical(String lineaCierre, ApnComparator.Diferencia d) {
+        // Si la línea es el cierre " />", insertamos el atributo antes con formato
+        if (lineaCierre.contains("/>")) {
+            return "        " + d.campo + "=\"" + d.valorExcel + "\"\n" + lineaCierre;
         }
-        sb.append("/>");
+        return lineaCierre;
+    }
+
+    // Cambiado a PUBLIC para que el controlador lo use al insertar nuevos APNs
+    // En XmlApnWriter.java
+
+    public static String construirApnXmlVertical(ExcelApnParser.ApnExcel apnExcel, String mcc, String mnc) {
+        StringBuilder sb = new StringBuilder("    <apn\n");
+
+        // 1. Atributos prioritarios
+        String name = apnExcel.campos.getOrDefault("name", apnExcel.nombreApnOriginal);
+        sb.append("        name=\"").append(name).append("\"\n");
+
+        if (apnExcel.apn != null && !apnExcel.apn.isEmpty()) {
+            sb.append("        apn=\"").append(apnExcel.apn).append("\"\n");
+        }
+
+        // 2. Identificadores de red
+        sb.append("        mcc=\"").append(mcc).append("\"\n");
+        String mncNorm = (mnc != null && mnc.length() == 1) ? "0" + mnc : mnc;
+        sb.append("        mnc=\"").append(mncNorm).append("\"\n");
+
+        // 3. El resto de atributos del mapa
+        for (Map.Entry<String, String> e : apnExcel.campos.entrySet()) {
+            String clave = e.getKey().toLowerCase();
+            // Saltamos los que ya hemos puesto arriba
+            if (clave.equals("name") || clave.equals("apn") || clave.equals("mcc") || clave.equals("mnc")) {
+                continue;
+            }
+            sb.append("        ").append(e.getKey()).append("=\"").append(e.getValue()).append("\"\n");
+        }
+
+        sb.append("    />");
         return sb.toString();
     }
 
-    private static int buscarLineaCierre(List<String> lineas) {
+    // Cambiado a PUBLIC
+    public static int buscarLineaCierre(List<String> lineas) {
+        // Buscamos el final del documento XML para insertar ahí los nuevos
         for (int i = lineas.size() - 1; i >= 0; i--) {
-            if (lineas.get(i).contains("</apns>")) return i;
+            if (lineas.get(i).contains("</apns>"))
+                return i;
         }
-        return lineas.size() - 1;
+        return lineas.size() > 0 ? lineas.size() - 1 : 0;
     }
 
-    // Calcula el nombre de la nueva versión
-    // archivo.xml        → archivo_V1.xml
-    // archivo_V1.xml     → archivo_V2.xml
-    // archivo_V10.xml    → archivo_V11.xml
+    // Nuevo método para el guardado final
+    public static File guardarArchivoFinal(File original, List<String> lineas) throws IOException {
+        File destino = calcularNombreVersion(original);
+        Files.write(destino.toPath(), lineas);
+        return destino;
+    }
+
     public static File calcularNombreVersion(File archivo) {
         String nombre = archivo.getName();
-        String base   = nombre.replaceAll("\\.xml$", "");
-        File carpeta  = archivo.getParentFile();
-
+        String base = nombre.replaceAll("\\.xml$", "");
+        File carpeta = archivo.getParentFile();
         Pattern pat = Pattern.compile("^(.+)_V(\\d+)$");
         Matcher mat = pat.matcher(base);
 
-        String nuevoNombre;
-        if (mat.matches()) {
-            String prefijo  = mat.group(1);
-            int version     = Integer.parseInt(mat.group(2));
-            nuevoNombre     = prefijo + "_V" + (version + 1) + ".xml";
-        } else {
-            nuevoNombre = base + "_V1.xml";
-        }
-
+        String nuevoNombre = mat.matches()
+                ? mat.group(1) + "_V" + (Integer.parseInt(mat.group(2)) + 1) + ".xml"
+                : base + "_V1.xml";
         return new File(carpeta, nuevoNombre);
     }
 }

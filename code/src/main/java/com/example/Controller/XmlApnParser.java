@@ -6,7 +6,6 @@ import javax.xml.parsers.*;
 import java.io.*;
 import java.util.*;
 
-
 public class XmlApnParser {
 
     // Representa un APN del XML con todos sus atributos y número de línea
@@ -24,78 +23,108 @@ public class XmlApnParser {
     private final File archivo;
     private final List<ApnEntry> entradas = new ArrayList<>();
     private final List<String> lineas = new ArrayList<>();
-    private final Map<String, Integer> indiceLineas = new HashMap<>();
 
     public XmlApnParser(File archivo) throws Exception {
         this.archivo = archivo;
+        cargarLineasDesdeDisco();
         parsear();
     }
 
-private void parsear() throws Exception {
-    lineas.clear();
-    entradas.clear();
-    try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
-        String linea;
-        while ((linea = br.readLine()) != null) {
-            lineas.add(linea);
-        }
-    }
-    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-    Document doc = factory.newDocumentBuilder().parse(archivo);
-    NodeList apns = doc.getElementsByTagName("apn");
-
-    for (int i = 0; i < apns.getLength(); i++) {
-        Element el = (Element) apns.item(i);
-        ApnEntry entry = new ApnEntry();
-        entry.mcc = el.getAttribute("mcc");
-        entry.mnc = el.getAttribute("mnc");
-        entry.apn = el.getAttribute("apn");
-
-        NamedNodeMap attrs = el.getAttributes();
-        for (int j = 0; j < attrs.getLength(); j++) {
-            Node attr = attrs.item(j);
-            entry.atributos.put(attr.getNodeName(), attr.getNodeValue());
-        }
-
-        entry.lineaInicio = buscarLineaApn(entry.mcc, entry.mnc, entry.apn);
-        entry.lineaFin = buscarLineaFin(entry.lineaInicio);
-
-        entradas.add(entry);
-    }
-}
-
-public int buscarLineaApn(String mcc, String mnc, String apn) {
-    String mncNorm = (mnc != null && mnc.length() == 1) ? "0" + mnc : mnc;
-    String apnLow = apn.toLowerCase();
-
-    for (int i = 0; i < lineas.size(); i++) {
-        String l = lineas.get(i).toLowerCase();
-        if (l.contains("<apn")) {
-            boolean matchMcc = false, matchMnc = false, matchApn = false;
-            for (int j = i; j < Math.min(i + 10, lineas.size()); j++) {
-                String sub = lineas.get(j).toLowerCase();
-                if (sub.contains("mcc=\"" + mcc + "\"")) matchMcc = true;
-                if (sub.contains("mnc=\"" + mncNorm + "\"") || sub.contains("mnc=\"" + mnc + "\"")) matchMnc = true;
-                if (sub.contains("apn=\"" + apnLow + "\"")) matchApn = true;
-                if (sub.contains(">")) break;
+    /**
+     * Carga el archivo físico a la lista de strings en memoria.
+     */
+    private void cargarLineasDesdeDisco() throws Exception {
+        lineas.clear();
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                lineas.add(linea);
             }
-            if (matchMcc && matchMnc && matchApn) return i;
         }
     }
-    return -1;
-}
 
-private int buscarLineaFin(int inicio) {
-    if (inicio < 0) return inicio;
-    for (int i = inicio; i < lineas.size(); i++) {
-        if (lineas.get(i).contains("/>") || lineas.get(i).contains("</apn>")) {
-            return i;
+    /**
+     * Motor de parseo: Toma la lista 'lineas', la convierte en un Stream 
+     * y reconstruye la lista de 'entradas' (objetos ApnEntry).
+     */
+    public void parsear() throws Exception {
+        entradas.clear();
+        
+        // Convertimos la lista de memoria en un InputStream para el Parser DOM
+        String contenidoCompleto = String.join("\n", lineas);
+        InputStream is = new ByteArrayInputStream(contenidoCompleto.getBytes("UTF-8"));
+
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        Document doc = factory.newDocumentBuilder().parse(is);
+        NodeList apns = doc.getElementsByTagName("apn");
+
+        for (int i = 0; i < apns.getLength(); i++) {
+            Element el = (Element) apns.item(i);
+            ApnEntry entry = new ApnEntry();
+            entry.mcc = el.getAttribute("mcc");
+            entry.mnc = el.getAttribute("mnc");
+            entry.apn = el.getAttribute("apn");
+
+            NamedNodeMap attrs = el.getAttributes();
+            for (int j = 0; j < attrs.getLength(); j++) {
+                Node attr = attrs.item(j);
+                entry.atributos.put(attr.getNodeName(), attr.getNodeValue());
+            }
+
+            // Calculamos las posiciones en el texto basándonos en la lista 'lineas'
+            entry.lineaInicio = buscarLineaApn(entry.mcc, entry.mnc, entry.apn);
+            entry.lineaFin = buscarLineaFin(entry.lineaInicio);
+
+            entradas.add(entry);
         }
     }
-    return inicio;
-}
 
-    // Busca todos los APNs de un operador por mcc+mnc
+    /**
+     * Actualiza la memoria con nuevas líneas (por ejemplo, desde el CodeArea)
+     * y re-ejecuta el parseo lógico.
+     */
+    public void setLineas(List<String> nuevasLineas) {
+        this.lineas.clear();
+        this.lineas.addAll(nuevasLineas);
+        try {
+            parsear(); 
+        } catch (Exception e) {
+            System.err.println("Error al actualizar el parser desde memoria: " + e.getMessage());
+        }
+    }
+
+    public int buscarLineaApn(String mcc, String mnc, String apn) {
+        String mncNorm = (mnc != null && mnc.length() == 1) ? "0" + mnc : mnc;
+        String apnLow = apn.toLowerCase();
+
+        for (int i = 0; i < lineas.size(); i++) {
+            String l = lineas.get(i).toLowerCase();
+            if (l.contains("<apn")) {
+                boolean matchMcc = false, matchMnc = false, matchApn = false;
+                // Buscamos en la línea actual y siguientes (por si el APN está multilínea)
+                for (int j = i; j < Math.min(i + 10, lineas.size()); j++) {
+                    String sub = lineas.get(j).toLowerCase();
+                    if (sub.contains("mcc=\"" + mcc + "\"")) matchMcc = true;
+                    if (sub.contains("mnc=\"" + mncNorm + "\"") || sub.contains("mnc=\"" + mnc + "\"")) matchMnc = true;
+                    if (sub.contains("apn=\"" + apnLow + "\"")) matchApn = true;
+                    if (sub.contains(">")) break;
+                }
+                if (matchMcc && matchMnc && matchApn) return i;
+            }
+        }
+        return -1;
+    }
+
+    private int buscarLineaFin(int inicio) {
+        if (inicio < 0) return inicio;
+        for (int i = inicio; i < lineas.size(); i++) {
+            if (lineas.get(i).contains("/>") || lineas.get(i).contains("</apn>")) {
+                return i;
+            }
+        }
+        return inicio;
+    }
+
     public List<ApnEntry> buscarPorOperador(String mcc, String mnc) {
         List<ApnEntry> resultado = new ArrayList<>();
         for (ApnEntry e : entradas) {
@@ -105,19 +134,16 @@ private int buscarLineaFin(int inicio) {
         return resultado;
     }
 
-    // Busca un APN concreto por mcc+mnc+apn
     public ApnEntry buscarApn(String mcc, String mnc, String apn) {
         String mncFormateado = mnc;
         try {
             mncFormateado = String.format("%02d", Integer.parseInt(mnc));
-        } catch (NumberFormatException e) {
-        }
+        } catch (NumberFormatException e) { }
 
         for (ApnEntry e : entradas) {
-            // Comparamos usando el MNC con el cero a la izquierda
             if (e.mcc.equals(mcc) &&
-                    e.mnc.equals(mncFormateado) &&
-                    e.apn.equalsIgnoreCase(apn)) {
+                e.mnc.equals(mncFormateado) &&
+                e.apn.equalsIgnoreCase(apn)) {
                 return e;
             }
         }

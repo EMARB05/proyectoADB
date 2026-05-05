@@ -63,7 +63,7 @@
     <VBox fx:id="overlayCarga" alignment="CENTER" spacing="15" visible="false" opacity="0"
           style="-fx-background-color: rgba(30, 30, 46, 0.85);">
         <ProgressIndicator prefWidth="50" prefHeight="50" />
-        <Label text="Procesando siguiente operador..." style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
+        <Label fx:id="lblMensajeCarga" text="" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
     </VBox>
 </StackPane>
         </HBox>
