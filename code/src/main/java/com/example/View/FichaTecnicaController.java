@@ -449,7 +449,7 @@ public class FichaTecnicaController implements DispositivoAware {
         }
     }
 
-    private void mostrarToast(String mensaje) {
+    public void mostrarToast(String mensaje) {
         if (rootPane == null)
             return;
         Label toast = new Label(mensaje);

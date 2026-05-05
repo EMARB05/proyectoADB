@@ -11,7 +11,6 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
-
 import java.io.File;
 import java.util.*;
 import java.util.function.BiConsumer;
