@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="20" style="-fx-background-color: #1e1e2e; -fx-padding: 24;" 
+      xmlns:fx="http://javafx.com/fxml" 
+      fx:controller="com.example.View.ComparadorXmlController">
+
+    <!-- Encabezado con botón de regreso -->
+    <HBox alignment="CENTER_LEFT" spacing="15">
+        <!-- Añadido fx:id="btnVolver" -->
+        <Button fx:id="btnVolver" onAction="#onVolver" text="←" 
+                style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-background-radius: 8; -fx-cursor: hand;"/>
+        <VBox>
+            <Label text="Comparador de APNs" style="-fx-text-fill: #cdd6f4; -fx-font-size: 20px; -fx-font-weight: bold;"/>
+            <Label text="Mismo modelo y marca: Verificación de integridad" style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS" />
+        
+        <!-- SUSTITUIDO Badge por Label con estilo de cápsula -->
+        <Label fx:id="lblEstado" text="LISTO" 
+               style="-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e; -fx-padding: 5 12; -fx-background-radius: 15; -fx-font-weight: bold;"/>
+    </HBox>
+
+    <!-- Área de Selección de Archivos -->
+    <HBox spacing="20" alignment="CENTER">
+        <VBox HBox.hgrow="ALWAYS" spacing="10" style="-fx-background-color: #181825; -fx-padding: 15; -fx-background-radius: 12; -fx-border-color: #45475a; -fx-border-radius: 12;">
+            <Label text="ARCHIVO ORIGINAL" style="-fx-text-fill: #89b4fa; -fx-font-weight: bold; -fx-font-size: 11px;"/>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Button onAction="#onCargarOriginal" text="Seleccionar XML" style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-cursor: hand;"/>
+                <Label fx:id="lblPathOriginal" text="No seleccionado" style="-fx-text-fill: #6c7086;" />
+            </HBox>
+        </VBox>
+
+        <Label text="VS" style="-fx-text-fill: #f9e2af; -fx-font-weight: bold; -fx-font-size: 18px;"/>
+
+        <VBox HBox.hgrow="ALWAYS" spacing="10" style="-fx-background-color: #181825; -fx-padding: 15; -fx-background-radius: 12; -fx-border-color: #45475a; -fx-border-radius: 12;">
+            <Label text="ARCHIVO A COMPARAR" style="-fx-text-fill: #f5c2e7; -fx-font-weight: bold; -fx-font-size: 11px;"/>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Button onAction="#onCargarCopia" text="Seleccionar XML" style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-cursor: hand;"/>
+                <Label fx:id="lblPathCopia" text="No seleccionado" style="-fx-text-fill: #6c7086;" />
+            </HBox>
+        </VBox>
+    </HBox>
+
+    <!-- Tabla -->
+    <VBox VBox.vgrow="ALWAYS" spacing="10" style="-fx-background-color: #181825; -fx-background-radius: 12; -fx-padding: 2;">
+       <TableView fx:id="tblDiferencias" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+    <columns>
+        <TableColumn fx:id="colOperadora" text="Operadora (MCC-MNC)" prefWidth="200"/>
+        <TableColumn fx:id="colNombre" text="Nombre"/>
+        <TableColumn fx:id="colAtributo" text="Atributo" prefWidth="120"/>
+        <TableColumn fx:id="colValorOriginal" text="Original" prefWidth="180"/>
+        <TableColumn fx:id="colValorCopia" text="Archivo 2" prefWidth="180"/>
+        <TableColumn fx:id="colEstado" text="Estado" prefWidth="120"/>
+    </columns>
+</TableView>
+    </VBox>
+
+    <HBox spacing="15" alignment="CENTER_RIGHT">
+        <Button text="Limpiar" onAction="#onLimpiar"
+                style="-fx-background-color: transparent; -fx-text-fill: #f38ba8; -fx-border-color: #f38ba8; -fx-border-radius: 6; -fx-cursor: hand;"/>
+        <Button text="Exportar  XML parcheado" onAction="#onExportar"
+                style="-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 6; -fx-padding: 10 20; -fx-cursor: hand;"/>
+        <Button text="Abrir en VS Code" onAction="#onAbrirDiff"
+        style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 6; -fx-padding: 10 20; -fx-cursor: hand;"/>
+    </HBox>
+
+</VBox>
