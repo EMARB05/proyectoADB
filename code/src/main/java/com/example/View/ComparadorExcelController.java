@@ -5,12 +5,15 @@ import com.example.Controller.ApnComparator.*;
 import com.example.Controller.ExcelApnParser.*;
 import com.example.Model.Dispositivo;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -20,7 +23,7 @@ import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.InlineCssTextArea;
 
-public class ComparadorApnController implements DispositivoAware {
+public class ComparadorExcelController {
 
     @FXML
     private StackPane rootPane;
@@ -48,7 +51,7 @@ public class ComparadorApnController implements DispositivoAware {
     private Label lblMensajeCarga;
 
     private InlineCssTextArea codeAreaXml;
-    private Dispositivo dispositivoActual;
+
     private BiConsumer<String, Dispositivo> onCargarVista;
 
     private File archivoXml;
@@ -69,11 +72,6 @@ public class ComparadorApnController implements DispositivoAware {
 
     public void setNavegacionHandler(NavegacionHandler handler) {
         this.navegacionHandler = handler;
-    }
-
-    @Override
-    public void setDispositivo(Dispositivo dispositivo) {
-        this.dispositivoActual = dispositivo;
     }
 
     public void setOnCargarVista(BiConsumer<String, Dispositivo> callback) {
@@ -477,23 +475,30 @@ public class ComparadorApnController implements DispositivoAware {
     private void finalizarProceso() {
         try {
             File archivoFinal = XmlApnWriter.guardarArchivoFinal(archivoXml, lineasXmlMemoria);
-            lblOperadorActual.setText("✓ Proceso completado. Archivo guardado.");
-            mostrarToast("Archivo guardado: " + archivoFinal.getName());
+            String mensajeExito = "Archivo guardado: " + archivoFinal.getName();
 
             // Limpieza de UI
             panelBotones.setVisible(false);
             codeAreaXml.setEditable(false);
+
+            mostrarToast("✓ Procesado con éxito");
+            PauseTransition espera = new PauseTransition(Duration.seconds(2.5));
+            espera.setOnFinished(e -> {
+                if (navegacionHandler != null) {
+                    navegacionHandler.cambiarVistaCentral(
+                            "/fxml/comparador_apn.fxml",
+                            null,
+                            dispositivo -> {
+                                Platform.runLater(() -> {
+                                    navegacionHandler.mostrarToast(mensajeExito);
+                                });
+
+                            });
+                }
+            });
+            espera.play();
         } catch (IOException e) {
             mostrarToast("Error al guardar archivo final");
-        }
-    }
-
-    // ───────────────────── VOLVER ─────────────────────
-
-    @FXML
-    private void onVolver() {
-        if (navegacionHandler != null) {
-            navegacionHandler.cambiarVistaCentral("/fxml/vista_diagnostico.fxml", dispositivoActual, null);
         }
     }
 

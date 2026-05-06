@@ -262,17 +262,8 @@
                                  -fx-background-radius: 6; -fx-padding: 8;"/>
             </VBox>
 
-            <!-- Botón APN y logs -->
+            <!-- y logs -->
             <HBox alignment="CENTER_RIGHT" spacing="12">
-
-                     <Button text="Actualizar APNs"
-                        onAction="#onActualizarAPNs"
-                        style="-fx-background-color: #000000; -fx-text-fill: #199dda;
-                               -fx-font-weight: bold; -fx-background-radius: 6;
-                               -fx-padding: 8 16 8 16; -fx-cursor: hand;
-                               -fx-border-width: 1; -fx-border-style: solid;
-                               -fx-border-color: #199dda; -fx-border-radius: 6;"/>
-
                      <Button text="📋 Guardar Logs"
                         onAction="#onAbrirLogcat"
                         style="-fx-background-color: #000000; -fx-text-fill: #4cdb77;

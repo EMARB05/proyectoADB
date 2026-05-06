@@ -246,26 +246,31 @@ public class MainController implements NavegacionHandler {
                 }
 
                 if (controller instanceof DiagnosticoController) {
-                    ((DiagnosticoController) controller).setNavegacionHandler(this);
                     ((DiagnosticoController) controller).setDispositivo(dispositivo);
                 }
 
-                if (controller instanceof ComparadorApnController) {
-                    ((ComparadorApnController) controller).setNavegacionHandler(this);
-                    ((ComparadorApnController) controller).setDispositivo(dispositivo);
+                if (controller instanceof SelectorComparadorController) {
+                    ((SelectorComparadorController) controller).setNavegacionHandler(this);
                 }
-
+                
                 if (controller instanceof FormularioAltaController && alFinalizar != null) {
-                    ((FormularioAltaController) controller).setOnGuardadoExitoso(dispositivoGuardado -> {
-                        alFinalizar.accept(dispositivoGuardado);
-                    });
+                    ((FormularioAltaController) controller).setOnGuardadoExitoso(alFinalizar);
+                }
+                panelCentral.getChildren().setAll(panel);
+
+                if (!(controller instanceof FormularioAltaController) && alFinalizar != null) {
+                    alFinalizar.accept(dispositivo);
                 }
 
-                panelCentral.getChildren().setAll(panel);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
+    }
+
+    @FXML
+    private void onActualizarAPNs() throws IOException {
+        cambiarVistaCentral("/fxml/selector_comparador.fxml", new Dispositivo(), null);
     }
 
     // ───────────────────── STOP ─────────────────────
@@ -289,6 +294,41 @@ public class MainController implements NavegacionHandler {
             e.printStackTrace();
             lblEstadoAdb.setText("● Error al cargar vista masiva");
         }
+    }
+
+    public void mostrarToast(String mensaje) {
+        if (rootPane == null) {
+            System.out.println("RootPane es null en main");
+            return;
+        }
+        Label toast = new Label(mensaje);
+        toast.setStyle(
+                "-fx-background-color: #313244; -fx-text-fill: #cdd6f4;" +
+                        "-fx-padding: 12 24; -fx-background-radius: 24; -fx-font-size: 13px;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 12, 0, 0, 4);");
+        toast.setOpacity(0);
+        toast.setMouseTransparent(true);
+        StackPane.setAlignment(toast, javafx.geometry.Pos.BOTTOM_CENTER);
+        StackPane.setMargin(toast, new javafx.geometry.Insets(0, 0, 32, 0));
+        rootPane.getChildren().add(toast);
+        toast.toFront();
+        javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(javafx.util.Duration.millis(300),
+                toast);
+        fadeIn.setFromValue(0);
+        fadeIn.setToValue(1);
+        javafx.animation.PauseTransition pausa = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(2));
+        javafx.animation.FadeTransition fadeOut = new javafx.animation.FadeTransition(javafx.util.Duration.millis(400),
+                toast);
+        fadeOut.setFromValue(1);
+        fadeOut.setToValue(0);
+        fadeOut.setOnFinished(e -> rootPane.getChildren().remove(toast));
+        javafx.animation.PauseTransition delayEntrada = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(150));
+        new javafx.animation.SequentialTransition(
+                delayEntrada,
+                fadeIn,
+                pausa,
+                fadeOut).play();
     }
 
 }

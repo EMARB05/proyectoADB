@@ -80,12 +80,6 @@ public class DiagnosticoController implements DispositivoAware {
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Método para recibir el handler del Main y pasarlo abajo
-    public void setNavegacionHandler(NavegacionHandler handler) {
-        if (fichaTecnicaController != null) {
-            fichaTecnicaController.setNavegacionHandler(handler);
-        }
-    }
 
     @FXML
     public void initialize() {
