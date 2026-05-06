@@ -98,11 +98,7 @@ public class FichaTecnicaController implements DispositivoAware {
     private final FotoDAO fotoDAO = new FotoDAO();
     private final ADBService adb = new ADBService();
 
-    private NavegacionHandler navegacionHandler;
 
-    public void setNavegacionHandler(NavegacionHandler handler) {
-        this.navegacionHandler = handler;
-    }
 
     @Override
     public void setDispositivo(Dispositivo dispositivo) {
@@ -383,13 +379,6 @@ public class FichaTecnicaController implements DispositivoAware {
     }
 
     @FXML
-    private void onActualizarAPNs() throws IOException {
-        if (navegacionHandler != null) {
-            navegacionHandler.cambiarVistaCentral("/fxml/comparador_apn.fxml", dispositivoActual, null);
-        }
-    }
-
-    @FXML
     private void onGuardarAndroid() {
         String valor = txtAndroid.getText().trim();
         try {
@@ -478,12 +467,7 @@ public class FichaTecnicaController implements DispositivoAware {
         new javafx.animation.SequentialTransition(fadeIn, pausa, fadeOut).play();
     }
 
-  @FXML
-private void onAbrirComparadorXML() {
-     if (navegacionHandler != null) {
-            navegacionHandler.cambiarVistaCentral("/fxml/comparadorXmlView.fxml", dispositivoActual, null);
-        }
-}
+ 
 
 
 }

@@ -43,20 +43,18 @@ public class XmlApnParser {
         }
     }
 
-    /**
-     * Motor de parseo: Toma la lista 'lineas', la convierte en un Stream 
-     * y reconstruye la lista de 'entradas' (objetos ApnEntry).
-     */
     public void parsear() throws Exception {
         entradas.clear();
-        
-        // Convertimos la lista de memoria en un InputStream para el Parser DOM
+
         String contenidoCompleto = String.join("\n", lineas);
         InputStream is = new ByteArrayInputStream(contenidoCompleto.getBytes("UTF-8"));
 
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         Document doc = factory.newDocumentBuilder().parse(is);
         NodeList apns = doc.getElementsByTagName("apn");
+
+        // NUEVO: Rastreador para no repetir líneas en APNs duplicados
+        int punteroBusqueda = 0;
 
         for (int i = 0; i < apns.getLength(); i++) {
             Element el = (Element) apns.item(i);
@@ -71,12 +69,57 @@ public class XmlApnParser {
                 entry.atributos.put(attr.getNodeName(), attr.getNodeValue());
             }
 
-            // Calculamos las posiciones en el texto basándonos en la lista 'lineas'
-            entry.lineaInicio = buscarLineaApn(entry.mcc, entry.mnc, entry.apn);
+            // Usamos la nueva versión que acepta el índice de inicio
+            entry.lineaInicio = buscarLineaApn(entry.mcc, entry.mnc, entry.apn, punteroBusqueda);
             entry.lineaFin = buscarLineaFin(entry.lineaInicio);
+
+            // Si encontramos la línea, el siguiente APN debe buscarse después de este
+            if (entry.lineaInicio != -1) {
+                punteroBusqueda = entry.lineaFin + 1;
+            }
 
             entradas.add(entry);
         }
+    }
+
+    // NUEVA VERSIÓN: Copia esto debajo del buscarLineaApn original
+    public int buscarLineaApn(String mcc, String mnc, String apn, int desdeLinea) {
+        String mncNorm = (mnc != null && mnc.length() == 1) ? "0" + mnc : mnc;
+        String apnLow = apn.toLowerCase();
+
+        for (int i = desdeLinea; i < lineas.size(); i++) {
+            String l = lineas.get(i).toLowerCase();
+            if (l.contains("<apn")) {
+                // Aquí declaramos las variables que faltaban
+                boolean matchMcc = false;
+                boolean matchMnc = false;
+                boolean matchApn = false;
+
+                for (int j = i; j < lineas.size(); j++) {
+                    String sub = lineas.get(j).toLowerCase();
+                    if (sub.contains("mcc=\"" + mcc + "\""))
+                        matchMcc = true;
+                    if (sub.contains("mnc=\"" + mncNorm + "\"") || sub.contains("mnc=\"" + mnc + "\""))
+                        matchMnc = true;
+                    if (sub.contains("apn=\"" + apnLow + "\""))
+                        matchApn = true;
+
+                    if (sub.contains(">"))
+                        break;
+                }
+                if (matchMcc && matchMnc && matchApn)
+                    return i;
+            }
+        }
+        return -1;
+    }
+
+    // Método auxiliar para obtener el nombre (puedes ponerlo en ApnEntry)
+    public String getNombreIdentificador(ApnEntry entry) {
+        String n = entry.atributos.get("carrier");
+        if (n == null || n.isEmpty())
+            n = entry.atributos.get("name");
+        return (n != null) ? n.trim() : "";
     }
 
     /**
@@ -87,7 +130,7 @@ public class XmlApnParser {
         this.lineas.clear();
         this.lineas.addAll(nuevasLineas);
         try {
-            parsear(); 
+            parsear();
         } catch (Exception e) {
             System.err.println("Error al actualizar el parser desde memoria: " + e.getMessage());
         }
@@ -101,22 +144,29 @@ public class XmlApnParser {
             String l = lineas.get(i).toLowerCase();
             if (l.contains("<apn")) {
                 boolean matchMcc = false, matchMnc = false, matchApn = false;
-                // Buscamos en la línea actual y siguientes (por si el APN está multilínea)
-                for (int j = i; j < Math.min(i + 10, lineas.size()); j++) {
+
+                for (int j = i; j < lineas.size(); j++) {
                     String sub = lineas.get(j).toLowerCase();
-                    if (sub.contains("mcc=\"" + mcc + "\"")) matchMcc = true;
-                    if (sub.contains("mnc=\"" + mncNorm + "\"") || sub.contains("mnc=\"" + mnc + "\"")) matchMnc = true;
-                    if (sub.contains("apn=\"" + apnLow + "\"")) matchApn = true;
-                    if (sub.contains(">")) break;
+                    if (sub.contains("mcc=\"" + mcc + "\""))
+                        matchMcc = true;
+                    if (sub.contains("mnc=\"" + mncNorm + "\"") || sub.contains("mnc=\"" + mnc + "\""))
+                        matchMnc = true;
+                    if (sub.contains("apn=\"" + apnLow + "\""))
+                        matchApn = true;
+
+                    if (sub.contains(">"))
+                        break;
                 }
-                if (matchMcc && matchMnc && matchApn) return i;
+                if (matchMcc && matchMnc && matchApn)
+                    return i;
             }
         }
         return -1;
     }
 
     private int buscarLineaFin(int inicio) {
-        if (inicio < 0) return inicio;
+        if (inicio < 0)
+            return inicio;
         for (int i = inicio; i < lineas.size(); i++) {
             if (lineas.get(i).contains("/>") || lineas.get(i).contains("</apn>")) {
                 return i;
@@ -138,12 +188,13 @@ public class XmlApnParser {
         String mncFormateado = mnc;
         try {
             mncFormateado = String.format("%02d", Integer.parseInt(mnc));
-        } catch (NumberFormatException e) { }
+        } catch (NumberFormatException e) {
+        }
 
         for (ApnEntry e : entradas) {
             if (e.mcc.equals(mcc) &&
-                e.mnc.equals(mncFormateado) &&
-                e.apn.equalsIgnoreCase(apn)) {
+                    e.mnc.equals(mncFormateado) &&
+                    e.apn.equalsIgnoreCase(apn)) {
                 return e;
             }
         }

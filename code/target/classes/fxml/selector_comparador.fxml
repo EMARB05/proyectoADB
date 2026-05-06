@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<StackPane fx:id="rootPane"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.example.View.SelectorComparadorController"
+           style="-fx-background-color: #1e1e2e;">
+
+    <VBox spacing="20" alignment="TOP_CENTER" style="-fx-background-color: #1e1e2e; -fx-padding: 20;">
+        <HBox spacing="15" alignment="CENTER_LEFT" style="-fx-text-fill: #cdd6f4;">
+            <Label text="Modo de comparación:" style="-fx-text-fill: #cdd6f4; -fx-font-size: 14px;"/>
+            <ComboBox fx:id="comboModo" prefWidth="200" 
+                      style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4;"/>
+        </HBox>
+        
+        <StackPane fx:id="contenedorDinamico" VBox.vgrow="ALWAYS" />
+    </VBox>
+</StackPane>

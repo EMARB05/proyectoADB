@@ -54,6 +54,13 @@
                 style="-fx-background-color: #cba6f7; -fx-text-fill: #1e1e2e; 
                        -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 12;
                        -fx-cursor: hand;"/>
+        <!-- Boton de APNs -->
+        <Button text="Actualizar APNs"
+                onAction="#onActualizarAPNs"
+                maxWidth="Infinity"
+                style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; 
+                       -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 12;
+                       -fx-cursor: hand;"/>
     </VBox>
 </VBox>
 
