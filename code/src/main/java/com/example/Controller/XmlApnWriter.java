@@ -7,62 +7,101 @@ import java.util.regex.*;
 
 public class XmlApnWriter {
 
-    // Cambiado a PUBLIC y eliminados parámetros unused
+    /**
+     * Limpia paréntesis informativos (ej: "(IMS)") solo cuando el dato
+     * procede del encabezado del bloque de celdas del Excel.
+     */
+    private static String limpiarSoloSiEsTitulo(String valor) {
+        if (valor == null)
+            return "";
+
+        if (valor.contains("(") && valor.contains(")")) {
+            int pos = valor.indexOf("(");
+            if (pos != -1) {
+                return valor.substring(0, pos).trim();
+            }
+        }
+        return valor.trim();
+    }
+
+    /**
+     * Aplica los cambios de la tabla al XML.
+     * NO limpia paréntesis automáticamente porque confiamos en lo que el usuario
+     * ve y edita en la tabla.
+     */
     public static String aplicarDiferencia(String linea, ApnComparator.Diferencia d) {
-        // Buscamos si el atributo ya existe en esta línea
         Pattern pat = Pattern.compile(d.campo + "=\"[^\"]*\"", Pattern.CASE_INSENSITIVE);
         Matcher mat = pat.matcher(linea);
+
         if (mat.find()) {
-            return mat.replaceFirst(d.campo + "=\"" + d.valorExcel + "\"");
+            // Usamos el valor tal cual viene de la tabla (solo con trim)
+            String valorParaEscribir = (d.valorExcel != null) ? d.valorExcel.trim() : "";
+            return mat.replaceFirst(d.campo + "=\"" + valorParaEscribir + "\"");
         }
         return linea;
     }
 
-    // NUEVO MÉTODO para insertar atributos que no existían
+    /**
+     * Inserta atributos nuevos en un APN existente.
+     */
     public static String insertarAtributoEstiloVertical(String lineaCierre, ApnComparator.Diferencia d) {
-        // Si la línea es el cierre " />", insertamos el atributo antes con formato
         if (lineaCierre.contains("/>")) {
-            return "        " + d.campo + "=\"" + d.valorExcel + "\"\n" + lineaCierre;
+            String valorParaEscribir = (d.valorExcel != null) ? d.valorExcel.trim() : "";
+            return "        " + d.campo + "=\"" + valorParaEscribir + "\"\n" + lineaCierre;
         }
         return lineaCierre;
     }
 
-    // Cambiado a PUBLIC para que el controlador lo use al insertar nuevos APNs
-    // En XmlApnWriter.java
-
+    /**
+     * Construye el XML para un APN totalmente nuevo detectado en el Excel.
+     */
     public static String construirApnXmlVertical(ExcelApnParser.ApnExcel apnExcel, String mcc, String mnc) {
         StringBuilder sb = new StringBuilder("    <apn\n");
 
-        // 1. Atributos prioritarios
-        String name = apnExcel.campos.getOrDefault("name", apnExcel.nombreApnOriginal);
-        sb.append("        name=\"").append(name).append("\"\n");
+        // --- LÓGICA DE NOMBRE INTELIGENTE ---
+        String nombreFinal;
+
+        if (apnExcel.campos.containsKey("name")) {
+            // Si hay columna "name", respetamos paréntesis comerciales
+            nombreFinal = apnExcel.campos.get("name").trim();
+        } else if (apnExcel.campos.containsKey("carrier")) {
+            // Si hay columna "carrier", ídem
+            nombreFinal = apnExcel.campos.get("carrier").trim();
+        } else {
+            // Si no hay columna, usamos el título del bloque (aquí sí limpiamos basura
+            // técnica)
+            nombreFinal = limpiarSoloSiEsTitulo(apnExcel.nombreApnOriginal);
+        }
+
+        sb.append("        name=\"").append(nombreFinal).append("\"\n");
+        // ------------------------------------
 
         if (apnExcel.apn != null && !apnExcel.apn.isEmpty()) {
             sb.append("        apn=\"").append(apnExcel.apn).append("\"\n");
         }
 
-        // 2. Identificadores de red
+        // Identificadores de red
         sb.append("        mcc=\"").append(mcc).append("\"\n");
         String mncNorm = (mnc != null && mnc.length() == 1) ? "0" + mnc : mnc;
         sb.append("        mnc=\"").append(mncNorm).append("\"\n");
 
-        // 3. El resto de atributos del mapa
+        // Resto de atributos
         for (Map.Entry<String, String> e : apnExcel.campos.entrySet()) {
             String clave = e.getKey().toLowerCase();
-            // Saltamos los que ya hemos puesto arriba
+            // Saltamos los ya escritos arriba
             if (clave.equals("name") || clave.equals("apn") || clave.equals("mcc") || clave.equals("mnc")) {
                 continue;
             }
-            sb.append("        ").append(e.getKey()).append("=\"").append(e.getValue()).append("\"\n");
+
+            String valor = (e.getValue() != null) ? e.getValue().trim() : "";
+            sb.append("        ").append(e.getKey()).append("=\"").append(valor).append("\"\n");
         }
 
         sb.append("    />");
         return sb.toString();
     }
 
-    // Cambiado a PUBLIC
     public static int buscarLineaCierre(List<String> lineas) {
-        // Buscamos el final del documento XML para insertar ahí los nuevos
         for (int i = lineas.size() - 1; i >= 0; i--) {
             if (lineas.get(i).contains("</apns>"))
                 return i;
@@ -70,7 +109,6 @@ public class XmlApnWriter {
         return lineas.size() > 0 ? lineas.size() - 1 : 0;
     }
 
-    // Nuevo método para el guardado final
     public static File guardarArchivoFinal(File original, List<String> lineas) throws IOException {
         File destino = calcularNombreVersion(original);
         Files.write(destino.toPath(), lineas);
