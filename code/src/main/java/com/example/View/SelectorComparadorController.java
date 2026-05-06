@@ -39,7 +39,7 @@ public class SelectorComparadorController {
             if ("XML + Excel".equals(nuevo)) {
                 cargarSubVista("/fxml/comparador_excel.fxml");
             } else {
-                cargarSubVista("/fxml/comparador_2xml.fxml");
+                cargarSubVista("/fxml/comparador_xml.fxml");
             }
         });
 
