@@ -100,3 +100,102 @@
     -fx-scale-x: 1.05; /* Levitación sutil */
     -fx-scale-y: 1.05;
 }
+.modern-table {
+    -fx-background-color: transparent;
+    -fx-base: #1e1e2e;
+    -fx-control-inner-background: #181825;
+}
+
+.modern-table .column-header {
+    -fx-background-color: #313244;
+    -fx-text-fill: #cdd6f4;
+}
+
+.modern-table .table-row-cell:selected {
+    -fx-background-color: #45475a;
+}
+
+/* Estilo para resaltar celdas diferentes */
+.cell-diferente {
+    -fx-text-fill: #f38ba8; /* Rojo suave */
+    -fx-font-weight: bold;
+}
+/* Contenedor de la tabla */
+.table-view {
+    -fx-background-color: #1e1e2e; /* Fondo oscuro */
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: #45475a;
+    -fx-padding: 5;
+}
+
+/* Encabezados de columnas */
+.table-view .column-header {
+    -fx-background-color: #313244;
+    -fx-border-color: transparent;
+    -fx-size: 40;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #cdd6f4;
+    -fx-font-weight: bold;
+    -fx-font-family: "Poppins" or "Segoe UI";
+}
+
+/* Celdas */
+.table-row-cell {
+    -fx-background-color: #1e1e2e;
+    -fx-border-color: transparent;
+    -fx-cell-size: 35;
+}
+
+
+/* Fila al pasar el ratón (Hover) */
+.table-row-cell:hover {
+    -fx-background-color: #45475a;
+}
+
+/* Celda seleccionada */
+.table-row-cell:selected {
+    -fx-background-color: #89b4fa;
+}
+.table-row-cell:selected .text {
+    -fx-fill: #1e1e2e; /* Texto oscuro sobre fondo claro al seleccionar */
+}
+
+/* Quitar líneas de rejilla sobrantes */
+.table-view .placeholder .label {
+    -fx-text-fill: #6c7086;
+}
+/* Color de texto para todas las celdas de la tabla */
+.table-view .table-cell {
+    -fx-text-fill: #cdd6f4; /* Un blanco azulado suave (estilo Catppuccin Text) */
+    -fx-alignment: CENTER-LEFT;
+    -fx-padding: 0 10 0 10;
+}
+
+/* Asegurar que cuando la fila esté seleccionada, el texto cambie a oscuro para contrastar con el azul claro */
+.table-row-cell:selected .table-cell {
+    -fx-text-fill: #1e1e2e;
+}
+/* Fuerza texto blanco en todas las filas del TableView */
+.table-row-cell {
+    -fx-background-color: #1e1e2e;
+    -fx-text-fill: #cdd6f4;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #181825;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #313244;
+}
+
+.table-row-cell .text {
+    -fx-fill: #cdd6f4;
+}
+
+.table-row-cell:selected .text {
+    -fx-fill: #cdd6f4;
+}

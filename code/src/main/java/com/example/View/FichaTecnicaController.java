@@ -477,4 +477,13 @@ public class FichaTecnicaController implements DispositivoAware {
         fadeOut.setOnFinished(e -> rootPane.getChildren().remove(toast));
         new javafx.animation.SequentialTransition(fadeIn, pausa, fadeOut).play();
     }
+
+  @FXML
+private void onAbrirComparadorXML() {
+     if (navegacionHandler != null) {
+            navegacionHandler.cambiarVistaCentral("/fxml/comparadorXmlView.fxml", dispositivoActual, null);
+        }
+}
+
+
 }
