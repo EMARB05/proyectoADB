@@ -8,54 +8,83 @@
            fx:controller="com.example.View.ComparadorExcelController"
            style="-fx-background-color: #1e1e2e;">
 
-    <VBox spacing="0">
+    <VBox spacing="20" style="-fx-padding: 24;">
         
-        <HBox alignment="CENTER_LEFT" spacing="16"
-              style="-fx-background-color: #11111b; -fx-padding: 12 20;">
-            <Label text="Seleccionar XML :" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-            <Button fx:id="btnXml" text="Seleccionar archivo" onAction="#onSeleccionarXml"
-                    style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;"/>
-            
-            <Label text="Seleccionar XLSX :" style="-fx-text-fill: #cdd6f4; -fx-font-size: 13px;"/>
-            <Button fx:id="btnXlsx" text="Seleccionar archivo" onAction="#onSeleccionarXlsx"
-                    style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;"/>
+        <!-- Encabezado con título y estado -->
+        <HBox alignment="CENTER_LEFT" spacing="15">
+           
+            <VBox>
+                <Label text="Comparador XML vs Excel" style="-fx-text-fill: #cdd6f4; -fx-font-size: 20px; -fx-font-weight: bold;"/>
+                <Label text="Sincronización de base de datos técnica" style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS" />
+            <Label fx:id="lblOperadorActual" text="ESPERANDO ARCHIVOS" 
+                   style="-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-padding: 5 12; -fx-background-radius: 15; -fx-font-weight: bold;"/>
         </HBox>
 
-        <HBox alignment="CENTER"
-              style="-fx-background-color: #11111b; -fx-padding: 12 20; -fx-border-color: #313244; -fx-border-width: 1 0 1 0;">
-            <Label fx:id="lblOperadorActual" text=""
-                   style="-fx-text-fill: #cdd6f4; -fx-font-size: 16px; -fx-font-weight: bold;"/>
-        </HBox>
-
-        <HBox VBox.vgrow="ALWAYS" spacing="0">
-            <VBox HBox.hgrow="ALWAYS" spacing="0"
-                  style="-fx-background-color: #11111b; -fx-border-color: #313244; -fx-border-width: 0 1 0 0;">
-                <StackPane fx:id="contenedorXml" VBox.vgrow="ALWAYS" />
+        <!-- Área de Selección de Archivos (Tarjetas) -->
+        <HBox spacing="20" alignment="CENTER">
+            <!-- Tarjeta XML -->
+            <VBox HBox.hgrow="ALWAYS" spacing="10" style="-fx-background-color: #181825; -fx-padding: 15; -fx-background-radius: 12; -fx-border-color: #45475a; -fx-border-radius: 12;">
+                <Label text="BASE DE DATOS XML" style="-fx-text-fill: #89b4fa; -fx-font-weight: bold; -fx-font-size: 11px;"/>
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Button fx:id="btnXml" onAction="#onSeleccionarXml" text="Seleccionar XML" 
+                            style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-cursor: hand;"/>
+                    <Label text="Archivo Maestro" style="-fx-text-fill: #6c7086;" />
+                </HBox>
             </VBox>
 
+            <Label text="VS" style="-fx-text-fill: #f9e2af; -fx-font-weight: bold; -fx-font-size: 18px;"/>
+
+            <!-- Tarjeta Excel -->
+            <VBox HBox.hgrow="ALWAYS" spacing="10" style="-fx-background-color: #181825; -fx-padding: 15; -fx-background-radius: 12; -fx-border-color: #45475a; -fx-border-radius: 12;">
+                <Label text="REPORTE EXCEL (XLSX)" style="-fx-text-fill: #f5c2e7; -fx-font-weight: bold; -fx-font-size: 11px;"/>
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Button fx:id="btnXlsx" onAction="#onSeleccionarXlsx" text="Seleccionar XLSX" 
+                            style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-cursor: hand;"/>
+                    <Label text="Nuevos datos" style="-fx-text-fill: #6c7086;" />
+                </HBox>
+            </VBox>
+        </HBox>
+
+        <!-- Área Central de Comparación -->
+        <HBox VBox.vgrow="ALWAYS" spacing="20">
+            
+            <!-- Panel Izquierdo: Vista XML -->
+            <VBox HBox.hgrow="ALWAYS" spacing="10" style="-fx-background-color: #181825; -fx-background-radius: 12; -fx-padding: 10; -fx-border-color: #45475a; -fx-border-radius: 12;">
+                <Label text="ESTRUCTURA XML ACTUAL" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
+                <StackPane fx:id="contenedorXml" VBox.vgrow="ALWAYS" style="-fx-background-color: #1e1e2e; -fx-background-radius: 8;"/>
+            </VBox>
+
+            <!-- Panel Derecho: Vista Excel y Botones -->
             <StackPane prefWidth="650" maxWidth="800" minWidth="400">
-                <VBox spacing="0" style="-fx-background-color: #1e1e2e;">
+                <VBox spacing="10" style="-fx-background-color: #181825; -fx-background-radius: 12; -fx-padding: 10; -fx-border-color: #45475a; -fx-border-radius: 12;">
+                    <Label text="VISTA PREVIA EXCEL" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
+                    
                     <ScrollPane fx:id="scrollExcel" VBox.vgrow="ALWAYS" fitToWidth="true"
-                               style="-fx-background-color: transparent; -fx-background: transparent;">
+                               style="-fx-background-color: transparent; -fx-background: #ffffff; -fx-background-radius: 8;">
                         <GridPane fx:id="gridExcel" style="-fx-background-color: #ffffff; -fx-padding: 8;"/>
                     </ScrollPane>
 
+                    <!-- Panel de Acciones -->
                     <HBox fx:id="panelBotones" alignment="CENTER_RIGHT" spacing="12"
                           visible="false" managed="false"
-                          style="-fx-background-color: #181825; -fx-padding: 12 20;">
-                        <Button fx:id="btnAniadir" text="⊕ AÑADIR" onAction="#onAniadir"
-                                style="-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 24; -fx-cursor: hand;"/>
+                          style="-fx-padding: 5 0 0 0;">
                         <Button fx:id="btnCancelar" text="✕ CANCELAR" onAction="#onCancelar"
-                                style="-fx-background-color: #f38ba8; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 24; -fx-cursor: hand;"/>
+                                style="-fx-background-color: transparent; -fx-text-fill: #f38ba8; -fx-border-color: #f38ba8; -fx-border-radius: 6; -fx-cursor: hand; -fx-padding: 8 20;"/>
+                        <Button fx:id="btnAniadir" text="⊕ AÑADIR AL XML" onAction="#onAniadir"
+                                style="-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 6; -fx-padding: 10 24; -fx-cursor: hand;"/>
                     </HBox>
                 </VBox>
 
+                <!-- Overlay de Carga -->
                 <VBox fx:id="overlayCarga" alignment="CENTER" spacing="15" visible="false" opacity="0"
-                      style="-fx-background-color: rgba(30, 30, 46, 0.85);" mouseTransparent="true">
+                      style="-fx-background-color: rgba(30, 30, 46, 0.9); -fx-background-radius: 12;" mouseTransparent="true">
                     <ProgressIndicator prefWidth="50" prefHeight="50" />
-                    <Label fx:id="lblMensajeCarga" text="" style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
+                    <Label fx:id="lblMensajeCarga" text="Procesando..." style="-fx-text-fill: #cdd6f4; -fx-font-weight: bold;"/>
                 </VBox>
             </StackPane>
         </HBox>
+
     </VBox>
 </StackPane>

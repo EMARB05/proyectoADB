@@ -11,8 +11,7 @@
     <!-- Encabezado con botón de regreso -->
     <HBox alignment="CENTER_LEFT" spacing="15">
         <!-- Añadido fx:id="btnVolver" -->
-        <Button fx:id="btnVolver" onAction="#onVolver" text="←" 
-                style="-fx-background-color: #313244; -fx-text-fill: #cdd6f4; -fx-background-radius: 8; -fx-cursor: hand;"/>
+      
         <VBox>
             <Label text="Comparador de APNs" style="-fx-text-fill: #cdd6f4; -fx-font-size: 20px; -fx-font-weight: bold;"/>
             <Label text="Mismo modelo y marca: Verificación de integridad" style="-fx-text-fill: #6c7086; -fx-font-size: 12px;"/>
