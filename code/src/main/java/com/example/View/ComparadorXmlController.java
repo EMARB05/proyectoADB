@@ -40,7 +40,6 @@ public class ComparadorXmlController {
     @FXML
     private TableColumn<DiferenciaApn, String> colEstado;
 
-
     @FXML
     private Button btnCargarOriginal;
     @FXML
@@ -50,6 +49,7 @@ public class ComparadorXmlController {
     private File fileCopia;
     Dispositivo dispositivo;
     ComparadorExcelController cExcel = new ComparadorExcelController();
+
     public void setDispositivo(Dispositivo dispositivo) {
         this.dispositivo = dispositivo;
     }
@@ -71,23 +71,24 @@ public class ComparadorXmlController {
         colEstado.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.15));
     }
 
-   @FXML
-private void onCargarOriginal() {
-    fileOriginal = seleccionarArchivo("XML Original (Master)");
-    if (fileOriginal != null) {
-        cExcel.marcarBotonSeleccionado(btnCargarOriginal, fileOriginal.getName());
-        ejecutarComparacionSiEsPosible();
+    @FXML
+    private void onCargarOriginal() {
+        fileOriginal = seleccionarArchivo("XML Original (Master)");
+        if (fileOriginal != null) {
+            cExcel.marcarBotonSeleccionado(btnCargarOriginal, fileOriginal.getName());
+            ejecutarComparacionSiEsPosible();
+        }
     }
-}
 
-@FXML
-private void onCargarCopia() {
-    fileCopia = seleccionarArchivo("XML a comparar");
-    if (fileCopia != null) {
-        cExcel.marcarBotonSeleccionado(btnCargarCopia, fileCopia.getName());
-        ejecutarComparacionSiEsPosible();
+    @FXML
+    private void onCargarCopia() {
+        fileCopia = seleccionarArchivo("XML a comparar");
+        if (fileCopia != null) {
+            cExcel.marcarBotonSeleccionado(btnCargarCopia, fileCopia.getName());
+            ejecutarComparacionSiEsPosible();
+        }
     }
-}
+
     private void ejecutarComparacionSiEsPosible() {
         if (fileOriginal != null && fileCopia != null) {
             procesarComparacion();
@@ -154,14 +155,21 @@ private void onCargarCopia() {
     }
 
     private String generarIdUnico(Element el) {
+        String mvno = el.getAttribute("mvno_match_data").trim();
+    String mvnoPart = mvno.isEmpty() ? "" : " {" + mvno + "}";
         return el.getAttribute("mcc").trim() + "-" +
                 el.getAttribute("mnc").trim() + " (" +
                 el.getAttribute("apn").trim() + " [" +
-                el.getAttribute("type").trim() + "])";
+                 el.getAttribute("type").trim() + "]" +
+            mvnoPart + ")";
     }
 
     private String extraerNombre(Element el) {
-        return el.getAttribute("name").trim();
+        String name = el.getAttribute("name").trim();
+        if (!name.isEmpty())
+            return name;
+        return el.getAttribute("carrier").trim();
+
     }
 
     private void compararAtributos(Element elA, Element elB,
@@ -182,6 +190,8 @@ private void onCargarCopia() {
         todosLosAtributos.remove("mcc");
         todosLosAtributos.remove("mnc");
         todosLosAtributos.remove("name");
+        todosLosAtributos.remove("carrier");
+        todosLosAtributos.remove("mvno_match_data"); 
 
         for (String attr : todosLosAtributos) {
             String valA = elA.getAttribute(attr).trim();
@@ -204,26 +214,26 @@ private void onCargarCopia() {
         }
     }
 
-  @FXML
-private void onLimpiar() {
-    tblDiferencias.getItems().clear();
-    fileOriginal = fileCopia = null;
+    @FXML
+    private void onLimpiar() {
+        tblDiferencias.getItems().clear();
+        fileOriginal = fileCopia = null;
 
-    // Resetea botones
-    btnCargarOriginal.setText("Seleccionar XML");
-    btnCargarOriginal.setDisable(false);
-    btnCargarOriginal.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
-            "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
+        // Resetea botones
+        btnCargarOriginal.setText("Seleccionar XML");
+        btnCargarOriginal.setDisable(false);
+        btnCargarOriginal.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
+                "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
 
-    btnCargarCopia.setText("Seleccionar XML");
-    btnCargarCopia.setDisable(false);
-    btnCargarCopia.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
-            "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
+        btnCargarCopia.setText("Seleccionar XML");
+        btnCargarCopia.setDisable(false);
+        btnCargarCopia.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
+                "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
 
-    lblEstado.setText("LISTO");
-    lblEstado.setStyle("-fx-background-color: #89b4fa; " +
-            "-fx-padding: 5 12; -fx-background-radius: 15;");
-}
+        lblEstado.setText("LISTO");
+        lblEstado.setStyle("-fx-background-color: #89b4fa; " +
+                "-fx-padding: 5 12; -fx-background-radius: 15;");
+    }
 
     @FXML
     private void onAbrirDiff() {
@@ -307,6 +317,18 @@ private void onLimpiar() {
                 System.out.println("[EXPORT] Original: " + mapaOriginal.size() +
                         " APNs | Copia: " + mapaCopia.size() + " APNs");
 
+                Set<String> apnsModificados = new java.util.LinkedHashSet<>();
+
+                System.out.println("[DEBUG] Claves en mapaCopia que contienen 'globe': ");
+                mapaCopia.keySet().stream()
+                        .filter(k -> k.contains("globe"))
+                        .forEach(System.out::println);
+
+                System.out.println("[DEBUG] Claves en mapaOriginal que contienen 'globe': ");
+                mapaOriginal.keySet().stream()
+                        .filter(k -> k.contains("globe"))
+                        .forEach(System.out::println);
+
                 int parcheados = 0;
                 for (int i = 0; i < listaOriginal.getLength(); i++) {
                     Element elOriginal = (Element) listaOriginal.item(i);
@@ -315,15 +337,21 @@ private void onLimpiar() {
                     if (mapaCopia.containsKey(id)) {
                         Element elCopia = mapaCopia.get(id);
                         NamedNodeMap attrsCopia = elCopia.getAttributes();
+                        boolean modificado = false;
                         for (int j = 0; j < attrsCopia.getLength(); j++) {
                             Attr attr = (Attr) attrsCopia.item(j);
                             String nombreAttr = attr.getName();
                             String valor = attr.getValue().trim();
                             if (!nombreAttr.equals("mcc") && !nombreAttr.equals("mnc")
                                     && !valor.isEmpty()) {
-                                elOriginal.setAttribute(nombreAttr, valor);
+                                String valorActual = elOriginal.getAttribute(nombreAttr).trim();// leer antes
+                                if (!valorActual.equals(valor))
+                                    modificado = true; // ← comparar ANTES
+                                elOriginal.setAttribute(nombreAttr, valor); // luego
                             }
                         }
+                        if (modificado)
+                            apnsModificados.add(id); //
                         parcheados++;
                     }
                 }
@@ -378,6 +406,11 @@ private void onLimpiar() {
                     } else if (nodo.getNodeType() == Node.ELEMENT_NODE
                             && nodo.getNodeName().equals("apn")) {
                         Element el = (Element) nodo;
+                        String id = generarIdUnico(el);
+                        if (apnsModificados.contains(id)) { // ← NUEVO
+                            writer.println("    <!-- MODIFICADO: " + extraerNombre(el) +
+                                    " | " + id + " -->");
+                        }
                         writer.println("    <apn");
 
                         NamedNodeMap attrs = el.getAttributes();
@@ -400,9 +433,28 @@ private void onLimpiar() {
                 final int totalNuevos = apnsNuevos.size();
 
                 Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    alert.setTitle("Exportación completada");
+                    alert.setHeaderText("✓ Exportado correctamente");
+                    alert.setContentText("¿Desea abrir el archivo con Visual Studio Code?");
+
+                    ButtonType btnSi = new ButtonType("Abrir en VSCode");
+                    ButtonType btnNo = new ButtonType("No", ButtonBar.ButtonData.CANCEL_CLOSE);
+                    alert.getButtonTypes().setAll(btnSi, btnNo);
+
+                    alert.showAndWait().ifPresent(respuesta -> {
+                        if (respuesta == btnSi) {
+                            try {
+                                new ProcessBuilder("cmd", "/c", "code",
+                                        destino.getAbsolutePath()).start();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+
                     lblEstado.setText("✓ Exportado: " + totalParcheados +
-                            " parcheados, " + totalNuevos + " nuevos → " +
-                            destino.getName());
+                            " parcheados, " + totalNuevos + " nuevos → " + destino.getName());
                     lblEstado.setStyle("-fx-background-color: #a6e3a1; " +
                             "-fx-padding: 5 12; -fx-background-radius: 15;");
                 });
