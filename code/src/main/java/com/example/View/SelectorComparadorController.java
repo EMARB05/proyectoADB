@@ -47,16 +47,31 @@ public class SelectorComparadorController {
         comboModo.getSelectionModel().selectFirst();
     }
 
-    private void cargarSubVista(String fxml) {
+    public void cargarSubVista(String fxml) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource(fxml));
             javafx.scene.Node nodoHijo = loader.load();
             Object controllerHijo = loader.getController();
             if (controllerHijo instanceof ComparadorExcelController) {
-                ((ComparadorExcelController) controllerHijo).setNavegacionHandler(navegacionHandler);
+                ((ComparadorExcelController) controllerHijo).setSelectorHandler(this);
+
             }
             contenedorDinamico.getChildren().setAll(nodoHijo);
 
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public void cargarSubVista(String fxml,String mensaje) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxml));
+            javafx.scene.Node nodoHijo = loader.load();
+            Object controllerHijo = loader.getController();
+            if (controllerHijo instanceof ComparadorExcelController) {
+                ((ComparadorExcelController) controllerHijo).setSelectorHandler(this);
+            }
+            contenedorDinamico.getChildren().setAll(nodoHijo);
+            navegacionHandler.mostrarToast(mensaje);
         } catch (IOException e) {
             e.printStackTrace();
         }

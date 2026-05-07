@@ -68,10 +68,10 @@ public class ComparadorExcelController {
     // Resultados de comparación del operador actual
     private List<ResultadoComparacion> resultadosActuales = new ArrayList<>();
 
-    private NavegacionHandler navegacionHandler;
+    private SelectorComparadorController selectorHandler;
 
-    public void setNavegacionHandler(NavegacionHandler handler) {
-        this.navegacionHandler = handler;
+    public void setSelectorHandler(SelectorComparadorController handler){
+        this.selectorHandler = handler;
     }
 
     public void setOnCargarVista(BiConsumer<String, Dispositivo> callback) {
@@ -472,6 +472,7 @@ public class ComparadorExcelController {
         }
     }
 
+    @FXML
     private void finalizarProceso() {
         try {
             File archivoFinal = XmlApnWriter.guardarArchivoFinal(archivoXml, lineasXmlMemoria);
@@ -482,18 +483,14 @@ public class ComparadorExcelController {
             codeAreaXml.setEditable(false);
 
             mostrarToast("✓ Procesado con éxito");
-            PauseTransition espera = new PauseTransition(Duration.seconds(2.5));
+            PauseTransition espera = new PauseTransition(Duration.seconds(4));
             espera.setOnFinished(e -> {
-                if (navegacionHandler != null) {
-                    navegacionHandler.cambiarVistaCentral(
-                            "/fxml/comparador_apn.fxml",
-                            null,
-                            dispositivo -> {
-                                Platform.runLater(() -> {
-                                    navegacionHandler.mostrarToast(mensajeExito);
-                                });
-
-                            });
+                if (selectorHandler != null) {
+                    try {
+                        selectorHandler.cargarSubVista("/fxml/comparador_excel.fxml",mensajeExito);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
                 }
             });
             espera.play();
