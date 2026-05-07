@@ -248,9 +248,6 @@ public class MainController implements NavegacionHandler {
                 if (controller instanceof DiagnosticoController) {
                     ((DiagnosticoController) controller).setDispositivo(dispositivo);
                 }
-                // 3. ¡ESTA ES LA PARTE QUE TE FALTA!
-                // Añade este bloque para el comparador de XML
-               
 
                 if (controller instanceof SelectorComparadorController) {
                     ((SelectorComparadorController) controller).setNavegacionHandler(this);
