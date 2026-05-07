@@ -10,7 +10,7 @@
 
     <!-- Encabezado con botón de regreso -->
     <HBox alignment="CENTER_LEFT" spacing="15">
-        <!-- Añadido fx:id="btnVolver" -->
+     
       
         <VBox>
             <Label text="Comparador de APNs" style="-fx-text-fill: #cdd6f4; -fx-font-size: 20px; -fx-font-weight: bold;"/>
@@ -60,11 +60,29 @@
 
     <HBox spacing="15" alignment="CENTER_RIGHT">
         <Button text="Limpiar" onAction="#onLimpiar"
-                style="-fx-background-color: transparent; -fx-text-fill: #f38ba8; -fx-border-color: #f38ba8; -fx-border-radius: 6; -fx-cursor: hand;"/>
+                style="-fx-background-color: transparent; -fx-text-fill: #f38ba8; -fx-border-color: #f38ba8; -fx-border-radius: 6; -fx-padding: 10 20; -fx-cursor: hand;">
+
+                <graphic>
+                    <ImageView fitHeight="18" fitWidth="18" preserveRatio="true">
+                        <image>
+                            <Image url="@../img/borrar.png"/>
+                        </image>
+                    </ImageView>
+                </graphic>
+                </Button>
         <Button text="Exportar  XML parcheado" onAction="#onExportar"
                 style="-fx-background-color: #fab387; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 6; -fx-padding: 10 20; -fx-cursor: hand;"/>
         <Button text="Abrir en VS Code" onAction="#onAbrirDiff"
-        style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 6; -fx-padding: 10 20; -fx-cursor: hand;"/>
+        style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 6; -fx-padding: 10 20; -fx-cursor: hand;">
+          <graphic>
+                    <ImageView fitHeight="18" fitWidth="18" preserveRatio="true">
+                        <image>
+                            <Image url="@../img/vsCode.png"/>
+                        </image>
+                    </ImageView>
+                </graphic>
+
+        </Button>
     </HBox>
 
 </VBox>

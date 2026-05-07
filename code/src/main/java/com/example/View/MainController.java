@@ -250,10 +250,7 @@ public class MainController implements NavegacionHandler {
                 }
                 // 3. ¡ESTA ES LA PARTE QUE TE FALTA!
                 // Añade este bloque para el comparador de XML
-                if (controller instanceof ComparadorXmlController) {
-                    ((ComparadorXmlController) controller).setNavegacionHandler(this);
-                    ((ComparadorXmlController) controller).setDispositivo(dispositivo);
-                }
+               
 
                 if (controller instanceof SelectorComparadorController) {
                     ((SelectorComparadorController) controller).setNavegacionHandler(this);
