@@ -501,7 +501,7 @@ public class ComparadorExcelController {
 
     // ───────────────────── HELPERS ─────────────────────
 
-    private void marcarBotonSeleccionado(Button btn, String nombre) {
+    public void marcarBotonSeleccionado(Button btn, String nombre) {
         btn.setText("Archivo seleccionado ✓");
         btn.setDisable(true);
         btn.setStyle(

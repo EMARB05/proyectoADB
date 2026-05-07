@@ -23,21 +23,33 @@ import java.util.Set;
 
 public class ComparadorXmlController {
 
-    @FXML private Label lblEstado;
-    @FXML private Label lblPathOriginal;
-    @FXML private Label lblPathCopia;
-    @FXML private TableView<DiferenciaApn> tblDiferencias;
-    @FXML private TableColumn<DiferenciaApn, String> colOperadora;
-    @FXML private TableColumn<DiferenciaApn, String> colNombre;
-    @FXML private TableColumn<DiferenciaApn, String> colAtributo;
-    @FXML private TableColumn<DiferenciaApn, String> colValorOriginal;
-    @FXML private TableColumn<DiferenciaApn, String> colValorCopia;
-    @FXML private TableColumn<DiferenciaApn, String> colEstado;
+    @FXML
+    private Label lblEstado;
+    @FXML
+    private TableView<DiferenciaApn> tblDiferencias;
+    @FXML
+    private TableColumn<DiferenciaApn, String> colOperadora;
+    @FXML
+    private TableColumn<DiferenciaApn, String> colNombre;
+    @FXML
+    private TableColumn<DiferenciaApn, String> colAtributo;
+    @FXML
+    private TableColumn<DiferenciaApn, String> colValorOriginal;
+    @FXML
+    private TableColumn<DiferenciaApn, String> colValorCopia;
+    @FXML
+    private TableColumn<DiferenciaApn, String> colEstado;
+
+
+    @FXML
+    private Button btnCargarOriginal;
+    @FXML
+    private Button btnCargarCopia;
 
     private File fileOriginal;
     private File fileCopia;
     Dispositivo dispositivo;
-
+    ComparadorExcelController cExcel = new ComparadorExcelController();
     public void setDispositivo(Dispositivo dispositivo) {
         this.dispositivo = dispositivo;
     }
@@ -59,24 +71,23 @@ public class ComparadorXmlController {
         colEstado.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.15));
     }
 
-    @FXML
-    private void onCargarOriginal() {
-        fileOriginal = seleccionarArchivo("XML Original (Master)");
-        if (fileOriginal != null) {
-            lblPathOriginal.setText(fileOriginal.getName());
-            ejecutarComparacionSiEsPosible();
-        }
+   @FXML
+private void onCargarOriginal() {
+    fileOriginal = seleccionarArchivo("XML Original (Master)");
+    if (fileOriginal != null) {
+        cExcel.marcarBotonSeleccionado(btnCargarOriginal, fileOriginal.getName());
+        ejecutarComparacionSiEsPosible();
     }
+}
 
-    @FXML
-    private void onCargarCopia() {
-        fileCopia = seleccionarArchivo("XML a comparar");
-        if (fileCopia != null) {
-            lblPathCopia.setText(fileCopia.getName());
-            ejecutarComparacionSiEsPosible();
-        }
+@FXML
+private void onCargarCopia() {
+    fileCopia = seleccionarArchivo("XML a comparar");
+    if (fileCopia != null) {
+        cExcel.marcarBotonSeleccionado(btnCargarCopia, fileCopia.getName());
+        ejecutarComparacionSiEsPosible();
     }
-
+}
     private void ejecutarComparacionSiEsPosible() {
         if (fileOriginal != null && fileCopia != null) {
             procesarComparacion();
@@ -106,8 +117,7 @@ public class ComparadorXmlController {
                     mapaOriginal.put(generarIdUnico(el), el);
                 }
 
-                ObservableList<DiferenciaApn> resultados =
-                        FXCollections.observableArrayList();
+                ObservableList<DiferenciaApn> resultados = FXCollections.observableArrayList();
 
                 for (int i = 0; i < listaB.getLength(); i++) {
                     Element elB = (Element) listaB.item(i);
@@ -194,20 +204,31 @@ public class ComparadorXmlController {
         }
     }
 
-    @FXML
-    private void onLimpiar() {
-        tblDiferencias.getItems().clear();
-        fileOriginal = fileCopia = null;
-        lblPathOriginal.setText("No seleccionado");
-        lblPathCopia.setText("No seleccionado");
-        lblEstado.setText("LISTO");
-        lblEstado.setStyle("-fx-background-color: #89b4fa; " +
-                "-fx-padding: 5 12; -fx-background-radius: 15;");
-    }
+  @FXML
+private void onLimpiar() {
+    tblDiferencias.getItems().clear();
+    fileOriginal = fileCopia = null;
+
+    // Resetea botones
+    btnCargarOriginal.setText("Seleccionar XML");
+    btnCargarOriginal.setDisable(false);
+    btnCargarOriginal.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
+            "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
+
+    btnCargarCopia.setText("Seleccionar XML");
+    btnCargarCopia.setDisable(false);
+    btnCargarCopia.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
+            "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
+
+    lblEstado.setText("LISTO");
+    lblEstado.setStyle("-fx-background-color: #89b4fa; " +
+            "-fx-padding: 5 12; -fx-background-radius: 15;");
+}
 
     @FXML
     private void onAbrirDiff() {
-        if (fileOriginal == null || fileCopia == null) return;
+        if (fileOriginal == null || fileCopia == null)
+            return;
         try {
             new ProcessBuilder("cmd", "/c", "code", "--diff",
                     fileOriginal.getAbsolutePath(),
@@ -251,7 +272,8 @@ public class ComparadorXmlController {
 
         // destino final antes del hilo para que sea accesible en el lambda
         final File destino = fc.showSaveDialog(lblEstado.getScene().getWindow());
-        if (destino == null) return;
+        if (destino == null)
+            return;
 
         lblEstado.setText("Procesando...");
         lblEstado.setStyle("-fx-background-color: #f9e2af; " +
@@ -262,13 +284,13 @@ public class ComparadorXmlController {
                 DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 
                 Document docOriginal = factory.newDocumentBuilder().parse(fileOriginal);
-                Document docCopia    = factory.newDocumentBuilder().parse(fileCopia);
+                Document docCopia = factory.newDocumentBuilder().parse(fileCopia);
 
                 docOriginal.getDocumentElement().normalize();
                 docCopia.getDocumentElement().normalize();
 
                 NodeList listaOriginal = docOriginal.getElementsByTagName("apn");
-                NodeList listaCopia    = docCopia.getElementsByTagName("apn");
+                NodeList listaCopia = docCopia.getElementsByTagName("apn");
 
                 Map<String, Element> mapaCopia = new HashMap<>();
                 for (int i = 0; i < listaCopia.getLength(); i++) {
@@ -320,21 +342,21 @@ public class ComparadorXmlController {
 
                 if (!apnsNuevos.isEmpty()) {
                     docOriginal.getDocumentElement().appendChild(
-                        docOriginal.createComment(
-                            " ===== APNs NUEVOS AÑADIDOS DESDE XML COPIA (" +
-                            apnsNuevos.size() + ") ===== "));
+                            docOriginal.createComment(
+                                    " ===== APNs NUEVOS AÑADIDOS DESDE XML COPIA (" +
+                                            apnsNuevos.size() + ") ===== "));
 
                     for (Node nodo : apnsNuevos) {
                         Element el = (Element) nodo;
                         docOriginal.getDocumentElement().appendChild(
-                            docOriginal.createComment(
-                                " NUEVO: " + extraerNombre(el) + " | " +
-                                generarIdUnico(el) + " "));
+                                docOriginal.createComment(
+                                        " NUEVO: " + extraerNombre(el) + " | " +
+                                                generarIdUnico(el) + " "));
                         docOriginal.getDocumentElement().appendChild(nodo);
                     }
 
                     docOriginal.getDocumentElement().appendChild(
-                        docOriginal.createComment(" ===== FIN APNs NUEVOS ===== "));
+                            docOriginal.createComment(" ===== FIN APNs NUEVOS ===== "));
 
                     System.out.println("[EXPORT] Nuevos añadidos: " + apnsNuevos.size());
                 }
