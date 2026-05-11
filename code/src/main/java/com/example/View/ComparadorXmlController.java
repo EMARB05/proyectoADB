@@ -63,8 +63,8 @@ public class ComparadorXmlController {
         colValorCopia.setCellValueFactory(new PropertyValueFactory<>("valCopia"));
         colEstado.setCellValueFactory(new PropertyValueFactory<>("estado"));
 
-        colOperadora.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.20));
-        colNombre.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.20));
+        colOperadora.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.25));
+        colNombre.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.15));
         colAtributo.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.15));
         colValorOriginal.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.15));
         colValorCopia.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.15));
@@ -108,6 +108,8 @@ public class ComparadorXmlController {
 
                 docA.getDocumentElement().normalize();
                 docB.getDocumentElement().normalize();
+                limpiarComentariosPatch(docA); // ← añadir
+                limpiarComentariosPatch(docB);
 
                 NodeList listaA = docA.getElementsByTagName("apn");
                 NodeList listaB = docB.getElementsByTagName("apn");
@@ -119,6 +121,24 @@ public class ComparadorXmlController {
                 }
 
                 ObservableList<DiferenciaApn> resultados = FXCollections.observableArrayList();
+                // Detectar duplicados
+                Map<String, Integer> conteo = new HashMap<>();
+                for (int i = 0; i < listaA.getLength(); i++) {
+                    Element el = (Element) listaA.item(i);
+                    String id = generarIdUnico(el);
+                    conteo.put(id, conteo.getOrDefault(id, 0) + 1);
+                }
+                conteo.entrySet().stream()
+                        .filter(e -> e.getValue() > 1)
+                        .forEach(e -> System.out.println("[DUPLICADO XML1] " + e.getKey() + " x" + e.getValue()));
+                // justo antes del for de comparación
+                for (int i = 0; i < listaA.getLength(); i++) {
+                    Element el = (Element) listaA.item(i);
+                    String id = generarIdUnico(el);
+                    if (id.contains("uninor") && id.contains("877")) {
+                        System.out.println("[DEBUG 877] " + id + " | port=" + el.getAttribute("port"));
+                    }
+                }
 
                 for (int i = 0; i < listaB.getLength(); i++) {
                     Element elB = (Element) listaB.item(i);
@@ -155,19 +175,61 @@ public class ComparadorXmlController {
     }
 
     private String generarIdUnico(Element el) {
+        String mvno = el.getAttribute("mvno_match_data").trim();
+        String mvnoPart = mvno.isEmpty() ? "" : " {" + mvno + "}";
+        String carrier = el.getAttribute("carrier").trim();
+        String name = el.getAttribute("name").trim();
+        String identificador = !name.isEmpty() ? name : carrier;
+         String mvnoType = el.getAttribute("mvno_type").trim();
+        String mvnoTypePart = mvnoType.isEmpty() ? "" : " [" + mvnoType + "]";
         return el.getAttribute("mcc").trim() + "-" +
                 el.getAttribute("mnc").trim() + " (" +
                 el.getAttribute("apn").trim() + " [" +
-                el.getAttribute("type").trim() + "])";
+                el.getAttribute("type").trim() + "]" +
+                identificador + mvnoPart + mvnoTypePart + ")";
     }
 
+    // Solo para mostrar en la tabla (sin mvno_type)
+private String generarIdVisible(Element el) {
+    String mvno = el.getAttribute("mvno_match_data").trim();
+    String mvnoPart = mvno.isEmpty() ? "" : " {" + mvno + "}";
+    return el.getAttribute("mcc").trim() + "-" +
+            el.getAttribute("mnc").trim() + " (" +
+            el.getAttribute("apn").trim() + " [" +
+            el.getAttribute("type").trim() + "]" +
+             mvnoPart + ")";
+}
+
     private String extraerNombre(Element el) {
-        return el.getAttribute("name").trim();
+        String name = el.getAttribute("name").trim();
+        if (!name.isEmpty())
+            return name;
+        return el.getAttribute("carrier").trim();
+
+    }
+
+    private void limpiarComentariosPatch(Document doc) {
+        NodeList hijos = doc.getDocumentElement().getChildNodes();
+        List<Node> aEliminar = new ArrayList<>();
+
+        for (int i = 0; i < hijos.getLength(); i++) {
+            Node nodo = hijos.item(i);
+            if (nodo.getNodeType() == Node.COMMENT_NODE) {
+                String texto = ((Comment) nodo).getData().trim();
+                if (texto.startsWith("MODIFICADO:") ||
+                        texto.startsWith("NUEVO:") ||
+                        texto.startsWith("===== APNs NUEVOS") ||
+                        texto.startsWith("===== FIN APNs NUEVOS")) {
+                    aEliminar.add(nodo);
+                }
+            }
+        }
+        aEliminar.forEach(n -> doc.getDocumentElement().removeChild(n));
     }
 
     private void compararAtributos(Element elA, Element elB,
             ObservableList<DiferenciaApn> lista) {
-        String id = generarIdUnico(elA);
+        String id = generarIdVisible(elA);
         String nombre = extraerNombre(elA);
 
         Set<String> todosLosAtributos = new LinkedHashSet<>();
@@ -183,6 +245,9 @@ public class ComparadorXmlController {
         todosLosAtributos.remove("mcc");
         todosLosAtributos.remove("mnc");
         todosLosAtributos.remove("name");
+        todosLosAtributos.remove("carrier");
+        todosLosAtributos.remove("mvno_match_data");
+        todosLosAtributos.remove("mvno_type");
 
         for (String attr : todosLosAtributos) {
             String valA = elA.getAttribute(attr).trim();
@@ -243,9 +308,24 @@ public class ComparadorXmlController {
     private File seleccionarArchivo(String titulo) {
         FileChooser fc = new FileChooser();
         fc.setTitle(titulo);
+        
+        // Establecer directorio inicial en Documents
+        File documentsDir = new File(System.getProperty("user.home") + File.separator + "Documents");
+        if (documentsDir.exists() && documentsDir.isDirectory()) {
+            fc.setInitialDirectory(documentsDir);
+        }
+       
         fc.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("XML Files", "*.xml"));
         return fc.showOpenDialog(lblEstado.getScene().getWindow());
+    }
+
+    private String escaparXml(String valor) {
+        return valor
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     @FXML
@@ -289,6 +369,8 @@ public class ComparadorXmlController {
 
                 docOriginal.getDocumentElement().normalize();
                 docCopia.getDocumentElement().normalize();
+                limpiarComentariosPatch(docOriginal);
+                limpiarComentariosPatch(docCopia);
 
                 NodeList listaOriginal = docOriginal.getElementsByTagName("apn");
                 NodeList listaCopia = docCopia.getElementsByTagName("apn");
@@ -305,10 +387,8 @@ public class ComparadorXmlController {
                     mapaOriginal.put(generarIdUnico(el), el);
                 }
 
-                System.out.println("[EXPORT] Original: " + mapaOriginal.size() +
-                        " APNs | Copia: " + mapaCopia.size() + " APNs");
+                Set<String> apnsModificados = new java.util.LinkedHashSet<>();
 
-                int parcheados = 0;
                 for (int i = 0; i < listaOriginal.getLength(); i++) {
                     Element elOriginal = (Element) listaOriginal.item(i);
                     String id = generarIdUnico(elOriginal);
@@ -316,19 +396,23 @@ public class ComparadorXmlController {
                     if (mapaCopia.containsKey(id)) {
                         Element elCopia = mapaCopia.get(id);
                         NamedNodeMap attrsCopia = elCopia.getAttributes();
+                        boolean modificado = false;
                         for (int j = 0; j < attrsCopia.getLength(); j++) {
                             Attr attr = (Attr) attrsCopia.item(j);
                             String nombreAttr = attr.getName();
                             String valor = attr.getValue().trim();
                             if (!nombreAttr.equals("mcc") && !nombreAttr.equals("mnc")
                                     && !valor.isEmpty()) {
-                                elOriginal.setAttribute(nombreAttr, valor);
+                                String valorActual = elOriginal.getAttribute(nombreAttr).trim();// leer antes
+                                if (!valorActual.equals(valor))
+                                    modificado = true; // ← comparar ANTES
+                                elOriginal.setAttribute(nombreAttr, valor); // luego
                             }
                         }
-                        parcheados++;
+                        if (modificado)
+                            apnsModificados.add(id); //
                     }
                 }
-                System.out.println("[EXPORT] APNs parcheados: " + parcheados);
 
                 List<Node> apnsNuevos = new ArrayList<>();
                 for (int i = 0; i < listaCopia.getLength(); i++) {
@@ -344,7 +428,7 @@ public class ComparadorXmlController {
                 if (!apnsNuevos.isEmpty()) {
                     docOriginal.getDocumentElement().appendChild(
                             docOriginal.createComment(
-                                    " ===== APNs NUEVOS AÑADIDOS DESDE XML COPIA (" +
+                                    " ===== APNs NUEVOS AÑADIDOS DESDE XML 2 (" +
                                             apnsNuevos.size() + ") ===== "));
 
                     for (Node nodo : apnsNuevos) {
@@ -379,13 +463,18 @@ public class ComparadorXmlController {
                     } else if (nodo.getNodeType() == Node.ELEMENT_NODE
                             && nodo.getNodeName().equals("apn")) {
                         Element el = (Element) nodo;
+                        String id = generarIdUnico(el);
+                        if (apnsModificados.contains(id)) { // ← NUEVO
+                            writer.println("    <!-- MODIFICADO: " + extraerNombre(el) +
+                                    " | " + id + " -->");
+                        }
                         writer.println("    <apn");
 
                         NamedNodeMap attrs = el.getAttributes();
                         for (int j = 0; j < attrs.getLength(); j++) {
                             Attr attr = (Attr) attrs.item(j);
                             writer.println("        " + attr.getName() +
-                                    "=\"" + attr.getValue() + "\"");
+                                    "=\"" + escaparXml(attr.getValue()) + "\"");
                         }
                         writer.println("    />");
                     }
@@ -397,13 +486,32 @@ public class ComparadorXmlController {
 
                 System.out.println("[EXPORT] Guardado en: " + destino.getAbsolutePath());
 
-                final int totalParcheados = parcheados;
+                final int totalModificados = apnsModificados.size();
                 final int totalNuevos = apnsNuevos.size();
 
                 Platform.runLater(() -> {
-                    lblEstado.setText("✓ Exportado: " + totalParcheados +
-                            " parcheados, " + totalNuevos + " nuevos → " +
-                            destino.getName());
+                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    alert.setTitle("Exportación completada");
+                    alert.setHeaderText("✓ Exportado correctamente");
+                    alert.setContentText("¿Desea abrir el archivo con Visual Studio Code?");
+
+                    ButtonType btnSi = new ButtonType("Abrir en VSCode");
+                    ButtonType btnNo = new ButtonType("No", ButtonBar.ButtonData.CANCEL_CLOSE);
+                    alert.getButtonTypes().setAll(btnSi, btnNo);
+
+                    alert.showAndWait().ifPresent(respuesta -> {
+                        if (respuesta == btnSi) {
+                            try {
+                                new ProcessBuilder("cmd", "/c", "code",
+                                        destino.getAbsolutePath()).start();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+
+                    lblEstado.setText("✓ Exportado: " + totalModificados +
+                            " modificados, " + totalNuevos + " nuevos → " + destino.getName());
                     lblEstado.setStyle("-fx-background-color: #a6e3a1; " +
                             "-fx-padding: 5 12; -fx-background-radius: 15;");
                 });
