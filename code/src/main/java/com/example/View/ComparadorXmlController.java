@@ -40,7 +40,6 @@ public class ComparadorXmlController {
     @FXML
     private TableColumn<DiferenciaApn, String> colEstado;
 
-
     @FXML
     private Button btnCargarOriginal;
     @FXML
@@ -50,6 +49,7 @@ public class ComparadorXmlController {
     private File fileCopia;
     Dispositivo dispositivo;
     ComparadorExcelController cExcel = new ComparadorExcelController();
+
     public void setDispositivo(Dispositivo dispositivo) {
         this.dispositivo = dispositivo;
     }
@@ -71,23 +71,24 @@ public class ComparadorXmlController {
         colEstado.prefWidthProperty().bind(tblDiferencias.widthProperty().multiply(0.15));
     }
 
-   @FXML
-private void onCargarOriginal() {
-    fileOriginal = seleccionarArchivo("XML Original (Master)");
-    if (fileOriginal != null) {
-        cExcel.marcarBotonSeleccionado(btnCargarOriginal, fileOriginal.getName());
-        ejecutarComparacionSiEsPosible();
+    @FXML
+    private void onCargarOriginal() {
+        fileOriginal = seleccionarArchivo("XML Original (Master)");
+        if (fileOriginal != null) {
+            cExcel.marcarBotonSeleccionado(btnCargarOriginal);
+            ejecutarComparacionSiEsPosible();
+        }
     }
-}
 
-@FXML
-private void onCargarCopia() {
-    fileCopia = seleccionarArchivo("XML a comparar");
-    if (fileCopia != null) {
-        cExcel.marcarBotonSeleccionado(btnCargarCopia, fileCopia.getName());
-        ejecutarComparacionSiEsPosible();
+    @FXML
+    private void onCargarCopia() {
+        fileCopia = seleccionarArchivo("XML a comparar");
+        if (fileCopia != null) {
+            cExcel.marcarBotonSeleccionado(btnCargarCopia);
+            ejecutarComparacionSiEsPosible();
+        }
     }
-}
+
     private void ejecutarComparacionSiEsPosible() {
         if (fileOriginal != null && fileCopia != null) {
             procesarComparacion();
@@ -204,26 +205,26 @@ private void onCargarCopia() {
         }
     }
 
-  @FXML
-private void onLimpiar() {
-    tblDiferencias.getItems().clear();
-    fileOriginal = fileCopia = null;
+    @FXML
+    private void onLimpiar() {
+        tblDiferencias.getItems().clear();
+        fileOriginal = fileCopia = null;
 
-    // Resetea botones
-    btnCargarOriginal.setText("Seleccionar XML");
-    btnCargarOriginal.setDisable(false);
-    btnCargarOriginal.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
-            "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
+        // Resetea botones
+        btnCargarOriginal.setText("Seleccionar XML");
+        btnCargarOriginal.setDisable(false);
+        btnCargarOriginal.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
+                "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
 
-    btnCargarCopia.setText("Seleccionar XML");
-    btnCargarCopia.setDisable(false);
-    btnCargarCopia.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
-            "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
+        btnCargarCopia.setText("Seleccionar XML");
+        btnCargarCopia.setDisable(false);
+        btnCargarCopia.setStyle("-fx-background-color: #313244; -fx-text-fill: #cdd6f4; " +
+                "-fx-background-radius: 6; -fx-padding: 6 16; -fx-cursor: hand;");
 
-    lblEstado.setText("LISTO");
-    lblEstado.setStyle("-fx-background-color: #89b4fa; " +
-            "-fx-padding: 5 12; -fx-background-radius: 15;");
-}
+        lblEstado.setText("LISTO");
+        lblEstado.setStyle("-fx-background-color: #89b4fa; " +
+                "-fx-padding: 5 12; -fx-background-radius: 15;");
+    }
 
     @FXML
     private void onAbrirDiff() {

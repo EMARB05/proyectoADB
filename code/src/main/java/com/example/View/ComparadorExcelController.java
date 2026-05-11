@@ -9,6 +9,7 @@ import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.scene.Cursor;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
@@ -18,6 +19,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.flowless.VirtualizedScrollPane;
@@ -33,6 +36,10 @@ public class ComparadorExcelController {
     private Button btnXlsx;
     @FXML
     private Button btnAniadir;
+    @FXML
+    private Button btnCancelar;
+    @FXML
+    private Button btnVerCambios;
     @FXML
     private Label lblOperadorActual;
     @FXML
@@ -51,7 +58,6 @@ public class ComparadorExcelController {
     private Label lblMensajeCarga;
 
     private InlineCssTextArea codeAreaXml;
-
     private BiConsumer<String, Dispositivo> onCargarVista;
 
     private File archivoXml;
@@ -68,9 +74,16 @@ public class ComparadorExcelController {
     // Resultados de comparación del operador actual
     private List<ResultadoComparacion> resultadosActuales = new ArrayList<>();
 
+    private boolean modoVerCambios = false;
+
+    private int indiceUltimoOperadorProcesado = -1;
+    private List<Integer> lineasUltimoCambio = new ArrayList<>();
+    private List<ApnExcel> apnsExcelUltimoCambio = new ArrayList<>();
+    private List<ResultadoComparacion> resultadosUltimoCambio = new ArrayList<>();
+
     private SelectorComparadorController selectorHandler;
 
-    public void setSelectorHandler(SelectorComparadorController handler){
+    public void setSelectorHandler(SelectorComparadorController handler) {
         this.selectorHandler = handler;
     }
 
@@ -166,11 +179,14 @@ public class ComparadorExcelController {
     // ───────────────────── CARGA DE OPERADOR ─────────────────────
 
     private void cargarOperador(Operador operador, String mensajeToast) {
-        lblOperadorActual.setText(operador.pais + "   " + operador.nombre +
-                "   ( mcc=\"" + operador.mcc + "\"  mnc=\"" + operador.mnc + "\" )");
+        actualizarLblOperador(operador, false);
 
         this.mccActual = operador.mcc;
         this.mncActual = operador.mnc;
+
+        if (modoVerCambios) {
+            salirModoVerCambios();
+        }
 
         javafx.concurrent.Task<List<ApnExcel>> tareaCarga = new javafx.concurrent.Task<>() {
             @Override
@@ -192,8 +208,8 @@ public class ComparadorExcelController {
             String textoCompleto = String.join("\n", xmlParser.getLineas());
             codeAreaXml.clear();
             codeAreaXml.append(textoCompleto, "-fx-fill: #cdd6f4;");
-            renderizarHighlightsXml();
-            renderizarTablaExcel(apnsExcel, operador);
+            renderizarHighlightsXml(false);
+            renderizarTablaExcel(apnsExcel, resultadosActuales);
 
             btnAniadir.setDisable(resultadosActuales.isEmpty());
 
@@ -210,6 +226,12 @@ public class ComparadorExcelController {
         });
 
         new Thread(tareaCarga).start();
+    }
+
+    private void actualizarLblOperador(Operador op, boolean esModoVerCambios) {
+        String prefijo = esModoVerCambios ? "ÚLTIMO PROCESADO: " : "";
+        lblOperadorActual.setText(prefijo + op.pais + "   " + op.nombre +
+                "   ( mcc=\"" + op.mcc + "\"  mnc=\"" + op.mnc + "\" )");
     }
 
     private void mostrarCargando(boolean mostrar, String mensaje) {
@@ -236,22 +258,38 @@ public class ComparadorExcelController {
 
     // ───────────────────── RENDER XML ─────────────────────
 
-    private void renderizarHighlightsXml() {
+    private void renderizarHighlightsXml(boolean modoVerCambios) {
         if (codeAreaXml == null)
             return;
 
         int total = codeAreaXml.getParagraphs().size();
 
         String estiloResaltado = "-fx-background-color: #3e4452; -fx-font-weight: bold; -fx-border-color: #3ba1f5; -fx-border-width: 0 0 0 5;";
+        String estiloVerCambios = "-fx-background-color: #2d4a3e; -fx-font-weight: bold -fx-border-color: #a6e3a1; -fx-border-width: 0 0 0 5;";
+
+        String estilo = modoVerCambios ? estiloVerCambios : estiloResaltado;
 
         int lineaMasArriba = Integer.MAX_VALUE;
-        for (ResultadoComparacion res : resultadosActuales) {
-            if (res.apnXml != null && res.apnXml.lineaInicio >= 0) {
-                if (res.apnXml.lineaInicio < lineaMasArriba)
-                    lineaMasArriba = res.apnXml.lineaInicio;
-                for (int i = res.apnXml.lineaInicio; i <= res.apnXml.lineaFin; i++) {
-                    if (i < total)
-                        codeAreaXml.setParagraphStyle(i, estiloResaltado);
+
+        if (modoVerCambios) {
+            for (int i = 0; i < total; i++)
+                codeAreaXml.setParagraphStyle(i, "");
+
+            for (int linea : lineasUltimoCambio) {
+                if (linea >= 0 && linea < total) {
+                    codeAreaXml.setParagraphStyle(linea, estilo);
+                    lineaMasArriba = Math.min(lineaMasArriba, linea);
+                }
+            }
+        } else {
+
+            for (ResultadoComparacion res : resultadosActuales) {
+                if (res.apnXml != null && res.apnXml.lineaInicio >= 0) {
+                    lineaMasArriba = Math.min(lineaMasArriba, res.apnXml.lineaInicio);
+                    for (int i = res.apnXml.lineaInicio; i <= res.apnXml.lineaFin; i++) {
+                        if (i < total)
+                            codeAreaXml.setParagraphStyle(i, estilo);
+                    }
                 }
             }
         }
@@ -263,7 +301,7 @@ public class ComparadorExcelController {
     }
     // ───────────────────── RENDER EXCEL ─────────────────────
 
-    private void renderizarTablaExcel(List<ApnExcel> apnsExcel, Operador operador) {
+    private void renderizarTablaExcel(List<ApnExcel> apnsExcel, List<ResultadoComparacion> resultados) {
         gridExcel.getChildren().clear();
         gridExcel.getColumnConstraints().clear();
 
@@ -276,7 +314,7 @@ public class ComparadorExcelController {
         int fila = 0;
 
         for (ApnExcel apnExcel : apnsExcel) {
-            ResultadoComparacion resultado = resultadosActuales.stream()
+            ResultadoComparacion resultado = resultados.stream()
                     .filter(r -> r.apnExcel == apnExcel)
                     .findFirst().orElse(null);
 
@@ -307,10 +345,27 @@ public class ComparadorExcelController {
                 }
             }
 
-            // Renderizado del Título
+            // Renderizado del Título + listener de scroll
             if (apnExcel.nombreApnOriginal != null) {
                 Label lblT = crearCeldaTabla(apnExcel.nombreApnOriginal, colorTitulo, true);
                 lblT.setStyle(lblT.getStyle() + "-fx-border-width: 0 0 2 0; -fx-border-color: black;");
+
+                if (resultado != null && resultado.apnXml != null && resultado.apnXml.lineaInicio >= 0) {
+                    final int lineaDestino = resultado.apnXml.lineaInicio;
+                    lblT.setCursor(Cursor.HAND);
+                    lblT.setTooltip(new Tooltip("Ir a línea " + (lineaDestino + 1) + " en el XML"));
+                    lblT.setOnMouseClicked(event -> {
+                        int lineaFinal = lineaDestino;
+
+                        if (lineaDestino > 0) {
+                            String textoLinea = lineasXmlMemoria.get(lineaDestino - 1).trim();
+                            if (textoLinea.contains("MODIFICADO : ")) {
+                                lineaFinal -= 1;
+                            }
+                        }
+                        codeAreaXml.showParagraphAtTop(lineaFinal);
+                    });
+                }
                 gridExcel.add(lblT, 0, fila++, 2, 1);
             }
 
@@ -323,7 +378,6 @@ public class ComparadorExcelController {
                         .anyMatch(d -> d.campo.equalsIgnoreCase(campoExcel));
 
                 String bg = dif ? "#ffff00" : "#ffffff";
-
                 gridExcel.add(crearCeldaTabla(campoExcel, bg, false), 0, fila);
                 gridExcel.add(crearCeldaTabla(valorExcel, bg, false), 1, fila++);
             }
@@ -357,46 +411,120 @@ public class ComparadorExcelController {
 
     @FXML
     private void onAniadir() {
-        // Feedback visual
         mostrarCargando(true, "Guardando cambios...");
 
-        javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(300));
-        delay.setOnFinished(ev -> {
+        javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(300));
+        delay.setOnFinished(event -> {
             new Thread(() -> {
                 try {
-                    // --- LÓGICA DE PROCESAMIENTO XML ---
                     List<String> nuevasLineas = new ArrayList<>(lineasXmlMemoria);
+
+                    long cantidadNuevos = resultadosActuales.stream()
+                            .filter(r -> r.tieneDiferencias() && !r.existeEnXml)
+                            .count();
+
+                    List<Integer> lineasCambiadas = new ArrayList<>();
+
+                    // ── APNs MODIFICADOS (de mayor a menor índice) ──────────────
+                    List<ResultadoComparacion> modificados = new ArrayList<>();
                     for (ResultadoComparacion r : resultadosActuales) {
-                        if (!r.tieneDiferencias())
-                            continue;
-                        if (!r.existeEnXml) {
-                            String bloqueNuevo = XmlApnWriter.construirApnXmlVertical(r.apnExcel, mccActual, mncActual);
-                            int puntoIdx = XmlApnWriter.buscarLineaCierre(nuevasLineas);
-                            if (puntoIdx != -1)
-                                nuevasLineas.add(puntoIdx, bloqueNuevo);
-                        } else if (r.apnXml != null && r.apnXml.lineaInicio >= 0) {
-                            for (Diferencia d : r.diferencias) {
-                                boolean modificado = false;
-                                for (int i = r.apnXml.lineaInicio; i <= r.apnXml.lineaFin; i++) {
-                                    if (i >= nuevasLineas.size())
-                                        break;
-                                    String lineaMod = XmlApnWriter.aplicarDiferencia(nuevasLineas.get(i), d);
-                                    if (!nuevasLineas.get(i).equals(lineaMod)) {
-                                        nuevasLineas.set(i, lineaMod);
-                                        modificado = true;
-                                        break;
-                                    }
+                        if (r.tieneDiferencias() && r.existeEnXml
+                                && r.apnXml != null && r.apnXml.lineaInicio >= 0) {
+                            modificados.add(r);
+                        }
+                    }
+                    modificados.sort((a, b) -> Integer.compare(b.apnXml.lineaInicio, a.apnXml.lineaInicio));
+
+                    for (ResultadoComparacion r : modificados) {
+                        for (Diferencia d : r.diferencias) {
+                            boolean modificadoCampo = false;
+                            for (int i = r.apnXml.lineaInicio; i <= r.apnXml.lineaFin; i++) {
+                                if (i >= nuevasLineas.size())
+                                    break;
+                                String lineaMod = XmlApnWriter.aplicarDiferencia(nuevasLineas.get(i), d);
+                                if (!nuevasLineas.get(i).equals(lineaMod)) {
+                                    nuevasLineas.set(i, lineaMod);
+                                    modificadoCampo = true;
+                                    break;
                                 }
-                                if (!modificado && d.esNuevo) {
-                                    int fin = r.apnXml.lineaFin;
-                                    if (fin < nuevasLineas.size()) {
-                                        nuevasLineas.set(fin,
-                                                XmlApnWriter.insertarAtributoEstiloVertical(nuevasLineas.get(fin), d));
-                                    }
+                            }
+                            if (!modificadoCampo && d.esNuevo) {
+                                int fin = r.apnXml.lineaFin;
+                                if (fin < nuevasLineas.size()) {
+                                    nuevasLineas.set(fin,
+                                            XmlApnWriter.insertarAtributoEstiloVertical(nuevasLineas.get(fin), d));
                                 }
                             }
                         }
+
+                        String nombreApn = r.apnXml.atributos.getOrDefault("carrier",
+                                r.apnXml.atributos.getOrDefault("name", "?"));
+                        String comentario = XmlApnWriter.construirComentarioModificado(
+                                nombreApn, r.apnXml.mcc, r.apnXml.mnc,
+                                r.apnXml.apn, r.apnXml.atributos.getOrDefault("type", "?"));
+
+                        nuevasLineas.add(r.apnXml.lineaInicio, comentario);
+
+                        lineasCambiadas.add(r.apnXml.lineaInicio);
+                        for (int i = r.apnXml.lineaInicio + 1; i <= r.apnXml.lineaFin + 1; i++) {
+                            lineasCambiadas.add(i);
+                        }
                     }
+
+                    // ── APNs NUEVOS ─────────────────────────────────────────────
+                    if (cantidadNuevos > 0) {
+                        List<ResultadoComparacion> nuevos = new ArrayList<>();
+                        for (ResultadoComparacion r : resultadosActuales) {
+                            if (r.tieneDiferencias() && !r.existeEnXml)
+                                nuevos.add(r);
+                        }
+
+                        int idxComentarioExistente = XmlApnWriter.buscarLineaComentarioNuevos(nuevasLineas);
+                        int cantidadAcumulada = (int) cantidadNuevos;
+
+                        if (idxComentarioExistente != -1) {
+                            String lineaComentario = nuevasLineas.get(idxComentarioExistente);
+                            Pattern pat = Pattern.compile("<!-- ===== APNs NUEVOS AÑADIDOS \\((\\d+)");
+                            Matcher mat = pat.matcher(lineaComentario);
+
+                            if (mat.find()) {
+                                try {
+                                    int cantidadAnterior = Integer.parseInt(mat.group(1));
+                                    cantidadAcumulada += cantidadAnterior;
+                                } catch (NumberFormatException e) {
+
+                                }
+                            }
+                            nuevasLineas.set(idxComentarioExistente,
+                                    XmlApnWriter.construirComentarioBloqueNuevos(cantidadAcumulada));
+
+                            int puntoIdx = XmlApnWriter.buscarLineaCierre(nuevasLineas);
+                            for (int i = nuevos.size() - 1; i >= 0; i--) {
+                                String bloqueNuevo = XmlApnWriter.construirApnXmlVertical(nuevos.get(i).apnExcel,
+                                        mccActual, mncActual);
+                                nuevasLineas.add(puntoIdx, bloqueNuevo);
+                                lineasCambiadas.add(puntoIdx);
+                            }
+                        } else {
+                            // Si es la primera vez que se añaden APNs nuevos en este archivo:
+                            int puntoIdx = XmlApnWriter.buscarLineaCierre(nuevasLineas);
+
+
+                            for (int i = nuevos.size() - 1; i >= 0; i--) {
+                                String bloqueNuevo = XmlApnWriter.construirApnXmlVertical(
+                                        nuevos.get(i).apnExcel, mccActual, mncActual);
+                                nuevasLineas.add(puntoIdx, bloqueNuevo);
+                                lineasCambiadas.add(puntoIdx);
+                            }
+
+                            String comentarioCabecera = XmlApnWriter.construirComentarioBloqueNuevos(cantidadAcumulada);
+                            nuevasLineas.add(puntoIdx, comentarioCabecera);
+                            lineasCambiadas.add(puntoIdx);
+                        }
+                    }
+
+                    // ── Aplanar líneas con \n embebidos ─────────────────────────
                     List<String> lineasAplanadas = new ArrayList<>();
                     for (String l : nuevasLineas) {
                         if (l != null && l.contains("\n")) {
@@ -410,18 +538,36 @@ public class ComparadorExcelController {
                     Platform.runLater(() -> {
                         xmlParser.setLineas(new ArrayList<>(lineasXmlMemoria));
 
-                        try {
-                            xmlParser.parsear();
-                        } catch (Exception e) {
-                            System.err.println("Error al actualizar el parser: " + e.getMessage());
+                        Operador opProcesado = operadoresConCoincidencias.get(indiceOperadorActual);
+                        List<ApnExcel> apnsDelMomento = excelParser.obtenerApnsOperador(opProcesado);
+                        List<ResultadoComparacion> resultadosPostCambio = ApnComparator
+                                .compararTodoElOperador(apnsDelMomento, xmlParser, opProcesado.mcc, opProcesado.mnc);
+
+                        lineasUltimoCambio.clear();
+                        for (ResultadoComparacion res : resultadosPostCambio) {
+                            if (res.apnXml != null && res.apnXml.lineaInicio >= 0) {
+                                int cursor = res.apnXml.lineaInicio - 1;
+                                while (cursor >= 0) {
+                                    String texto = lineasXmlMemoria.get(cursor).trim();
+                                    if (texto.startsWith("") || texto.contains("MODIFICADO : ")) {
+                                        lineasUltimoCambio.add(cursor);
+                                        cursor = -1;
+                                    }
+                                }
+
+                                for (int i = res.apnXml.lineaInicio; i <= res.apnXml.lineaFin; i++) {
+                                    lineasUltimoCambio.add(i);
+                                }
+                            }
                         }
 
+                        indiceUltimoOperadorProcesado = indiceOperadorActual;
+                        apnsExcelUltimoCambio = apnsDelMomento;
+                        resultadosUltimoCambio = resultadosPostCambio;
+
                         codeAreaXml.replaceText(String.join("\n", lineasXmlMemoria));
+                        mostrarBotonVerCambios(true);
 
-                        recalcularResultadosActuales();
-                        renderizarHighlightsXml();
-
-                        // Pasamos al siguiente con mensaje de éxito
                         avanzarAlSiguiente("✓ Cambios guardados");
                     });
                 } catch (Exception e) {
@@ -431,16 +577,6 @@ public class ComparadorExcelController {
             }).start();
         });
         delay.play();
-    }
-
-    private void recalcularResultadosActuales() {
-        if (indiceOperadorActual < 0 || operadoresConCoincidencias.isEmpty())
-            return;
-
-        Operador op = operadoresConCoincidencias.get(indiceOperadorActual);
-        List<ApnExcel> apnsExcel = excelParser.obtenerApnsOperador(op);
-
-        resultadosActuales = ApnComparator.compararTodoElOperador(apnsExcel, xmlParser, op.mcc, op.mnc);
     }
 
     @FXML
@@ -464,6 +600,88 @@ public class ComparadorExcelController {
         }
     }
 
+    // ───────────────────── VER ÚLTIMOS CAMBIOS ─────────────────────
+
+    private void mostrarBotonVerCambios(boolean visible) {
+        if (btnVerCambios == null)
+            return;
+        btnVerCambios.setVisible(visible);
+        btnVerCambios.setManaged(visible);
+    }
+
+    // toggle del modo ver cambios
+    @FXML
+    private void onVerCambios() {
+        if (modoVerCambios) {
+            mostrarCargando(true, "Volviendo al operador...");
+            javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(
+                    javafx.util.Duration.millis(300));
+            delay.setOnFinished(ev -> {
+                salirModoVerCambios();
+            });
+            delay.play();
+
+        } else {
+            mostrarCargando(true, "Cargando operador anterior...");
+            javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(
+                    javafx.util.Duration.millis(300));
+            delay.setOnFinished(ev -> {
+                entrarModoVerCambios();
+            });
+            delay.play();
+        }
+    }
+
+    private void entrarModoVerCambios() {
+        if (indiceUltimoOperadorProcesado < 0 || indiceUltimoOperadorProcesado >= operadoresConCoincidencias.size())
+            return;
+
+        modoVerCambios = true;
+
+        btnAniadir.setVisible(false);
+        btnAniadir.setManaged(false);
+        btnCancelar.setVisible(false);
+        btnCancelar.setManaged(false);
+
+        if (btnVerCambios != null) {
+            btnVerCambios.setText("← Volver");
+        }
+        Operador opAnterior = operadoresConCoincidencias.get(indiceUltimoOperadorProcesado);
+        actualizarLblOperador(opAnterior, true);
+
+        renderizarTablaExcel(apnsExcelUltimoCambio, resultadosUltimoCambio);
+
+        String textoCompleto = String.join("\n", lineasXmlMemoria);
+        codeAreaXml.clear();
+        codeAreaXml.append(textoCompleto, "-fx-fill: #cdd6f4");
+        renderizarHighlightsXml(true);
+        mostrarCargando(false, "");
+        mostrarToast("Últimos cambios cargados");
+    }
+
+    private void salirModoVerCambios() {
+        modoVerCambios = false;
+
+        // Restaurar botones a estado normal
+        btnAniadir.setVisible(true);
+        btnAniadir.setManaged(true);
+        btnCancelar.setVisible(true);
+        btnCancelar.setManaged(true);
+
+        if (btnVerCambios != null) {
+            btnVerCambios.setText("Ver últimos cambios");
+        }
+
+        if (indiceOperadorActual >= 0 && indiceOperadorActual < operadoresConCoincidencias.size()) {
+            Operador opActual = operadoresConCoincidencias.get(indiceOperadorActual);
+            actualizarLblOperador(opActual, false);
+            cargarOperador(opActual, null);
+        }
+        mostrarCargando(false, "");
+        mostrarToast("Operador recuperado con éxito");
+    }
+
+    // ───────────────────── FINALIZAR ─────────────────────
     @FXML
     private void finalizarProceso() {
         try {
@@ -479,7 +697,7 @@ public class ComparadorExcelController {
             espera.setOnFinished(e -> {
                 if (selectorHandler != null) {
                     try {
-                        selectorHandler.cargarSubVista("/fxml/comparador_excel.fxml",mensajeExito);
+                        selectorHandler.cargarSubVista("/fxml/comparador_excel.fxml", mensajeExito);
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
@@ -493,7 +711,7 @@ public class ComparadorExcelController {
 
     // ───────────────────── HELPERS ─────────────────────
 
-    private void marcarBotonSeleccionado(Button btn) {
+    public void marcarBotonSeleccionado(Button btn) {
         btn.setText("Archivo seleccionado ✓");
         btn.setDisable(true);
         btn.setStyle(

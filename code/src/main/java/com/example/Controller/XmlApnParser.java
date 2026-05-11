@@ -82,10 +82,11 @@ public class XmlApnParser {
         }
     }
 
-    // NUEVA VERSIÓN: Copia esto debajo del buscarLineaApn original
     public int buscarLineaApn(String mcc, String mnc, String apn, int desdeLinea) {
         String mncNorm = (mnc != null && mnc.length() == 1) ? "0" + mnc : mnc;
-        String apnLow = apn.toLowerCase();
+
+        boolean apnEsVacio = (apn == null || apn.trim().isEmpty());
+        String apnLow = apnEsVacio ? "" : apn.toLowerCase();
 
         for (int i = desdeLinea; i < lineas.size(); i++) {
             String l = lineas.get(i).toLowerCase();
@@ -101,8 +102,14 @@ public class XmlApnParser {
                         matchMcc = true;
                     if (sub.contains("mnc=\"" + mncNorm + "\"") || sub.contains("mnc=\"" + mnc + "\""))
                         matchMnc = true;
-                    if (sub.contains("apn=\"" + apnLow + "\""))
-                        matchApn = true;
+                    if (apnEsVacio) {
+                        if (!sub.contains("apn=") || sub.contains("apn=\"\"")) {
+                            matchApn = true;
+                        }
+                    } else {
+                        if (sub.contains("apn=\"" + apnLow + "\""))
+                            matchApn = true;
+                    }
 
                     if (sub.contains(">"))
                         break;

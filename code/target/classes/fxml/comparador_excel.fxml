@@ -76,7 +76,10 @@
     <Region HBox.hgrow="ALWAYS" />
 
     <HBox alignment="CENTER_RIGHT" spacing="12">
-        <children> <Button fx:id="btnCancelar" text="✕ CANCELAR" onAction="#onCancelar"
+        <children>
+            <Button fx:id="btnVerCambios" text="Ver últimos cambios" onAction="#onVerCambios" visible="false" managed="false"
+                    style="-fx-background-color: transparent; -fx-text-fill: #a6e3a1; -fx-border-color: #a6e3a1; -fx-border-radius: 6; -fx-cursor: hand; -fx-padding: 8 20;"/>
+            <Button fx:id="btnCancelar" text="✕ CANCELAR" onAction="#onCancelar"
                     style="-fx-background-color: transparent; -fx-text-fill: #f38ba8; -fx-border-color: #f38ba8; -fx-border-radius: 6; -fx-cursor: hand; -fx-padding: 8 20;"/>
             <Button fx:id="btnAniadir" text="⊕ AÑADIR AL XML" onAction="#onAniadir"
                     style="-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-background-radius: 6; -fx-padding: 10 24; -fx-cursor: hand;"/>

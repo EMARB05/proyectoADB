@@ -40,58 +40,78 @@ public class ApnComparator {
      * Compara todos los APNs de un operador en el Excel contra el XML.
      * Garantiza que cada nodo del XML se use una sola vez (mapeo 1 a 1).
      */
-    public static List<ResultadoComparacion> compararTodoElOperador(
+/**
+     * Compara todos los APNs de un operador en el Excel contra el XML.
+     * Garantiza que cada nodo del XML se use una sola vez (mapeo 1 a 1).
+     */
+public static List<ResultadoComparacion> compararTodoElOperador(
             List<ExcelApnParser.ApnExcel> apnsExcel, 
             XmlApnParser xmlParser, 
             String mcc, 
             String mnc) {
 
         List<ResultadoComparacion> resultados = new ArrayList<>();
-        // Candidatos del XML para este MCC/MNC
         List<XmlApnParser.ApnEntry> candidatosXml = xmlParser.buscarPorOperador(mcc, mnc);
-        
-        // Registro de nodos ya vinculados para evitar duplicidades
         Set<XmlApnParser.ApnEntry> asignados = new HashSet<>();
 
+        System.out.println("\n==== INICIO COMPARACIÓN OPERADOR: MCC=" + mcc + ", MNC=" + mnc + " ====");
+        System.out.println("Candidatos XML encontrados: " + candidatosXml.size());
+        for (XmlApnParser.ApnEntry xml : candidatosXml) {
+            System.out.println("  -> XML: name=" + xml.atributos.get("name") + ", carrier=" + xml.atributos.get("carrier") + ", apn='" + xml.apn + "'");
+        }
+
         for (ExcelApnParser.ApnExcel excel : apnsExcel) {
+            System.out.println("\nAnalizando Excel: nombreApnOriginal='" + excel.nombreApnOriginal + "', apn='" + excel.apn + "'");
+            System.out.println("  Títulos candidatos Excel: " + excel.titulosCandidatos);
+            
             XmlApnParser.ApnEntry mejorMatch = null;
 
             if (excel.apn != null) {
-                // 1. INTENTO POR NOMBRE (DNI): Coincide APN y el 'name/carrier' está en los títulos del Excel
+                // 1. INTENTO POR NOMBRE
                 for (XmlApnParser.ApnEntry xml : candidatosXml) {
                     if (asignados.contains(xml)) continue;
 
-                    if (xml.apn.equalsIgnoreCase(excel.apn)) {
-                        String nombreXml = xml.atributos.getOrDefault("carrier", 
-                                           xml.atributos.getOrDefault("name", "")).trim();
-                        
-                        if (excel.titulosCandidatos.contains(nombreXml)) {
-                            mejorMatch = xml;
-                            break;
-                        }
+                    // Imprimimos la evaluación del paso 1
+                    boolean apnCoincide = xml.apn != null && xml.apn.equalsIgnoreCase(excel.apn);
+                    String nombreXml = xml.atributos.getOrDefault("carrier", xml.atributos.getOrDefault("name", "")).trim();
+                    boolean nombreCoincide = excel.titulosCandidatos.contains(nombreXml);
+                    
+                    if (apnCoincide && nombreCoincide) {
+                        System.out.println("  [Paso 1 - MATCH EXCELENTE] con XML: name=" + nombreXml);
+                        mejorMatch = xml;
+                        break;
                     }
                 }
 
-                // 2. FALLBACK: Si no hay match por nombre, el primero libre que coincida en el nombre del APN
+                // 2. FALLBACK
                 if (mejorMatch == null) {
+                    System.out.println("  [Paso 1 falló] Probando Paso 2 (Fallback por APN)...");
                     for (XmlApnParser.ApnEntry xml : candidatosXml) {
-                        if (!asignados.contains(xml) && xml.apn.equalsIgnoreCase(excel.apn)) {
+                        if (asignados.contains(xml)) continue;
+
+                        System.out.println("    Evaluando contra XML apn='" + xml.apn + "' (nombre=" + xml.atributos.get("name") + ")");
+                        if (xml.apn != null && xml.apn.equalsIgnoreCase(excel.apn)) {
+                            System.out.println("    [Paso 2 - MATCH FALLBACK] con XML: name=" + xml.atributos.get("name"));
                             mejorMatch = xml;
                             break;
                         }
                     }
                 }
+            } else {
+                System.out.println("  [ALERTA] excel.apn es NULL. Saltando búsquedas.");
             }
 
             if (mejorMatch != null) {
                 asignados.add(mejorMatch);
+            } else {
+                System.out.println("  [RESULTADO] No se encontró ningún match para este bloque de Excel.");
             }
 
-            // Crear el resultado y calcular las diferencias campo a campo
             ResultadoComparacion res = new ResultadoComparacion(excel, mejorMatch);
             calcularDiferencias(res);
             resultados.add(res);
         }
+        System.out.println("==== FIN COMPARACIÓN ====\n");
         return resultados;
     }
 

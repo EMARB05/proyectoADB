@@ -26,8 +26,6 @@ public class XmlApnWriter {
 
     /**
      * Aplica los cambios de la tabla al XML.
-     * NO limpia paréntesis automáticamente porque confiamos en lo que el usuario
-     * ve y edita en la tabla.
      */
     public static String aplicarDiferencia(String linea, ApnComparator.Diferencia d) {
         Pattern pat = Pattern.compile(d.campo + "=\"[^\"]*\"", Pattern.CASE_INSENSITIVE);
@@ -57,50 +55,64 @@ public class XmlApnWriter {
      */
     public static String construirApnXmlVertical(ExcelApnParser.ApnExcel apnExcel, String mcc, String mnc) {
         StringBuilder sb = new StringBuilder("    <apn\n");
-
-        // --- LÓGICA DE NOMBRE INTELIGENTE ---
+ 
         String nombreFinal;
-
         if (apnExcel.campos.containsKey("name")) {
-            // Si hay columna "name", respetamos paréntesis comerciales
             nombreFinal = apnExcel.campos.get("name").trim();
         } else if (apnExcel.campos.containsKey("carrier")) {
-            // Si hay columna "carrier", ídem
             nombreFinal = apnExcel.campos.get("carrier").trim();
         } else {
-            // Si no hay columna, usamos el título del bloque (aquí sí limpiamos basura
-            // técnica)
             nombreFinal = limpiarSoloSiEsTitulo(apnExcel.nombreApnOriginal);
         }
-
+ 
         sb.append("        name=\"").append(nombreFinal).append("\"\n");
-        // ------------------------------------
-
+ 
         if (apnExcel.apn != null && !apnExcel.apn.isEmpty()) {
             sb.append("        apn=\"").append(apnExcel.apn).append("\"\n");
         }
-
-        // Identificadores de red
+ 
         sb.append("        mcc=\"").append(mcc).append("\"\n");
         String mncNorm = (mnc != null && mnc.length() == 1) ? "0" + mnc : mnc;
         sb.append("        mnc=\"").append(mncNorm).append("\"\n");
-
-        // Resto de atributos
+ 
         for (Map.Entry<String, String> e : apnExcel.campos.entrySet()) {
             String clave = e.getKey().toLowerCase();
-            // Saltamos los ya escritos arriba
             if (clave.equals("name") || clave.equals("apn") || clave.equals("mcc") || clave.equals("mnc")) {
                 continue;
             }
-
             String valor = (e.getValue() != null) ? e.getValue().trim() : "";
             sb.append("        ").append(e.getKey()).append("=\"").append(valor).append("\"\n");
         }
-
+ 
         sb.append("    />");
         return sb.toString();
     }
-
+    // ───────────────────── COMENTARIOS XML ─────────────────────
+ 
+    /**
+     * Construye el comentario-cabecera que se inserta antes del bloque
+     * de APNs nuevos al final del archivo.
+     */
+    public static String construirComentarioBloqueNuevos(int cantidad) {
+        return "    <!-- ===== APNs NUEVOS AÑADIDOS ("+cantidad+") ===== -->";
+    }
+    public static int buscarLineaComentarioNuevos(List<String> lineas) {
+        for (int i = 0; i < lineas.size(); i++) {
+            if (lineas.get(i).contains("<!-- ===== APNs NUEVOS AÑADIDOS (")) {
+                return i;
+            }
+        }
+        return -1;
+    }
+ 
+    /**
+     * Construye el comentario inline que se pone encima de un APN modificado.
+     */
+    public static String construirComentarioModificado(String nombreApn, String mcc, String mnc, String apn, String type) {
+        return "    <!-- MODIFICADO : " + nombreApn + " | "+ mcc+"-"+mnc+"("+apn+" ["+type+"]) actualizado desde Excel -->";
+    }
+ 
+    // ───────────────────── UTILIDADES ─────────────────────
     public static int buscarLineaCierre(List<String> lineas) {
         for (int i = lineas.size() - 1; i >= 0; i--) {
             if (lineas.get(i).contains("</apns>"))
