@@ -104,9 +104,8 @@ public class ComparadorExcelController {
         File f = chooser.showOpenDialog(btnXml.getScene().getWindow());
         if (f == null)
             return;
-
         archivoXml = f;
-        marcarBotonSeleccionado(btnXml, f.getName());
+        marcarBotonSeleccionado(btnXml);
         intentarCargar();
     }
 
@@ -118,9 +117,8 @@ public class ComparadorExcelController {
         File f = chooser.showOpenDialog(btnXlsx.getScene().getWindow());
         if (f == null)
             return;
-
         archivoXlsx = f;
-        marcarBotonSeleccionado(btnXlsx, f.getName());
+        marcarBotonSeleccionado(btnXlsx);
         intentarCargar();
     }
 
@@ -129,7 +127,7 @@ public class ComparadorExcelController {
         if (archivoXml == null || archivoXlsx == null)
             return;
 
-        // Desactivamos los botones mientras carga
+        // Desactivamos los botones mientras cargan
         btnXml.setDisable(true);
         btnXlsx.setDisable(true);
 
@@ -244,13 +242,7 @@ public class ComparadorExcelController {
 
         int total = codeAreaXml.getParagraphs().size();
 
-        // DEFINICIÓN DE ESTILOS: Forzamos el color claro (-fx-fill) en ambos
-        String estiloNormal = "-fx-fill: #cdd6f4;";
-        String estiloResaltado = "-fx-background-color: #3e4452; -fx-fill: #ffffff; -fx-font-weight: bold; -fx-border-color: #61afef; -fx-border-width: 0 0 0 5;";
-
-        for (int i = 0; i < total; i++) {
-            codeAreaXml.setParagraphStyle(i, estiloNormal);
-        }
+        String estiloResaltado = "-fx-background-color: #3e4452; -fx-font-weight: bold; -fx-border-color: #3ba1f5; -fx-border-width: 0 0 0 5;";
 
         int lineaMasArriba = Integer.MAX_VALUE;
         for (ResultadoComparacion res : resultadosActuales) {
@@ -501,7 +493,7 @@ public class ComparadorExcelController {
 
     // ───────────────────── HELPERS ─────────────────────
 
-    public void marcarBotonSeleccionado(Button btn, String nombre) {
+    public void marcarBotonSeleccionado(Button btn) {
         btn.setText("Archivo seleccionado ✓");
         btn.setDisable(true);
         btn.setStyle(

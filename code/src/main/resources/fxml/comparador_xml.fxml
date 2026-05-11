@@ -63,7 +63,7 @@
         <TableView fx:id="tblDiferencias" VBox.vgrow="ALWAYS"
                    style="-fx-background-color: transparent;">
             <columns>
-                <TableColumn fx:id="colOperadora" text="Operadora (MCC-MNC)" prefWidth="200"/>
+                <TableColumn fx:id="colOperadora" text="Operadora (MCC-MNC)" prefWidth="500"/>
                 <TableColumn fx:id="colNombre" text="Nombre"/>
                 <TableColumn fx:id="colAtributo" text="Atributo" prefWidth="120"/>
                 <TableColumn fx:id="colValorOriginal" text="Original" prefWidth="180"/>
