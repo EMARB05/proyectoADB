@@ -140,7 +140,7 @@ public class ComparadorExcelController {
         if (archivoXml == null || archivoXlsx == null)
             return;
 
-        // Desactivamos los botones mientras carga
+        // Desactivamos los botones mientras cargan
         btnXml.setDisable(true);
         btnXlsx.setDisable(true);
 
