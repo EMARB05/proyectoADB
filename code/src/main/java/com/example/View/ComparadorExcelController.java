@@ -17,12 +17,23 @@ import javafx.util.Duration;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 import org.fxmisc.richtext.LineNumberFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.InlineCssTextArea;
 
@@ -82,6 +93,7 @@ public class ComparadorExcelController {
     private List<ResultadoComparacion> resultadosUltimoCambio = new ArrayList<>();
 
     private SelectorComparadorController selectorHandler;
+    private ComparadorXmlController CXMLController;
 
     public void setSelectorHandler(SelectorComparadorController handler) {
         this.selectorHandler = handler;
@@ -140,6 +152,8 @@ public class ComparadorExcelController {
         if (archivoXml == null || archivoXlsx == null)
             return;
 
+        limpiarComentariosPatch(archivoXml);
+
         // Desactivamos los botones mientras cargan
         btnXml.setDisable(true);
         btnXlsx.setDisable(true);
@@ -174,6 +188,25 @@ public class ComparadorExcelController {
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    public void limpiarComentariosPatch(File file) {
+        try {
+            List<String> lineas = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+            List<String> lineasFiltradas = lineas.stream()
+                    .filter(linea -> {
+                        String recortada = linea.trim();
+                        return !(recortada.startsWith("<!-- ===== APNs NUEVOS AÑADIDOS (") ||
+                                recortada.startsWith("<!-- MODIFICADO: "));
+                    })
+                    .collect(Collectors.toList());
+
+            Files.write(file.toPath(), lineasFiltradas, StandardCharsets.UTF_8);
+            System.out.println("Archivo limpiado y guardado con éxito.");
+
+        } catch (Exception e) {
+            System.err.println("Error al procesar el archivo: " + e.getMessage());
+        }
     }
 
     // ───────────────────── CARGA DE OPERADOR ─────────────────────
@@ -359,7 +392,8 @@ public class ComparadorExcelController {
 
                         if (lineaDestino > 0) {
                             String textoLinea = lineasXmlMemoria.get(lineaDestino - 1).trim();
-                            if (textoLinea.contains("MODIFICADO : ")) {
+                            System.out.println(textoLinea);
+                            if (textoLinea.contains("<!-- MODIFICADO:")) {
                                 lineaFinal -= 1;
                             }
                         }
@@ -509,7 +543,6 @@ public class ComparadorExcelController {
                         } else {
                             // Si es la primera vez que se añaden APNs nuevos en este archivo:
                             int puntoIdx = XmlApnWriter.buscarLineaCierre(nuevasLineas);
-
 
                             for (int i = nuevos.size() - 1; i >= 0; i--) {
                                 String bloqueNuevo = XmlApnWriter.construirApnXmlVertical(

@@ -34,7 +34,6 @@ public class ADBService {
      * MÉTODO MOTOR (Privado): Es el único que realmente toca el ProcessBuilder.
      * Recibe un array de strings y devuelve la salida del comando.
      */
-
     private List<String> ejecutarADB(String... comando) throws IOException {
         List<String> resultado = new ArrayList<>();
 
@@ -175,18 +174,25 @@ public class ADBService {
             if (salida != null && !salida.isEmpty()) {
                 return String.join("\n", salida).trim();
             }
-
+            return "";
         } catch (IOException e) {
             System.err.println("Error ADB Síncrono: " + e.getMessage());
+            return null;
 
         }
-        return "";
+
+    }
+
+    // MÉTODO PARA DIAGNOSTICO CONTROLLER
+    public boolean ejecutarComandoSincronoBoolean(String serial, String comandoShell) {
+        String resultado = ejecutarComandoSincrono(serial, comandoShell);
+        return resultado != null;
     }
 
     public Map<String, String> obtenerSpecsHardware(String serial) {
         Map<String, String> specs = new HashMap<>();
         try {
-            // RAM en GB
+            // RAM en GBs
             String ramRaw = ejecutarComandoSincrono(serial, "shell cat /proc/meminfo | grep MemTotal");
             String ramKb = ramRaw.replaceAll("[^0-9]", "").trim();
             if (!ramKb.isEmpty()) {

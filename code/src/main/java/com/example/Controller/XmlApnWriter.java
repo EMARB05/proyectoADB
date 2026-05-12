@@ -109,7 +109,7 @@ public class XmlApnWriter {
      * Construye el comentario inline que se pone encima de un APN modificado.
      */
     public static String construirComentarioModificado(String nombreApn, String mcc, String mnc, String apn, String type) {
-        return "    <!-- MODIFICADO : " + nombreApn + " | "+ mcc+"-"+mnc+"("+apn+" ["+type+"]) actualizado desde Excel -->";
+        return "    <!-- MODIFICADO: " + nombreApn + " | "+ mcc+"-"+mnc+"("+apn+" ["+type+"]) actualizado desde Excel -->";
     }
  
     // ───────────────────── UTILIDADES ─────────────────────
