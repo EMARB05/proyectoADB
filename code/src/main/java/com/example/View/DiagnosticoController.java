@@ -29,6 +29,7 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
@@ -52,6 +53,9 @@ public class DiagnosticoController implements DispositivoAware {
     @FXML
     private FichaTecnicaController fichaTecnicaController;
 
+    @FXML
+    private ScrollPane scrollCategorias;
+    private final double PASO_SCROLL = 0.22;
     @FXML
     private Button btnEjecutar;
 
@@ -83,17 +87,19 @@ public class DiagnosticoController implements DispositivoAware {
     private static final String CLOCK_12H = "__12H__";
     private static final String CLOCK_ADD_WORLD_TIME = "__ADD_WORLD_TIME__";
     private static final String CLOCK_ALARM = "__ALARM__";
+    private static final String CLOCK_ALARM_EDIT = "__ALARM_EDIT__";
     private static final String CLOCK_TIMER = "__TIMER__";
     private static final String CLOCK_STOPWATCH = "__STOPWATCH__";
     private static final Map<String, String> CLOCK_INTENTS = Map.of(
-            CLOCK_DATE_SETTINGS, "am start -a android.settings.DATE_SETTINGS",
-            CLOCK_ADJUST_ZONE, "am start -a android.settings.TIMEZONE_SETTINGS",
-            CLOCK_24H, "am start -a android.settings.DATE_SETTINGS",
-            CLOCK_12H, "am start -a android.settings.DATE_SETTINGS",
-            CLOCK_ADD_WORLD_TIME, "am start -n com.android.deskclock/.DeskClock",
-            CLOCK_ALARM, "am start -a android.intent.action.SET_ALARM",
-            CLOCK_TIMER, "am start -a android.intent.action.SET_TIMER",
-            CLOCK_STOPWATCH, "am start -n com.android.deskclock/.DeskClock");
+            CLOCK_DATE_SETTINGS, "shell am start -a android.settings.DATE_SETTINGS",
+            CLOCK_ADJUST_ZONE, "shell am start -a android.settings.DATE_SETTINGS",
+            CLOCK_24H, "shell am start -a android.settings.DATE_SETTINGS",
+            CLOCK_12H, "shell am start -a android.settings.DATE_SETTINGS",
+            CLOCK_ADD_WORLD_TIME, "shell am start -n com.google.android.deskclock/com.android.deskclock.DeskClock",
+            CLOCK_ALARM, "shell am start -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOUR 8 --ei android.intent.extra.alarm.MINUTES 0 --ez android.intent.extra.alarm.SKIP_UI false",
+            CLOCK_ALARM_EDIT,   "shell am start -a android.intent.action.SHOW_ALARMS",
+            CLOCK_TIMER, "shell am start -a android.intent.action.SET_TIMER --ei android.intent.extra.alarm.LENGTH 60 --ez android.intent.extra.alarm.SKIP_UI false",
+            CLOCK_STOPWATCH, "shell am start -n com.google.android.deskclock/com.android.deskclock.DeskClock");
 
     // ─── Datos extra para los pasos de llamada avanzados ─────────────────────
     // Se rellenan cuando el usuario configura el paso en el popup.
@@ -150,6 +156,24 @@ public class DiagnosticoController implements DispositivoAware {
                 }
             }
         });
+    }
+
+    @FXML
+    private void scrollIzquierda() {
+        if (scrollCategorias != null) {
+            // Restamos al valor horizontal actual, asegurando no bajar de 0
+            double nuevoValor = Math.max(scrollCategorias.getHvalue() - PASO_SCROLL, 0.0);
+            scrollCategorias.setHvalue(nuevoValor);
+        }
+    }
+
+    @FXML
+    private void scrollDerecha() {
+        if (scrollCategorias != null) {
+            // Sumamos al valor horizontal actual, asegurando no pasar de 1.0
+            double nuevoValor = Math.min(scrollCategorias.getHvalue() + PASO_SCROLL, 1.0);
+            scrollCategorias.setHvalue(nuevoValor);
+        }
     }
 
     @Override
@@ -412,13 +436,13 @@ public class DiagnosticoController implements DispositivoAware {
                         listaPasos.refresh();
                     });
                 } else if (CLOCK_CHECK_TIME.equals(paso.getComando())) {
-                    boolean ok = comprobarHora(serial);
+                    boolean ok = comprobarHora(serial, adb);
                     Platform.runLater(() -> {
                         ref.setEstado(ok ? "OK" : "ERROR");
                         listaPasos.refresh();
                     });
                 } else if (CLOCK_CHECK_ZONE.equals(paso.getComando())) {
-                    boolean ok = comprobarZonaHoraria(serial);
+                    boolean ok = comprobarZonaHoraria(serial, adb);
                     Platform.runLater(() -> {
                         ref.setEstado(ok ? "OK" : "ERROR");
                         listaPasos.refresh();
@@ -787,11 +811,11 @@ public class DiagnosticoController implements DispositivoAware {
                 new BloquePrueba("SOFT.005.007", "Add an hour of world time list",
                         "__ADD_WORLD_TIME__", true),
                 new BloquePrueba("SOFT.005.008", "Add a new alarm",
-                        "__ALARM__", true),
+                        "__ALARM__",true),
                 new BloquePrueba("SOFT.005.009", "Edit an alarm",
-                        "__ALARM__", true),
+                        "__ALARM_EDIT__", true),
                 new BloquePrueba("SOFT.005.010", "Delete an alarm",
-                        "__ALARM__", true),
+                        "__ALARM_EDIT__", true),
                 new BloquePrueba("SOFT.005.011", "Check that timer works properly",
                         "__TIMER__", true),
                 new BloquePrueba("SOFT.005.012", "Check that stopwatch works properly",
@@ -804,12 +828,26 @@ public class DiagnosticoController implements DispositivoAware {
                         .forEach(pasos::add));
     }
 
-    private boolean comprobarHora(String serial) throws IOException{
-            
+    private boolean comprobarHora(String serial, ADBService adb) {
+        try {
+            ADBService.EjecucionADB r = adb.ejecutarADBConCodigo("adb", "-s", serial, "shell", "settings", "get",
+                    "global", "auto_time");
+            return r.exito() && "1".equals(r.outputJunto());
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
-    private boolean comprobarZonaHoraria(String serial) throws IOException{
-        
+    private boolean comprobarZonaHoraria(String serial, ADBService adb) {
+        try {
+            ADBService.EjecucionADB r = adb.ejecutarADBConCodigo("adb", "-s", serial, "shell", "settings", "get",
+                    "global", "auto_time_zone");
+            return r.exito() && "1".equals(r.outputJunto());
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     private String obtenerSerialADBActual() {

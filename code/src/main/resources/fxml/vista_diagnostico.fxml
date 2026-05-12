@@ -8,6 +8,7 @@
 <?import javafx.scene.image.*?>
 <?import javafx.scene.layout.FlowPane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import javafx.scene.control.ScrollPane?>
 
 <HBox spacing="20" xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.example.View.DiagnosticoController">
@@ -27,57 +28,84 @@
                style="-fx-text-fill: #89b4fa; -fx-font-weight: bold;"
                styleClass="card-container"/>
 
-        <VBox spacing="8"
-              style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;">
-            <Label text="Conectividad &amp; Red"
-                   style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
-            <FlowPane hgap="50" vgap="10" alignment="CENTER" styleClass="fila1">
-                <Button onAction="#addWifiOn" styleClass="btn-action,btn-modern,btn-network">
-                    <graphic>
-                        <VBox alignment="CENTER" spacing="5">
-                            <FontIcon iconLiteral="fas-wifi" iconSize="24" iconColor="#a6e3a1"/>
-                            <Label text="ON WIFI" style="-fx-font-size: 9px;"/>
-                        </VBox>
-                    </graphic>
-                </Button>
-                <Button onAction="#addWifiOff" styleClass="btn-action,btn-modern,btn-network">
-                    <graphic>
-                        <VBox alignment="CENTER" spacing="8">
-                            <ImageView fitHeight="30" fitWidth="30" preserveRatio="true">
-                                <image>
-                                    <Image url="@../img/wifi-apagado.png"/>
-                                </image>
-                            </ImageView>
-                            <Label text="OFF WIFI" styleClass="btn-label"/>
-                        </VBox>
-                    </graphic>
-                </Button>
-                <Button onAction="#addPingStep" styleClass="btn-action,btn-modern,btn-network">
-                    <graphic>
-                        <VBox alignment="CENTER" spacing="5">
-                            <FontIcon iconLiteral="fas-network-wired" iconSize="24" iconColor="#89b4fa"/>
-                            <Label text="PING" style="-fx-font-size: 9px;"/>
-                        </VBox>
-                    </graphic>
-                </Button>
-                 <Button onAction="#addClockTest" styleClass="btn-hw,btn-modern">
-                    <graphic>
-                        <VBox alignment="CENTER" spacing="5">
-                            <FontIcon iconLiteral="far-clock" iconSize="24" iconColor="#fc921a"/>
-                            <Label text="CLOCK" style="-fx-font-size: 9px;"/>
-                        </VBox>
-                    </graphic>
-                </Button>
-                 <Button onAction="#exportarApnXml" styleClass="btn-hw,btn-modern">
-                    <graphic>
-                        <VBox alignment="CENTER" spacing="5">
-                            <FontIcon iconLiteral="fas-file-export" iconSize="24" iconColor="#94e2d5"/>
-                            <Label text="EXPORT APNs" style="-fx-font-size: 9px;"/>
-                        </VBox>
-                    </graphic>
-                </Button>
-            </FlowPane>
-        </VBox>
+    <VBox spacing="8"
+        prefWidth="530" maxWidth="530" 
+        style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;">
+        
+        <Label text="Conectividad &amp; Red"
+            style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
+        
+        <HBox alignment="CENTER" spacing="10" maxWidth="Infinity">
+            
+            <Button fx:id="btnFlechaIzquierda" onAction="#scrollIzquierda" styleClass="btn-flecha-slider">
+                <graphic>
+                    <FontIcon iconLiteral="fas-chevron-left" iconSize="16" iconColor="#cdd6f4"/>
+                </graphic>
+            </Button>
+
+            <ScrollPane fx:id="scrollCategorias" 
+                        vbarPolicy="NEVER" 
+                        hbarPolicy="NEVER" 
+                        fitToHeight="true" 
+                        HBox.hgrow="ALWAYS"
+                        style="-fx-background: transparent; -fx-background-color: transparent; -fx-border-color: transparent;">
+                
+                <HBox spacing="25" alignment="CENTER_LEFT">
+                    <Button onAction="#addWifiOn" styleClass="btn-action,btn-modern,btn-network">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                <FontIcon iconLiteral="fas-wifi" iconSize="24" iconColor="#a6e3a1"/>
+                                <Label text="ON WIFI" style="-fx-font-size: 9px;"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
+                    <Button onAction="#addWifiOff" styleClass="btn-action,btn-modern,btn-network">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="8">
+                                <ImageView fitHeight="30" fitWidth="30" preserveRatio="true">
+                                    <image>
+                                        <Image url="@../img/wifi-apagado.png"/>
+                                    </image>
+                                </ImageView>
+                                <Label text="OFF WIFI" styleClass="btn-label"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
+                    <Button onAction="#addPingStep" styleClass="btn-action,btn-modern,btn-network">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                <FontIcon iconLiteral="fas-network-wired" iconSize="24" iconColor="#89b4fa"/>
+                                <Label text="PING" style="-fx-font-size: 9px;"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
+                    <Button onAction="#addClockTest" styleClass="btn-hw,btn-modern">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                <FontIcon iconLiteral="far-clock" iconSize="24" iconColor="#fc921a"/>
+                                <Label text="CLOCK" style="-fx-font-size: 9px;"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
+                    <Button onAction="#exportarApnXml" styleClass="btn-hw,btn-modern">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                <FontIcon iconLiteral="fas-file-export" iconSize="24" iconColor="#94e2d5"/>
+                                <Label text="EXPORT APNs" style="-fx-font-size: 9px;"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
+                </HBox>
+            </ScrollPane>
+
+            <Button fx:id="btnFlechaDerecha" onAction="#scrollDerecha" styleClass="btn-flecha-slider">
+                <graphic>
+                    <FontIcon iconLiteral="fas-chevron-right" iconSize="16" iconColor="#cdd6f4"/>
+                </graphic>
+            </Button>
+            
+        </HBox>
+    </VBox>
 
         <VBox spacing="8"
               style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;"

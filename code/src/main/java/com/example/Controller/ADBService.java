@@ -30,38 +30,40 @@ import com.example.Model.Soc;
 public class ADBService {
     private String rutaRemotaActual;
 
-    /**
-     * MÉTODO MOTOR (Privado): Es el único que realmente toca el ProcessBuilder.
-     * Recibe un array de strings y devuelve la salida del comando.
-     */
-    private List<String> ejecutarADB(String... comando) throws IOException {
-        List<String> resultado = new ArrayList<>();
-
-        // Sustituye "adb" por la ruta del embebido ANTES de arrancar el proceso
+    // Motor privado que captura exit code + output
+    // Solo lo usan los métodos de diganóstico que necesitan saber si el comando realmente funcionó
+    public EjecucionADB ejecutarADBConCodigo(String... comando) throws IOException {
         String adbDir = System.getProperty("aea.adb.path");
-        if (adbDir != null && comando.length > 0 && comando[0].equals("adb")) {
+        if(adbDir != null && comando.length > 0 && comando[0].equals("adb"))
             comando[0] = adbDir + File.separator + "adb.exe";
-        }
 
         ProcessBuilder pb = new ProcessBuilder(comando);
         pb.redirectErrorStream(true);
-        Process proceso = pb.start(); // ← ahora sí arranca con la ruta correcta
+        Process proceso = pb.start();
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(proceso.getInputStream()))) {
+        List<String> lineas = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(proceso.getInputStream()))) {
             String linea;
-            while ((linea = reader.readLine()) != null) {
-                resultado.add(linea);
-            }
-        } finally {
+            while ((linea = reader.readLine())!= null) 
+                lineas.add(linea);
+        }    
+        
+        int exitCode;
+        try {
+            exitCode = proceso.waitFor();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            exitCode = -1;
+        }   finally {
             proceso.destroy();
-            try {
-                proceso.waitFor();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
         }
-        return resultado;
+        
+        return new EjecucionADB(exitCode, lineas);
+    }
+
+    // ejecutarADB ahora delega
+    private List<String> ejecutarADB(String... comando) throws IOException {
+        return ejecutarADBConCodigo(comando).lineas();
     }
 
     public String exportarApnsXml(String serial) throws IOException {
@@ -859,5 +861,10 @@ public class ADBService {
         if (abi.contains("x86"))
             return nombre.contains("x86") && !nombre.contains("x86_64");
         return true; // si no reconocemos el ABI, incluimos todo
+    }
+
+    public record EjecucionADB(int exitCode, List<String> lineas) {
+        public boolean exito() { return exitCode == 0; }
+        public String outputJunto() { return String.join("\n", lineas).trim(); }
     }
 }
