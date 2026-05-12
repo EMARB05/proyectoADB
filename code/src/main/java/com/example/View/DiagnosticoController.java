@@ -28,8 +28,11 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -70,16 +73,23 @@ public class DiagnosticoController implements DispositivoAware {
     // lógica de ejecución necesita hacer algo más que un simple shell.
     private static final String CMD_LLAMADA_MASIVA = "__LLAMADA_MASIVA__";
     private static final String CMD_LLAMADA_ENTRE_DOS = "__LLAMADA_ENTRE_DOS__";
+    private static final String CMD_LLAMADA_ENTRANTE = "__CMD_LLAMADA_ENTRANTE__";
+    private static final String CMD_EMERGENCIA = "__CMD_EMERGENCIA__";
+    private static final String CMD_HOLD_RETRIEVE = "__CMD_HOLD_RETRIEVE__";
+    private static final String CMD_DTMF = "__CMD_DTMF__";
+    private static final String CMD_MUTE = "__CMD_MUTE__";
+    private static final String CMD_RED_ACTIVA = "__CMD_RED_ACTIVA__";
 
     // ─── Datos extra para los pasos de llamada avanzados ─────────────────────
     // Se rellenan cuando el usuario configura el paso en el popup.
     private String llamadaMasivaNumero = null; // número destino para llamada masiva
     private String llamadaEntreDosSerial1 = null; // serial del teléfono 1
     private String llamadaEntreDosSerial2 = null; // serial del teléfono 2
+    private String llamadaEntranteSerial = null;
+    private String llamadaEntranteNumero = null;
     // Los números se detectan en tiempo de ejecución por ADB
 
     // ─────────────────────────────────────────────────────────────────────────
-
 
     @FXML
     public void initialize() {
@@ -144,175 +154,370 @@ public class DiagnosticoController implements DispositivoAware {
     // B) Llamada entre 2 → detecta los seriales ADB conectados, el usuario
     // elige cuál es el teléfono 1 y cuál el 2, y se detectan sus números
     // automáticamente por ADB al ejecutar
-    // ─────────────────────────────────────────────────────────────────────────
     @FXML
     private void addCallTest() {
         Stage popup = new Stage();
         popup.initModality(Modality.APPLICATION_MODAL);
         popup.initStyle(StageStyle.UNDECORATED);
-        popup.setTitle("Configurar Prueba de Llamada");
 
         // ── Contenedor principal ──────────────────────────────────────────────
-        VBox root = new VBox(16);
-        root.setPadding(new Insets(24));
+        VBox root = new VBox(0);
         root.setStyle(
                 "-fx-background-color: #1e1e2e;" +
                         "-fx-border-color: #45475a;" +
                         "-fx-border-width: 1;" +
-                        "-fx-border-radius: 8;" +
-                        "-fx-background-radius: 8;");
-        root.setPrefWidth(420);
+                        "-fx-border-radius: 12;" +
+                        "-fx-background-radius: 12;");
+        root.setPrefWidth(580);
 
-        // Título
-        Label titulo = new Label("Configurar Prueba de Llamada");
+        // ── Header ───────────────────────────────────────────────────────────
+        HBox header = new HBox();
+        header.setPadding(new Insets(20, 24, 20, 24));
+        header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        header.setStyle("-fx-background-color: #181825; -fx-background-radius: 12 12 0 0;");
+        HBox.setHgrow(header, javafx.scene.layout.Priority.ALWAYS);
+
+        VBox headerTexto = new VBox(4);
+        Label titulo = new Label("📞  Pruebas de Llamada");
         titulo.setFont(Font.font("Poppins", FontWeight.BOLD, 16));
         titulo.setTextFill(Color.web("#cdd6f4"));
+        Label subtitulo = new Label("Selecciona el tipo de prueba que quieres añadir");
+        subtitulo.setTextFill(Color.web("#6c7086"));
+        subtitulo.setFont(Font.font(12));
+        headerTexto.getChildren().addAll(titulo, subtitulo);
 
-        Label subtitulo = new Label("Selecciona el tipo de prueba:");
-        subtitulo.setTextFill(Color.web("#a6adc8"));
-        subtitulo.setFont(Font.font(13));
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
 
-        // ── OPCIÓN A: Llamada Masiva ──────────────────────────────────────────
-        VBox boxMasiva = crearBoxOpcion(
-                "📞  Llamada Masiva",
-                "Todos los dispositivos conectados llamarán al número que escribas.");
+        Button btnX = new Button("✕");
+        btnX.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c7086; " +
+                "-fx-font-size: 16px; -fx-cursor: hand;");
+        btnX.setOnAction(e -> popup.close());
 
-        TextField tfNumeroMasivo = new TextField();
-        tfNumeroMasivo.setPromptText("Número destino (ej: +34612345678)");
-        tfNumeroMasivo.setStyle(
-                "-fx-background-color: #313244;" +
-                        "-fx-text-fill: #cdd6f4;" +
-                        "-fx-prompt-text-fill: #6c7086;" +
-                        "-fx-border-color: #45475a; -fx-border-radius: 4;" +
-                        "-fx-background-radius: 4; -fx-padding: 8;");
+        header.getChildren().addAll(headerTexto, spacer, btnX);
 
-        Button btnMasiva = crearBoton("Añadir llamada masiva", "#89b4fa");
-        boxMasiva.getChildren().addAll(tfNumeroMasivo, btnMasiva);
+        // ── Área scrolleable con grid de tarjetas ─────────────────────────────
+        // Grid 2 columnas, N filas — escala sola al añadir tarjetas
+        javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+        grid.setHgap(12);
+        grid.setVgap(12);
+        grid.setPadding(new Insets(20, 24, 20, 24));
 
-        VBox boxEntreDos = crearBoxOpcion(
-                "🔄  Llamada entre 2 Dispositivos",
-                "Tel. 1 llama a Tel. 2 (10s) → Tel. 2 llama a Tel. 1 (10s).\n" +
-                        "Selecciona los dispositivos ADB e introduce los números manualmente.");
+        javafx.scene.layout.ColumnConstraints col1 = new javafx.scene.layout.ColumnConstraints();
+        col1.setPercentWidth(50);
+        javafx.scene.layout.ColumnConstraints col2 = new javafx.scene.layout.ColumnConstraints();
+        col2.setPercentWidth(50);
+        grid.getColumnConstraints().addAll(col1, col2);
 
-        List<String> serialesConectados = obtenerSerialesADB();
+        // ── Área scrolleable — grid + config juntos ───────────────────────────
 
-        Label lblDisp1 = new Label("Teléfono 1 (el que llama primero):");
-        lblDisp1.setTextFill(Color.web("#a6adc8"));
-        ComboBox<String> cbDisp1 = crearCombo(serialesConectados);
+        // ── Panel de configuración (se muestra al seleccionar tarjeta) ────────
+        VBox panelConfig = new VBox(12);
+        panelConfig.setPadding(new Insets(0, 24, 20, 24));
+        panelConfig.setVisible(false);
+        panelConfig.setManaged(false);
 
-        Label lblNum1 = new Label("Número del Teléfono 1:");
-        lblNum1.setTextFill(Color.web("#a6adc8"));
-        TextField tfNum1 = new TextField();
-        tfNum1.setPromptText("Ej: +34612345678");
-        tfNum1.setStyle(
-                "-fx-background-color: #313244;" +
-                        "-fx-text-fill: #cdd6f4;" +
-                        "-fx-prompt-text-fill: #6c7086;" +
-                        "-fx-border-color: #45475a; -fx-border-radius: 4;" +
-                        "-fx-background-radius: 4; -fx-padding: 8;");
+        VBox contenido = new VBox(0);
+        contenido.getChildren().addAll(grid, panelConfig);
 
-        Label lblDisp2 = new Label("Teléfono 2 (el que recibe primero):");
-        lblDisp2.setTextFill(Color.web("#a6adc8"));
-        ComboBox<String> cbDisp2 = crearCombo(serialesConectados);
+        ScrollPane scroll = new ScrollPane(contenido);
+        scroll.setFitToWidth(true);
+        scroll.setPrefHeight(500);
+        scroll.setMaxHeight(javafx.stage.Screen.getPrimary().getVisualBounds().getHeight() * 0.7);
+        scroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
 
-        Label lblNum2 = new Label("Número del Teléfono 2:");
-        lblNum2.setTextFill(Color.web("#a6adc8"));
-        TextField tfNum2 = new TextField();
-        tfNum2.setPromptText("Ej: +34698765432");
-        tfNum2.setStyle(
-                "-fx-background-color: #313244;" +
-                        "-fx-text-fill: #cdd6f4;" +
-                        "-fx-prompt-text-fill: #6c7086;" +
-                        "-fx-border-color: #45475a; -fx-border-radius: 4;" +
-                        "-fx-background-radius: 4; -fx-padding: 8;");
-
-        // Obtener el serial del dispositivo actualmente abierto
-        // Si el dispositivo actual está en ADB, mostramos label fijo en vez de combo
-        String serialActual = obtenerSerialADBActual();
-
-        if (serialActual != null && serialesConectados.contains(serialActual)) {
-            cbDisp1.getSelectionModel().select(serialActual);
-            cbDisp1.setDisable(true);
-            cbDisp1.setStyle(cbDisp1.getStyle() + "-fx-opacity: 0.5;"); // visual de "bloqueado"
-        } else if (!serialesConectados.isEmpty()) {
-            cbDisp1.getSelectionModel().select(0);
+        // ── Definición de tarjetas ────────────────────────────────────────────
+        // Formato: icono, título, descripción, color borde, acción al pulsar
+        record Tarjeta(String icono, String titulo, String desc, String color) {
         }
 
-        // Tel.2: seleccionar el primero que NO sea el dispositivo actual
-        serialesConectados.stream()
-                .filter(s -> !s.equals(serialActual))
-                .findFirst()
-                .ifPresent(s -> cbDisp2.getSelectionModel().select(s));
+        List<Tarjeta> tarjetas = List.of(
+                new Tarjeta("📞", "Llamada Masiva",
+                        "Todos los dispositivos conectados llaman al número introducido.", "#89b4fa"),
+                new Tarjeta("🔄", "Llamada entre 2",
+                        "Tel.1 llama a Tel.2 y viceversa. Verifica establecimiento bidireccional.", "#a6e3a1"),
+                new Tarjeta("🚨", "Llamada de Emergencia",
+                        "Marca 112 y verifica que la llamada se establece correctamente.", "#f38ba8"),
+                new Tarjeta("📶", "Test Red Activa",
+                        "Verifica en qué red (2G/3G/4G/VoLTE) se establece la llamada.", "#fab387"),
+                new Tarjeta("⏸", "Hold / Retrieve",
+                        "Pone la llamada en espera y la recupera. Verifica ambos estados.", "#cba6f7"),
+                new Tarjeta("🔢", "Test DTMF",
+                        "Envía tonos DTMF durante una llamada activa y verifica respuesta.", "#f9e2af"),
+                new Tarjeta("📥", "Llamada Entrante",
+                        "Tel.2 llama a Tel.1. Verifica que suena y se puede contestar.", "#94e2d5"),
+                new Tarjeta("🔇", "Test Mute",
+                        "Silencia y recupera el micrófono durante una llamada activa.", "#eba0ac"));
 
-        Label lblAviso = new Label();
-        lblAviso.setTextFill(Color.web("#f38ba8"));
-        lblAviso.setFont(Font.font(11));
-        lblAviso.setWrapText(true);
+        // ── Renderiza tarjetas en el grid ─────────────────────────────────────
+        for (int i = 0; i < tarjetas.size(); i++) {
+            Tarjeta t = tarjetas.get(i);
+            int col = i % 2;
+            int row = i / 2;
 
-        Button btnEntreDos = crearBoton("Añadir llamada entre 2", "#a6e3a1");
-        boxEntreDos.getChildren().addAll(
-                lblDisp1, cbDisp1,
-                lblNum1, tfNum1,
-                lblDisp2, cbDisp2,
-                lblNum2, tfNum2,
-                lblAviso, btnEntreDos);
+            VBox card = new VBox(8);
+            card.setPadding(new Insets(16));
+            card.setCursor(javafx.scene.Cursor.HAND);
+            card.setStyle(
+                    "-fx-background-color: #313244;" +
+                            "-fx-background-radius: 10;" +
+                            "-fx-border-color: #45475a;" +
+                            "-fx-border-radius: 10;" +
+                            "-fx-border-width: 1;");
 
-        // ── Botón cancelar ────────────────────────────────────────────────────
-        Button btnCancelar = crearBoton("Cancelar", "#f38ba8");
-        btnCancelar.setOnAction(e -> popup.close());
+            Label icono = new Label(t.icono());
+            icono.setFont(Font.font(24));
 
-        root.getChildren().addAll(titulo, subtitulo,
-                new Separator(), boxMasiva,
-                new Separator(), boxEntreDos,
-                new Separator(), btnCancelar);
+            Label nombre = new Label(t.titulo());
+            nombre.setFont(Font.font("Poppins", FontWeight.BOLD, 13));
+            nombre.setTextFill(Color.web("#cdd6f4"));
+            nombre.setWrapText(true);
 
-        // ── Acciones ──────────────────────────────────────────────────────────
-        btnMasiva.setOnAction(e -> {
-            String num = tfNumeroMasivo.getText().trim();
-            if (num.isBlank()) {
-                tfNumeroMasivo.setStyle(tfNumeroMasivo.getStyle() +
-                        "-fx-border-color: #f38ba8;");
-                return;
-            }
-            llamadaMasivaNumero = num;
-            pasos.add(new PasoPrueba(
-                    "Llamada Masiva → " + num,
-                    CMD_LLAMADA_MASIVA));
-            popup.close();
-        });
+            Label desc = new Label(t.desc());
+            desc.setFont(Font.font(11));
+            desc.setTextFill(Color.web("#6c7086"));
+            desc.setWrapText(true);
 
-        btnEntreDos.setOnAction(e -> {
-            String s1 = cbDisp1.getValue();
-            String s2 = cbDisp2.getValue();
-            String n1 = tfNum1.getText().trim();
-            String n2 = tfNum2.getText().trim();
+            card.getChildren().addAll(icono, nombre, desc);
 
-            if (s1 == null || s2 == null) {
-                lblAviso.setText("No hay dispositivos ADB disponibles.");
-                return;
-            }
-            if (s1.equals(s2)) {
-                lblAviso.setText("Selecciona dos dispositivos distintos.");
-                return;
-            }
-            if (n1.isBlank() || n2.isBlank()) {
-                lblAviso.setText("Introduce los números de ambos teléfonos.");
-                return;
-            }
+            // Hover
+            String colorBorde = t.color();
+            card.setOnMouseEntered(e -> card.setStyle(
+                    "-fx-background-color: #45475a;" +
+                            "-fx-background-radius: 10;" +
+                            "-fx-border-color: " + colorBorde + ";" +
+                            "-fx-border-radius: 10;" +
+                            "-fx-border-width: 2;"));
+            card.setOnMouseExited(e -> card.setStyle(
+                    "-fx-background-color: #313244;" +
+                            "-fx-background-radius: 10;" +
+                            "-fx-border-color: #45475a;" +
+                            "-fx-border-radius: 10;" +
+                            "-fx-border-width: 1;"));
 
-            llamadaEntreDosSerial1 = s1;
-            llamadaEntreDosSerial2 = s2;
-            llamadaEntreDosNumero1 = n1;
-            llamadaEntreDosNumero2 = n2;
+            // Acción al pulsar cada tarjeta
+            String tituloTarjeta = t.titulo();
+            card.setOnMouseClicked(e -> {
+                panelConfig.getChildren().clear();
+                panelConfig.setVisible(true);
+                panelConfig.setManaged(true);
+                mostrarConfigTarjeta(tituloTarjeta, panelConfig, popup, scroll);
+            });
 
-            pasos.add(new PasoPrueba(
-                    "Llamada entre 2 (" + s1 + " ↔ " + s2 + ")",
-                    CMD_LLAMADA_ENTRE_DOS));
-            popup.close();
-        });
+            grid.add(card, col, row);
+        }
 
-        popup.setScene(new Scene(root));
+        // ── Ensambla la ventana ───────────────────────────────────────────────
+        root.getChildren().addAll(header, scroll);
+
+        Scene scene = new Scene(root);
+        popup.setScene(scene);
         popup.showAndWait();
+    }
+
+    // ── Muestra el formulario de configuración según la tarjeta pulsada ──────
+    private void mostrarConfigTarjeta(String tipo, VBox panel, Stage popup, ScrollPane scroll) {
+
+        Separator sep = new Separator();
+        sep.setStyle("-fx-background-color: #45475a;");
+
+        Label lblTipo = new Label("Configurar: " + tipo);
+        lblTipo.setFont(Font.font("Poppins", FontWeight.BOLD, 13));
+        lblTipo.setTextFill(Color.web("#cdd6f4"));
+
+        panel.getChildren().addAll(sep, lblTipo);
+
+        switch (tipo) {
+
+            case "Llamada Masiva" -> {
+                TextField tf = crearTextField("Número destino (ej: +34612345678)");
+                Button btn = crearBoton("➕  Añadir al script", "#89b4fa");
+                btn.setOnAction(e -> {
+                    String num = tf.getText().trim();
+                    if (num.isBlank()) {
+                        tf.setStyle(tf.getStyle() + "-fx-border-color: #f38ba8;");
+                        return;
+                    }
+                    llamadaMasivaNumero = num;
+                    pasos.add(new PasoPrueba("Llamada Masiva → " + num, CMD_LLAMADA_MASIVA));
+                    popup.close();
+                });
+                panel.getChildren().addAll(tf, btn);
+            }
+
+            case "Llamada entre 2" -> {
+                List<String> seriales = obtenerSerialesADB();
+                Label l1 = crearLabelConfig("Teléfono 1 (llama primero):");
+                ComboBox<String> cb1 = crearCombo(seriales);
+                Label l2 = crearLabelConfig("Número del Teléfono 1:");
+                TextField tf1 = crearTextField("+34612345678");
+                Label l3 = crearLabelConfig("Teléfono 2 (recibe primero):");
+                ComboBox<String> cb2 = crearCombo(seriales);
+                Label l4 = crearLabelConfig("Número del Teléfono 2:");
+                TextField tf2 = crearTextField("+34698765432");
+                Label aviso = new Label();
+                aviso.setTextFill(Color.web("#f38ba8"));
+                aviso.setFont(Font.font(11));
+
+                String serialActual = obtenerSerialADBActual();
+                if (serialActual != null && seriales.contains(serialActual)) {
+                    cb1.getSelectionModel().select(serialActual);
+                    cb1.setDisable(true);
+                } else if (!seriales.isEmpty())
+                    cb1.getSelectionModel().select(0);
+                seriales.stream().filter(s -> !s.equals(serialActual)).findFirst()
+                        .ifPresent(s -> cb2.getSelectionModel().select(s));
+
+                Button btn = crearBoton("➕  Añadir al script", "#a6e3a1");
+                btn.setOnAction(e -> {
+                    String s1 = cb1.getValue(), s2 = cb2.getValue();
+                    String n1 = tf1.getText().trim(), n2 = tf2.getText().trim();
+                    if (s1 == null || s2 == null) {
+                        aviso.setText("No hay dispositivos ADB.");
+                        return;
+                    }
+                    if (s1.equals(s2)) {
+                        aviso.setText("Selecciona dos dispositivos distintos.");
+                        return;
+                    }
+                    if (n1.isBlank() || n2.isBlank()) {
+                        aviso.setText("Introduce los números.");
+                        return;
+                    }
+                    llamadaEntreDosSerial1 = s1;
+                    llamadaEntreDosSerial2 = s2;
+                    llamadaEntreDosNumero1 = n1;
+                    llamadaEntreDosNumero2 = n2;
+                    pasos.add(new PasoPrueba("Llamada entre 2 (" + s1 + " ↔ " + s2 + ")", CMD_LLAMADA_ENTRE_DOS));
+                    popup.close();
+                });
+                panel.getChildren().addAll(l1, cb1, l2, tf1, l3, cb2, l4, tf2, aviso, btn);
+            }
+
+            case "Llamada de Emergencia" -> {
+                Label info = new Label("Marcará el 112, esperará 3 segundos y colgará\n" +
+                        "antes de que contesten. Solo verifica que se puede marcar.");
+                info.setTextFill(Color.web("#6c7086"));
+                info.setFont(Font.font(11));
+                info.setWrapText(true);
+                Button btn = crearBoton("➕  Añadir al script", "#f38ba8");
+                btn.setOnAction(e -> {
+                    pasos.add(new PasoPrueba("Llamada Emergencia 112", CMD_EMERGENCIA));
+                    popup.close();
+                });
+                panel.getChildren().addAll(info, btn);
+            }
+
+            case "Test Red Activa" -> {
+                Label info = new Label("Verifica en qué red (2G/3G/4G/VoLTE) está\nregistrado el dispositivo.");
+                info.setTextFill(Color.web("#6c7086"));
+                info.setFont(Font.font(11));
+                info.setWrapText(true);
+                Button btn = crearBoton("➕  Añadir al script", "#fab387");
+                btn.setOnAction(e -> {
+                    pasos.add(new PasoPrueba("Test Red Activa", CMD_RED_ACTIVA));
+                    popup.close();
+                });
+                panel.getChildren().addAll(info, btn);
+            }
+
+            case "Hold / Retrieve" -> {
+                Label info = new Label("Requiere una llamada activa. Pone en espera\n" +
+                        "5 segundos y luego la recupera.");
+                info.setTextFill(Color.web("#6c7086"));
+                info.setFont(Font.font(11));
+                info.setWrapText(true);
+                Button btn = crearBoton("➕  Añadir al script", "#cba6f7");
+                btn.setOnAction(e -> {
+                    pasos.add(new PasoPrueba("Hold / Retrieve", CMD_HOLD_RETRIEVE));
+                    popup.close();
+                });
+                panel.getChildren().addAll(info, btn);
+            }
+
+            case "Test DTMF" -> {
+                Label info = new Label("Requiere una llamada activa. Envía los dígitos 0-9\ncomo tonos DTMF.");
+                info.setTextFill(Color.web("#6c7086"));
+                info.setFont(Font.font(11));
+                info.setWrapText(true);
+                Button btn = crearBoton("➕  Añadir al script", "#f9e2af");
+                btn.setOnAction(e -> {
+                    pasos.add(new PasoPrueba("Test DTMF 0-9", CMD_DTMF));
+                    popup.close();
+                });
+                panel.getChildren().addAll(info, btn);
+            }
+
+            case "Llamada Entrante" -> {
+                List<String> seriales = obtenerSerialesADB();
+                Label l1 = crearLabelConfig("Dispositivo que llama:");
+                ComboBox<String> cbLlamante = crearCombo(seriales);
+                Label l2 = crearLabelConfig("Número del dispositivo que recibe:");
+                TextField tfNumero = crearTextField("+34612345678");
+                Label aviso = new Label();
+                aviso.setTextFill(Color.web("#f38ba8"));
+                aviso.setFont(Font.font(11));
+
+                String serialActual = obtenerSerialADBActual();
+                seriales.stream().filter(s -> !s.equals(serialActual)).findFirst()
+                        .ifPresent(s -> cbLlamante.getSelectionModel().select(s));
+
+                Button btn = crearBoton("➕  Añadir al script", "#94e2d5");
+                btn.setOnAction(e -> {
+                    String llamante = cbLlamante.getValue();
+                    String numero = tfNumero.getText().trim();
+                    if (llamante == null) {
+                        aviso.setText("Selecciona el dispositivo que llama.");
+                        return;
+                    }
+                    if (numero.isBlank()) {
+                        aviso.setText("Introduce el número del receptor.");
+                        return;
+                    }
+                    // Guardamos el serial del que llama y el número en el nombre del paso
+                    llamadaEntranteSerial = llamante;
+                    llamadaEntranteNumero = numero;
+                    pasos.add(new PasoPrueba("Llamada Entrante desde " + llamante, CMD_LLAMADA_ENTRANTE));
+                    popup.close();
+                });
+                panel.getChildren().addAll(l1, cbLlamante, l2, tfNumero, aviso, btn);
+            }
+
+            case "Test Mute" -> {
+                Label info = new Label("Requiere una llamada activa. Silencia el micrófono,\n" +
+                        "espera 3 segundos y lo recupera.");
+                info.setTextFill(Color.web("#6c7086"));
+                info.setFont(Font.font(11));
+                info.setWrapText(true);
+                Button btn = crearBoton("➕  Añadir al script", "#eba0ac");
+                btn.setOnAction(e -> {
+                    pasos.add(new PasoPrueba("Test Mute/Unmute", CMD_MUTE));
+                    popup.close();
+                });
+                panel.getChildren().addAll(info, btn);
+            }
+        }
+        javafx.application.Platform.runLater(() -> scroll.setVvalue(1.0));
+    }
+
+    // ── Helpers de UI ─────────────────────────────────────────────────────────
+    private TextField crearTextField(String placeholder) {
+        TextField tf = new TextField();
+        tf.setPromptText(placeholder);
+        tf.setStyle(
+                "-fx-background-color: #313244;" +
+                        "-fx-text-fill: #cdd6f4;" +
+                        "-fx-prompt-text-fill: #6c7086;" +
+                        "-fx-border-color: #45475a; -fx-border-radius: 6;" +
+                        "-fx-background-radius: 6; -fx-padding: 8;");
+        return tf;
+    }
+
+    private Label crearLabelConfig(String texto) {
+        Label l = new Label(texto);
+        l.setTextFill(Color.web("#a6adc8"));
+        l.setFont(Font.font(12));
+        return l;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -362,7 +567,50 @@ public class DiagnosticoController implements DispositivoAware {
                         listaPasos.refresh();
                     });
 
-                } else {
+                } else if (CMD_EMERGENCIA.equals(paso.getComando())) {
+                    boolean ok = ejecutarEmergencia(serial, paso);
+                    Platform.runLater(() -> {
+                        ref.setEstado(ok ? "OK" : "ERROR");
+                        listaPasos.refresh();
+                    });
+
+                } else if (CMD_HOLD_RETRIEVE.equals(paso.getComando())) {
+                    boolean ok = ejecutarHoldRetrieve(serial, paso);
+                    Platform.runLater(() -> {
+                        ref.setEstado(ok ? "OK" : "ERROR");
+                        listaPasos.refresh();
+                    });
+
+                } else if (CMD_DTMF.equals(paso.getComando())) {
+                    boolean ok = ejecutarDTMF(serial, paso);
+                    Platform.runLater(() -> {
+                        ref.setEstado(ok ? "OK" : "ERROR");
+                        listaPasos.refresh();
+                    });
+
+                } else if (CMD_LLAMADA_ENTRANTE.equals(paso.getComando())) {
+                    boolean ok = ejecutarLlamadaEntrante(paso);
+                    Platform.runLater(() -> {
+                        ref.setEstado(ok ? "OK" : "ERROR");
+                        listaPasos.refresh();
+                    });
+
+                } else if (CMD_MUTE.equals(paso.getComando())) {
+                    boolean ok = ejecutarMute(serial, paso);
+                    Platform.runLater(() -> {
+                        ref.setEstado(ok ? "OK" : "ERROR");
+                        listaPasos.refresh();
+                    });
+
+                } else if (CMD_RED_ACTIVA.equals(paso.getComando())) {
+                    boolean ok = ejecutarTestRedActiva(serial, paso);
+                    Platform.runLater(() -> {
+                        ref.setEstado(ok ? "OK" : "ERROR");
+                        listaPasos.refresh();
+                    });
+                }
+
+                else {
                     boolean exito = adb.ejecutarPasoSync(serial, paso.getComando());
                     try {
                         Thread.sleep(1_000);
@@ -382,6 +630,204 @@ public class DiagnosticoController implements DispositivoAware {
             });
         }).start();
     }
+
+    private boolean ejecutarEmergencia(String serial, PasoPrueba paso) {
+        try {
+            System.out.println("[EMERGENCIA] Marcando 112...");
+            actualizarEstadoPaso(paso, "Marcando 112...");
+            ejecutarShellEnSerial(serial,
+                    "am start -a android.intent.action.CALL -d tel:112");
+
+            // Espera 3s — suficiente para ver que marca pero sin que contesten
+            Thread.sleep(3_000);
+
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_ENDCALL");
+            System.out.println("[EMERGENCIA] ✔ Llamada colgada antes de contestar");
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+       private boolean esPantallaTactil(String serial) {
+    String out = ejecutarShellEnSerial(serial, "getprop ro.product.model");
+    // El F730 y modelos COCOM feature phone tienen resolución 320x240
+    String size = ejecutarShellEnSerial(serial, "wm size");
+    return !size.contains("320x240") && !size.contains("240x320");
+}
+
+  private boolean ejecutarHoldRetrieve(String serial, PasoPrueba paso) {
+    try {
+        if (!llamadaActiva(serial)) return false;
+
+        boolean esTactil = esPantallaTactil(serial);
+
+        if (esTactil) {
+            // HOLD — abrir menú Más y tocar Retener
+            actualizarEstadoPaso(paso, "Hold...");
+            ejecutarShellEnSerial(serial, "input tap 1018 2077"); // Mostrar más
+            Thread.sleep(800);
+            ejecutarShellEnSerial(serial, "input tap 610 1811");  // Retener llamada
+            Thread.sleep(5_000);
+
+            // RETRIEVE — abrir menú Más y tocar Reanudar
+            actualizarEstadoPaso(paso, "Retrieve...");
+            Thread.sleep(800);
+            ejecutarShellEnSerial(serial, "input tap 610 1811");  // Reanudar llamada
+            Thread.sleep(1_000);
+            ejecutarShellEnSerial(serial, "input tap 1018 2077");
+
+        } else {
+            // HOLD — menú físico F730
+            actualizarEstadoPaso(paso, "Hold...");
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MENU");
+            Thread.sleep(800);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
+            Thread.sleep(300);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
+            Thread.sleep(300);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_CENTER");
+            Thread.sleep(5_000);
+
+            // RETRIEVE
+            actualizarEstadoPaso(paso, "Retrieve...");
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_BACK");
+            Thread.sleep(800);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MENU");
+            Thread.sleep(800);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
+            Thread.sleep(300);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
+            Thread.sleep(300);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_CENTER");
+            Thread.sleep(1_000);
+        }
+
+        return llamadaActiva(serial);
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return false;
+    }
+}
+
+    private boolean ejecutarDTMF(String serial, PasoPrueba paso) {
+    try {
+        if (!llamadaActiva(serial)) return false;
+
+        actualizarEstadoPaso(paso, "Enviando DTMF...");
+
+        // En feature phone los keycodes numéricos son KEYCODE_0 al KEYCODE_9
+        int[] keycodes = {7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        for (int kc : keycodes) {
+            ejecutarShellEnSerial(serial, "input keyevent " + kc);
+            Thread.sleep(600);
+        }
+
+        System.out.println("[DTMF] ✔ Tonos enviados");
+        return true;
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return false;
+    }
+}
+
+    private boolean ejecutarLlamadaEntrante(PasoPrueba paso) {
+        if (llamadaEntranteSerial == null || llamadaEntranteNumero == null) {
+            System.out.println("[ENTRANTE] Sin configurar");
+            return false;
+        }
+        try {
+            System.out.println("[ENTRANTE] " + llamadaEntranteSerial +
+                    " llamando a " + llamadaEntranteNumero);
+            actualizarEstadoPaso(paso, "Llamando...");
+
+            // El dispositivo externo llama al receptor
+            ejecutarShellEnSerial(llamadaEntranteSerial,
+                    "am start -a android.intent.action.CALL -d tel:" + llamadaEntranteNumero);
+
+            // Espera a que suene en el receptor
+            actualizarEstadoPaso(paso, "Esperando que suene...");
+            boolean sono = esperarHastaQueSuene(obtenerSerialADBActual(), 15);
+
+            // Cuelga desde el que llamó — no contestamos
+            Thread.sleep(4_000);
+            ejecutarShellEnSerial(llamadaEntranteSerial,
+                    "input keyevent KEYCODE_ENDCALL");
+
+            System.out.println("[ENTRANTE] Resultado: " + (sono ? "SONÓ ✔" : "NO SONÓ ✖"));
+            return sono;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+ 
+
+    private boolean ejecutarTestRedActiva(String serial, PasoPrueba paso) {
+        actualizarEstadoPaso(paso, "Leyendo red...");
+        String out = ejecutarShellEnSerial(serial,
+                "dumpsys telephony.registry");
+
+        // Busca el tipo de red activa
+        String red = "DESCONOCIDA";
+        if (out.contains("getRilVoiceRadioTechnology")) {
+            if (out.contains("LTE"))
+                red = "4G/VoLTE";
+            else if (out.contains("UMTS"))
+                red = "3G";
+            else if (out.contains("EDGE") || out.contains("GPRS"))
+                red = "2G";
+            else if (out.contains("NR"))
+                red = "5G";
+        }
+
+        System.out.println("[RED] Red activa detectada: " + red);
+        actualizarEstadoPaso(paso, "Red: " + red);
+
+        // PASS si está en alguna red conocida
+        return !red.equals("DESCONOCIDA");
+    }
+
+  private boolean ejecutarMute(String serial, PasoPrueba paso) {
+    try {
+        if (!llamadaActiva(serial)) return false;
+
+        boolean esTactil = esPantallaTactil(serial);
+
+        actualizarEstadoPaso(paso, "Mute...");
+        if (esTactil) {
+            ejecutarShellEnSerial(serial, "input tap 473 2077"); // Silenciar
+        } else {
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MENU");
+            Thread.sleep(800);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
+            Thread.sleep(300);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_CENTER");
+        }
+        Thread.sleep(3_000);
+
+        actualizarEstadoPaso(paso, "Unmute...");
+        if (esTactil) {
+            ejecutarShellEnSerial(serial, "input tap 473 2077"); // Silenciar de nuevo
+        } else {
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MENU");
+            Thread.sleep(800);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
+            Thread.sleep(300);
+            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_CENTER");
+        }
+        Thread.sleep(1_000);
+
+        return true;
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return false;
+    }
+}
+
+
 
     // ─────────────────────────────────────────────────────────────────────────
     // LLAMADA MASIVA
@@ -510,135 +956,136 @@ public class DiagnosticoController implements DispositivoAware {
     // 9. Llamada activa 10s → Tel.2 cuelga
     // 10. Si ambas rondas funcionaron → OK
     // ─────────────────────────────────────────────────────────────────────────
-  private boolean ejecutarLlamadaEntreDos(PasoPrueba paso) {
-    String s1 = llamadaEntreDosSerial1;
-    String s2 = llamadaEntreDosSerial2;
-    String numero1 = llamadaEntreDosNumero1;
-    String numero2 = llamadaEntreDosNumero2;
+    private boolean ejecutarLlamadaEntreDos(PasoPrueba paso) {
+        String s1 = llamadaEntreDosSerial1;
+        String s2 = llamadaEntreDosSerial2;
+        String numero1 = llamadaEntreDosNumero1;
+        String numero2 = llamadaEntreDosNumero2;
 
-    if (s1 == null || s2 == null || numero1 == null || numero2 == null) {
-        System.out.println("[ENTRE2] Seriales o números no configurados");
+        if (s1 == null || s2 == null || numero1 == null || numero2 == null) {
+            System.out.println("[ENTRE2] Seriales o números no configurados");
+            return false;
+        }
+
+        System.out.printf("[ENTRE2] Iniciando prueba: %s (%s) ↔ %s (%s)%n",
+                s1, numero1, s2, numero2);
+
+        boolean ronda1Ok = false;
+        boolean ronda2Ok = false;
+
+        try {
+            // ── RONDA 1: Tel.1 → Tel.2 ───────────────────────────────────────
+            actualizarEstadoPaso(paso, "Ronda 1: Preparando pantallas...");
+            despertarDispositivo(s1);
+            despertarDispositivo(s2);
+            Thread.sleep(1_500);
+
+            System.out.println("[ENTRE2] Ronda 1: Tel.1 llama a Tel.2...");
+            actualizarEstadoPaso(paso, "Ronda 1: Tel.1 → Tel.2");
+            ejecutarShellEnSerial(s1, "am start -a android.intent.action.CALL -d tel:" + numero2);
+
+            // Espera inteligente — contesta en cuanto suena, máximo 15s
+            actualizarEstadoPaso(paso, "Ronda 1: Esperando que suene...");
+            boolean sono1 = esperarHastaQueSuene(s2, 15);
+
+            if (!sono1 || !llamadaActiva(s1)) {
+                System.out.println("[ENTRE2] Ronda 1 FAIL — no sonó en Tel.2 o Tel.1 no estableció llamada");
+                ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
+                ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
+                ronda1Ok = false;
+            } else {
+                despertarDispositivo(s2);
+                Thread.sleep(500);
+                ejecutarShellEnSerial(s2, "input keyevent KEYCODE_CALL");
+                System.out.println("[ENTRE2] Tel.2 contestó");
+
+                actualizarEstadoPaso(paso, "Ronda 1 activa 10s...");
+                Thread.sleep(10_000);
+
+                ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
+                ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
+                System.out.println("[ENTRE2] Ronda 1 finalizada ✔");
+                ronda1Ok = true;
+            }
+
+            // Pausa entre rondas — siempre se ejecuta aunque Ronda 1 fallara
+            actualizarEstadoPaso(paso, "Pausa entre rondas...");
+            Thread.sleep(4_000);
+
+            // ── RONDA 2: Tel.2 → Tel.1 ─── siempre se ejecuta ───────────────
+            despertarDispositivo(s1);
+            despertarDispositivo(s2);
+            Thread.sleep(1_500);
+
+            System.out.println("[ENTRE2] Ronda 2: Tel.2 llama a Tel.1...");
+            actualizarEstadoPaso(paso, "Ronda 2: Tel.2 → Tel.1");
+            ejecutarShellEnSerial(s2, "am start -a android.intent.action.CALL -d tel:" + numero1);
+
+            // Espera inteligente — contesta en cuanto suena, máximo 15s
+            actualizarEstadoPaso(paso, "Ronda 2: Esperando que suene...");
+            boolean sono2 = esperarHastaQueSuene(s1, 15);
+
+            if (!sono2 || !llamadaActiva(s2)) {
+                System.out.println("[ENTRE2] Ronda 2 FAIL — no sonó en Tel.1 o Tel.2 no estableció llamada");
+                ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
+                ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
+                ronda2Ok = false;
+            } else {
+                despertarDispositivo(s1);
+                Thread.sleep(500);
+                ejecutarShellEnSerial(s1, "input keyevent KEYCODE_CALL");
+                System.out.println("[ENTRE2] Tel.1 contestó");
+
+                actualizarEstadoPaso(paso, "Ronda 2 activa 10s...");
+                Thread.sleep(10_000);
+
+                ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
+                ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
+                System.out.println("[ENTRE2] Ronda 2 finalizada ✔");
+                ronda2Ok = true;
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("[ENTRE2] Test interrumpido");
+        }
+
+        boolean exito = ronda1Ok && ronda2Ok;
+        System.out.printf("[ENTRE2] Resultado: Ronda1=%s | Ronda2=%s → %s%n",
+                ronda1Ok ? "OK" : "FAIL",
+                ronda2Ok ? "OK" : "FAIL",
+                exito ? "PASS ✔" : "FAIL ✖");
+        return exito;
+    }
+
+    // Espera activamente hasta que el receptor detecte la llamada entrante
+    // Comprueba cada segundo hasta maxSegundos — contesta en cuanto suena
+    private boolean esperarHastaQueSuene(String serialReceptor, int maxSegundos) {
+        System.out.println("[ENTRE2] Esperando que suene en: " + serialReceptor);
+        for (int i = 0; i < maxSegundos; i++) {
+            try {
+                Thread.sleep(1_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            String out = ejecutarShellEnSerial(serialReceptor, "dumpsys telephony.registry");
+            if (out.contains("mCallState=1")) { // RINGING = sonando
+                System.out.println("[ENTRE2] ¡Está sonando! (tardó " + (i + 1) + "s)");
+                return true;
+            }
+        }
+        System.out.println("[ENTRE2] No sonó en " + maxSegundos + "s — timeout");
         return false;
     }
 
-    System.out.printf("[ENTRE2] Iniciando prueba: %s (%s) ↔ %s (%s)%n",
-            s1, numero1, s2, numero2);
-
-    boolean ronda1Ok = false;
-    boolean ronda2Ok = false;
-
-    try {
-        // ── RONDA 1: Tel.1 → Tel.2 ───────────────────────────────────────
-        actualizarEstadoPaso(paso, "Ronda 1: Preparando pantallas...");
-        despertarDispositivo(s1);
-        despertarDispositivo(s2);
-        Thread.sleep(1_500);
-
-        System.out.println("[ENTRE2] Ronda 1: Tel.1 llama a Tel.2...");
-        actualizarEstadoPaso(paso, "Ronda 1: Tel.1 → Tel.2");
-        ejecutarShellEnSerial(s1, "am start -a android.intent.action.CALL -d tel:" + numero2);
-
-        // Espera inteligente — contesta en cuanto suena, máximo 15s
-        actualizarEstadoPaso(paso, "Ronda 1: Esperando que suene...");
-        boolean sono1 = esperarHastaQueSuene(s2, 15);
-
-        if (!sono1 || !llamadaActiva(s1)) {
-            System.out.println("[ENTRE2] Ronda 1 FAIL — no sonó en Tel.2 o Tel.1 no estableció llamada");
-            ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
-            ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
-            ronda1Ok = false;
-        } else {
-            despertarDispositivo(s2);
-            Thread.sleep(500);
-            ejecutarShellEnSerial(s2, "input keyevent KEYCODE_CALL");
-            System.out.println("[ENTRE2] Tel.2 contestó");
-
-            actualizarEstadoPaso(paso, "Ronda 1 activa 10s...");
-            Thread.sleep(10_000);
-
-            ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
-            ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
-            System.out.println("[ENTRE2] Ronda 1 finalizada ✔");
-            ronda1Ok = true;
-        }
-
-        // Pausa entre rondas — siempre se ejecuta aunque Ronda 1 fallara
-        actualizarEstadoPaso(paso, "Pausa entre rondas...");
-        Thread.sleep(4_000);
-
-        // ── RONDA 2: Tel.2 → Tel.1 ─── siempre se ejecuta ───────────────
-        despertarDispositivo(s1);
-        despertarDispositivo(s2);
-        Thread.sleep(1_500);
-
-        System.out.println("[ENTRE2] Ronda 2: Tel.2 llama a Tel.1...");
-        actualizarEstadoPaso(paso, "Ronda 2: Tel.2 → Tel.1");
-        ejecutarShellEnSerial(s2, "am start -a android.intent.action.CALL -d tel:" + numero1);
-
-        // Espera inteligente — contesta en cuanto suena, máximo 15s
-        actualizarEstadoPaso(paso, "Ronda 2: Esperando que suene...");
-        boolean sono2 = esperarHastaQueSuene(s1, 15);
-
-        if (!sono2 || !llamadaActiva(s2)) {
-            System.out.println("[ENTRE2] Ronda 2 FAIL — no sonó en Tel.1 o Tel.2 no estableció llamada");
-            ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
-            ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
-            ronda2Ok = false;
-        } else {
-            despertarDispositivo(s1);
-            Thread.sleep(500);
-            ejecutarShellEnSerial(s1, "input keyevent KEYCODE_CALL");
-            System.out.println("[ENTRE2] Tel.1 contestó");
-
-            actualizarEstadoPaso(paso, "Ronda 2 activa 10s...");
-            Thread.sleep(10_000);
-
-            ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
-            ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
-            System.out.println("[ENTRE2] Ronda 2 finalizada ✔");
-            ronda2Ok = true;
-        }
-
-    } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        System.out.println("[ENTRE2] Test interrumpido");
+    // Verifica si el dispositivo tiene una llamada activa o sonando
+    private boolean llamadaActiva(String serial) {
+        String out = ejecutarShellEnSerial(serial, "dumpsys telephony.registry");
+        return out.contains("mCallState=2") || // OFFHOOK = llamada activa
+                out.contains("mCallState=1"); // RINGING = sonando
     }
 
-    boolean exito = ronda1Ok && ronda2Ok;
-    System.out.printf("[ENTRE2] Resultado: Ronda1=%s | Ronda2=%s → %s%n",
-            ronda1Ok ? "OK" : "FAIL",
-            ronda2Ok ? "OK" : "FAIL",
-            exito ? "PASS ✔" : "FAIL ✖");
-    return exito;
-}
-
-// Espera activamente hasta que el receptor detecte la llamada entrante
-// Comprueba cada segundo hasta maxSegundos — contesta en cuanto suena
-private boolean esperarHastaQueSuene(String serialReceptor, int maxSegundos) {
-    System.out.println("[ENTRE2] Esperando que suene en: " + serialReceptor);
-    for (int i = 0; i < maxSegundos; i++) {
-        try {
-            Thread.sleep(1_000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        }
-        String out = ejecutarShellEnSerial(serialReceptor, "dumpsys telephony.registry");
-        if (out.contains("mCallState=1")) { // RINGING = sonando
-            System.out.println("[ENTRE2] ¡Está sonando! (tardó " + (i + 1) + "s)");
-            return true;
-        }
-    }
-    System.out.println("[ENTRE2] No sonó en " + maxSegundos + "s — timeout");
-    return false;
-}
-
-// Verifica si el dispositivo tiene una llamada activa o sonando
-private boolean llamadaActiva(String serial) {
-    String out = ejecutarShellEnSerial(serial, "dumpsys telephony.registry");
-    return out.contains("mCallState=2") || // OFFHOOK = llamada activa
-           out.contains("mCallState=1");   // RINGING = sonando
-}
     private String obtenerSerialADBActual() {
         if (dispositivoActual == null)
             return null;
@@ -672,7 +1119,6 @@ private boolean llamadaActiva(String serial) {
     //
     // Devuelve el número como String (ej "+34612345678") o null si no se encontró.
     // ─────────────────────────────────────────────────────────────────────────
-    
 
     // ─────────────────────────────────────────────────────────────────────────
     // OBTENER SERIALES ADB CONECTADOS
@@ -974,144 +1420,146 @@ private boolean llamadaActiva(String serial) {
     // ─────────────────────────────────────────────────────────────────────────
 
     @FXML
-private void generarInformePDF() {
-    if (dispositivoActual == null || pasos.isEmpty()) return;
+    private void generarInformePDF() {
+        if (dispositivoActual == null || pasos.isEmpty())
+            return;
 
-    FileChooser fc = new FileChooser();
-    fc.setTitle("Guardar Informe PDF");
-    String userHome = System.getProperty("user.home");
-    File documentosPath = new File(userHome, "Documents");
-    if (documentosPath.exists()) fc.setInitialDirectory(documentosPath);
+        FileChooser fc = new FileChooser();
+        fc.setTitle("Guardar Informe PDF");
+        String userHome = System.getProperty("user.home");
+        File documentosPath = new File(userHome, "Documents");
+        if (documentosPath.exists())
+            fc.setInitialDirectory(documentosPath);
 
-    fc.setInitialFileName("Informe_Diagnostico_" + dispositivoActual.getSerialNumber() + ".pdf");
-    fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documento PDF", "*.pdf"));
+        fc.setInitialFileName("Informe_Diagnostico_" + dispositivoActual.getSerialNumber() + ".pdf");
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documento PDF", "*.pdf"));
 
-    File file = fc.showSaveDialog(btnInforme.getScene().getWindow());
-    if (file == null) return;
+        File file = fc.showSaveDialog(btnInforme.getScene().getWindow());
+        if (file == null)
+            return;
 
-    ADBService adb = new ADBService();
-    String serial;
-    try {
-        serial = adb.getSerialActivo(dispositivoActual.getAndroid_id());
-    } catch (IOException e) {
-        serial = dispositivoActual.getSerialNumber();
-    }
-    Map<String, String> specs = adb.obtenerSpecsHardware(serial);
+        ADBService adb = new ADBService();
+        String serial;
+        try {
+            serial = adb.getSerialActivo(dispositivoActual.getAndroid_id());
+        } catch (IOException e) {
+            serial = dispositivoActual.getSerialNumber();
+        }
+        Map<String, String> specs = adb.obtenerSpecsHardware(serial);
 
-    try (PDDocument doc = new PDDocument()) {
-        PDPage page = new PDPage();
-        doc.addPage(page);
+        try (PDDocument doc = new PDDocument()) {
+            PDPage page = new PDPage();
+            doc.addPage(page);
 
-        try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
 
-            // ── TÍTULO ───────────────────────────────────────────────────────
-            cs.beginText();
-            cs.setFont(PDType1Font.HELVETICA_BOLD, 18);
-            cs.newLineAtOffset(50, 750);
-            cs.showText("CERTIFICADO DE DIAGN" + limpiar("OSTICO") + " T" + limpiar("ECNICO"));
-            cs.endText();
-
-            // Línea separadora
-            cs.setLineWidth(1f);
-            cs.moveTo(50, 738);
-            cs.lineTo(550, 738);
-            cs.stroke();
-
-            // Fecha
-            cs.beginText();
-            cs.setFont(PDType1Font.HELVETICA, 10);
-            cs.newLineAtOffset(50, 724);
-            cs.showText("Fecha: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
-            cs.endText();
-
-            // ── IDENTIFICACIÓN ───────────────────────────────────────────────
-            int y = 700;
-            y = dibujarSeccion(cs, "IDENTIFICACION DEL DISPOSITIVO", y);
-            y = dibujarFila(cs, "Modelo",     limpiar(dispositivoActual.getModelo().getNombreModelo()), y);
-            y = dibujarFila(cs, "Marca",      limpiar(dispositivoActual.getModelo().getMarca().getNombre()), y);
-            y = dibujarFila(cs, "S/N",        limpiar(dispositivoActual.getSerialNumber()), y);
-            y = dibujarFila(cs, "Android ID", limpiar(dispositivoActual.getAndroid_id()), y);
-            y = dibujarFila(cs, "IMEI",       limpiar(specs.getOrDefault("IMEI", "N/A")), y);
-
-            // ── SOFTWARE ─────────────────────────────────────────────────────
-            y -= 8;
-            y = dibujarSeccion(cs, "SOFTWARE", y);
-            y = dibujarFila(cs, "Version Android",  limpiar(specs.getOrDefault("Android", "N/A")), y);
-            y = dibujarFila(cs, "Parche seguridad", limpiar(specs.getOrDefault("Parche", "N/A")), y);
-
-            // ── HARDWARE ─────────────────────────────────────────────────────
-            y -= 8;
-            y = dibujarSeccion(cs, "HARDWARE", y);
-            y = dibujarFila(cs, "CPU",            limpiar(specs.getOrDefault("CPU", "N/A")), y);
-            y = dibujarFila(cs, "RAM",            limpiar(specs.getOrDefault("RAM", "N/A")), y);
-            y = dibujarFila(cs, "Almacenamiento", limpiar(specs.getOrDefault("Storage", "N/A")), y);
-            y = dibujarFila(cs, "Resolucion",     limpiar(specs.getOrDefault("Resolucion", "N/A")), y);
-            y = dibujarFila(cs, "DPI",            limpiar(specs.getOrDefault("DPI", "N/A")), y);
-
-            // ── BATERÍA ──────────────────────────────────────────────────────
-            y -= 8;
-            y = dibujarSeccion(cs, "BATERIA", y);
-            y = dibujarFila(cs, "Nivel",  limpiar(specs.getOrDefault("Bateria", "N/A")), y);
-            y = dibujarFila(cs, "Estado", limpiar(specs.getOrDefault("EstadoCarga", "N/A")), y);
-
-            // ── RESULTADOS DE PRUEBAS ────────────────────────────────────────
-            y -= 8;
-            y = dibujarSeccion(cs, "RESULTADOS DE PRUEBAS", y);
-
-            for (PasoPrueba paso : pasos) {
-                String nombreLimpio = limpiar(paso.getNombre());
-
+                // ── TÍTULO ───────────────────────────────────────────────────────
                 cs.beginText();
-                cs.setFont(PDType1Font.HELVETICA, 9);
-                cs.setNonStrokingColor(java.awt.Color.BLACK);
-                cs.newLineAtOffset(55, y);
-                cs.showText(nombreLimpio);
+                cs.setFont(PDType1Font.HELVETICA_BOLD, 18);
+                cs.newLineAtOffset(50, 750);
+                cs.showText("CERTIFICADO DE DIAGN" + limpiar("OSTICO") + " T" + limpiar("ECNICO"));
                 cs.endText();
 
+                // Línea separadora
+                cs.setLineWidth(1f);
+                cs.moveTo(50, 738);
+                cs.lineTo(550, 738);
+                cs.stroke();
+
+                // Fecha
                 cs.beginText();
-                cs.setFont(PDType1Font.HELVETICA_BOLD, 9);
-                cs.newLineAtOffset(450, y);
-                if ("OK".equals(paso.getEstado())) {
-                    cs.setNonStrokingColor(new java.awt.Color(34, 139, 34));
-                    cs.showText("PASS");
-                } else {
-                    cs.setNonStrokingColor(java.awt.Color.RED);
-                    cs.showText("FAIL");
+                cs.setFont(PDType1Font.HELVETICA, 10);
+                cs.newLineAtOffset(50, 724);
+                cs.showText("Fecha: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+                cs.endText();
+
+                // ── IDENTIFICACIÓN ───────────────────────────────────────────────
+                int y = 700;
+                y = dibujarSeccion(cs, "IDENTIFICACION DEL DISPOSITIVO", y);
+                y = dibujarFila(cs, "Modelo", limpiar(dispositivoActual.getModelo().getNombreModelo()), y);
+                y = dibujarFila(cs, "Marca", limpiar(dispositivoActual.getModelo().getMarca().getNombre()), y);
+                y = dibujarFila(cs, "S/N", limpiar(dispositivoActual.getSerialNumber()), y);
+                y = dibujarFila(cs, "Android ID", limpiar(dispositivoActual.getAndroid_id()), y);
+                y = dibujarFila(cs, "IMEI", limpiar(specs.getOrDefault("IMEI", "N/A")), y);
+
+                // ── SOFTWARE ─────────────────────────────────────────────────────
+                y -= 8;
+                y = dibujarSeccion(cs, "SOFTWARE", y);
+                y = dibujarFila(cs, "Version Android", limpiar(specs.getOrDefault("Android", "N/A")), y);
+                y = dibujarFila(cs, "Parche seguridad", limpiar(specs.getOrDefault("Parche", "N/A")), y);
+
+                // ── HARDWARE ─────────────────────────────────────────────────────
+                y -= 8;
+                y = dibujarSeccion(cs, "HARDWARE", y);
+                y = dibujarFila(cs, "CPU", limpiar(specs.getOrDefault("CPU", "N/A")), y);
+                y = dibujarFila(cs, "RAM", limpiar(specs.getOrDefault("RAM", "N/A")), y);
+                y = dibujarFila(cs, "Almacenamiento", limpiar(specs.getOrDefault("Storage", "N/A")), y);
+                y = dibujarFila(cs, "Resolucion", limpiar(specs.getOrDefault("Resolucion", "N/A")), y);
+                y = dibujarFila(cs, "DPI", limpiar(specs.getOrDefault("DPI", "N/A")), y);
+
+                // ── BATERÍA ──────────────────────────────────────────────────────
+                y -= 8;
+                y = dibujarSeccion(cs, "BATERIA", y);
+                y = dibujarFila(cs, "Nivel", limpiar(specs.getOrDefault("Bateria", "N/A")), y);
+                y = dibujarFila(cs, "Estado", limpiar(specs.getOrDefault("EstadoCarga", "N/A")), y);
+
+                // ── RESULTADOS DE PRUEBAS ────────────────────────────────────────
+                y -= 8;
+                y = dibujarSeccion(cs, "RESULTADOS DE PRUEBAS", y);
+
+                for (PasoPrueba paso : pasos) {
+                    String nombreLimpio = limpiar(paso.getNombre());
+
+                    cs.beginText();
+                    cs.setFont(PDType1Font.HELVETICA, 9);
+                    cs.setNonStrokingColor(java.awt.Color.BLACK);
+                    cs.newLineAtOffset(55, y);
+                    cs.showText(nombreLimpio);
+                    cs.endText();
+
+                    cs.beginText();
+                    cs.setFont(PDType1Font.HELVETICA_BOLD, 9);
+                    cs.newLineAtOffset(450, y);
+                    if ("OK".equals(paso.getEstado())) {
+                        cs.setNonStrokingColor(new java.awt.Color(34, 139, 34));
+                        cs.showText("PASS");
+                    } else {
+                        cs.setNonStrokingColor(java.awt.Color.RED);
+                        cs.showText("FAIL");
+                    }
+                    cs.endText();
+
+                    y -= 14;
                 }
-                cs.endText();
-               
 
-                y -= 14;
+                // ── VEREDICTO FINAL ──────────────────────────────────────────────
+                y -= 15;
+
+                cs.fill();
+
+                cs.beginText();
+                cs.setFont(PDType1Font.HELVETICA_BOLD, 12);
+                cs.setNonStrokingColor(java.awt.Color.WHITE);
+                cs.newLineAtOffset(55, y + 2);
+
+                cs.endText();
+
             }
 
-            // ── VEREDICTO FINAL ──────────────────────────────────────────────
-            y -= 15;
-            
-            cs.fill();
+            try {
+                doc.save(file);
+                fichaTecnicaController.mostrarToast("PDF guardado: " + file.getAbsolutePath());
+                pasos.clear();
+                btnInforme.setDisable(true);
+            } catch (IOException e) {
+                mostrarAlertaError("Error de Acceso", "No se pudo guardar. Cierra el archivo si esta abierto.");
+            }
 
-            cs.beginText();
-            cs.setFont(PDType1Font.HELVETICA_BOLD, 12);
-            cs.setNonStrokingColor(java.awt.Color.WHITE);
-            cs.newLineAtOffset(55, y + 2);
-          
-            cs.endText();
-
+        } catch (Exception e) {
+            e.printStackTrace();
+            mostrarAlertaError("Error Critico", "Error al generar el PDF.");
         }
-
-        try {
-            doc.save(file);
-            fichaTecnicaController.mostrarToast("PDF guardado: " + file.getAbsolutePath());
-            pasos.clear();
-            btnInforme.setDisable(true);
-        } catch (IOException e) {
-            mostrarAlertaError("Error de Acceso", "No se pudo guardar. Cierra el archivo si esta abierto.");
-        }
-
-    } catch (Exception e) {
-        e.printStackTrace();
-        mostrarAlertaError("Error Critico", "Error al generar el PDF.");
     }
-}
 
     private int dibujarSeccion(PDPageContentStream cs, String titulo, int y) throws IOException {
         cs.setNonStrokingColor(new java.awt.Color(30, 30, 60));
