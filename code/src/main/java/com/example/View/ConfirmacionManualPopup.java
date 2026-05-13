@@ -9,6 +9,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -26,7 +27,7 @@ public class ConfirmacionManualPopup {
      *
      * @return true = PASS, false = FAIL
      */
-    public static boolean mostrarYEsperar(String nombreCompleto, Stage owner) {
+    public static boolean mostrarYEsperar(String nombreCompleto, Stage owner, String info) {
         CountDownLatch latch = new CountDownLatch(1);
         boolean[] resultado = { false }; // array para poder escribir desde el lambda
 
@@ -106,8 +107,31 @@ public class ConfirmacionManualPopup {
             HBox botones = new HBox(16, btnFail, btnPass);
             botones.setAlignment(Pos.CENTER_RIGHT);
 
-            root.getChildren().addAll(
-                    lblManual, lblId, new Separator(), lblDesc, lblInstruccion, botones);
+            root.getChildren().addAll(lblManual, lblId, new Separator(), lblDesc, lblInstruccion);
+
+            if (info != null && !info.isBlank()) {
+                Label lblInfoTitulo = new Label("Output:");
+                lblInfoTitulo.setFont(Font.font(null, FontWeight.BOLD, 11));
+                lblInfoTitulo.setTextFill(Color.web("#a6adc8"));
+
+                TextArea txtInfo = new TextArea(info);
+                txtInfo.setEditable(false);
+                txtInfo.setWrapText(true);
+                txtInfo.setPrefRowCount(14);
+                txtInfo.setPrefWidth(520);
+                txtInfo.setStyle(
+                        "-fx-background-color: #f8f8f8;" +
+                                "-fx-text-fill: #1a1a2e;" +
+                                "-fx-font-family: monospace;" +
+                                "-fx-font-size: 11px;" +
+                                "-fx-border-color: #45475a;" +
+                                "-fx-border-radius: 4;" +
+                                "-fx-background-radius: 4;");
+                root.getChildren().addAll(lblInfoTitulo, txtInfo);
+                root.setPrefWidth(560);
+            }
+            root.getChildren().addAll(new Separator(), botones);
+
 
             popup.setScene(new Scene(root));
             popup.show();
@@ -121,5 +145,9 @@ public class ConfirmacionManualPopup {
         }
 
         return resultado[0];
+    }
+
+    public static boolean mostrarYEsperar(String nombreCompleto, Stage owner){
+        return mostrarYEsperar(nombreCompleto, owner,null);
     }
 }

@@ -1,21 +1,29 @@
 package com.example.Model;
 
+import java.util.List;
+
 public class BloquePrueba {
     private final String id;
     private final String descripcion;
-    private final String comando;
+    private final List<String> comandos;
     private final boolean manual;
 
     public BloquePrueba(String id, String descripcion, String comando) {
-        this.id = id;
-        this.descripcion = descripcion;
-        this.comando = comando;
-        this.manual = false;
+        this(id, descripcion, List.of(comando), false);
     }
-    public BloquePrueba(String id, String descripcion, String comando, Boolean manual) {
+
+    public BloquePrueba(String id, String descripcion, String comando, boolean manual) {
+        this(id, descripcion, List.of(comando), manual);
+    }
+
+    public BloquePrueba(String id, String descripcion, List<String> comandos) {
+        this(id, descripcion, comandos, false);
+    }
+
+    public BloquePrueba(String id, String descripcion, List<String> comandos, boolean manual) {
         this.id = id;
         this.descripcion = descripcion;
-        this.comando = comando;
+        this.comandos = comandos;
         this.manual = manual;
     }
 
@@ -27,12 +35,16 @@ public class BloquePrueba {
         return descripcion;
     }
 
+    public List<String> getComandos() {
+        return comandos;
+    }
+
     public String getComando() {
-        return comando;
+        return comandos.get(0);
     }
 
     public PasoPrueba toPasoPrueba() {
-        return new PasoPrueba(id + "  —  " + descripcion, comando, manual);
+        return new PasoPrueba(id + "  —  " + descripcion, comandos, manual);
     }
 
     @Override

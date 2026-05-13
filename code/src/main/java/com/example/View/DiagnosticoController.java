@@ -79,27 +79,10 @@ public class DiagnosticoController implements DispositivoAware {
     private static final String TOUCH_PINCH = "__PINCH__";
     private static final String TOUCH_SPREAD = "__SPREAD__";
 
-    private static final String CLOCK_CHECK_TIME = "__CHECK_TIME__";
-    private static final String CLOCK_DATE_SETTINGS = "__DATE_SETTINGS__";
-    private static final String CLOCK_CHECK_ZONE = "__CHECK_ZONE__";
-    private static final String CLOCK_ADJUST_ZONE = "__ADJUST_ZONE__";
-    private static final String CLOCK_24H = "__24H__";
-    private static final String CLOCK_12H = "__12H__";
-    private static final String CLOCK_ADD_WORLD_TIME = "__ADD_WORLD_TIME__";
-    private static final String CLOCK_ALARM = "__ALARM__";
-    private static final String CLOCK_ALARM_EDIT = "__ALARM_EDIT__";
-    private static final String CLOCK_TIMER = "__TIMER__";
-    private static final String CLOCK_STOPWATCH = "__STOPWATCH__";
-    private static final Map<String, String> CLOCK_INTENTS = Map.of(
-            CLOCK_DATE_SETTINGS, "shell am start -a android.settings.DATE_SETTINGS",
-            CLOCK_ADJUST_ZONE, "shell am start -a android.settings.DATE_SETTINGS",
-            CLOCK_24H, "shell am start -a android.settings.DATE_SETTINGS",
-            CLOCK_12H, "shell am start -a android.settings.DATE_SETTINGS",
-            CLOCK_ADD_WORLD_TIME, "shell am start -n com.google.android.deskclock/com.android.deskclock.DeskClock",
-            CLOCK_ALARM, "shell am start -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOUR 8 --ei android.intent.extra.alarm.MINUTES 0 --ez android.intent.extra.alarm.SKIP_UI false",
-            CLOCK_ALARM_EDIT,   "shell am start -a android.intent.action.SHOW_ALARMS",
-            CLOCK_TIMER, "shell am start -a android.intent.action.SET_TIMER --ei android.intent.extra.alarm.LENGTH 60 --ez android.intent.extra.alarm.SKIP_UI false",
-            CLOCK_STOPWATCH, "shell am start -n com.google.android.deskclock/com.android.deskclock.DeskClock");
+    private static final String INFO_CHANGE_NAME = "__CHANGE_NAME__";
+    private static final String INFO_DEVICE_NAME_PC = "__DEVICE_NAME_PC__";
+    private static final String INFO_IP = "__IP__";
+    private static final String INFO_LOGCAT_BRAND = "__LOGCAT_BRAND__";
 
     // ─── Datos extra para los pasos de llamada avanzados ─────────────────────
     // Se rellenan cuando el usuario configura el paso en el popup.
@@ -384,80 +367,79 @@ public class DiagnosticoController implements DispositivoAware {
 
             for (PasoPrueba paso : pasos) {
                 final PasoPrueba ref = paso;
+
+                // 1. Marcar como ejecutando
                 Platform.runLater(() -> {
                     ref.setEstado("EJECUTANDO");
                     listaPasos.refresh();
                 });
 
+                boolean ok = false;
                 boolean esWifi = paso.getNombre().toLowerCase().contains("wifi") &&
                         paso.getNombre().toLowerCase().contains("levantar");
 
                 if (ref.isManual()) {
-                    String intent = CLOCK_INTENTS.get(ref.getComando());
-                    if (intent != null) {
-                        adb.ejecutarAccionHilo(serial, intent);
+                    if (!ref.getComando().isBlank()) {
+                        adb.ejecutarAccionHilo(serial, ref.getComando());
                     }
-
                     Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-                    boolean ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
 
                 } else if (esWifi) {
-                    ejecutarPasoWifiConEspera(adb, serial, paso);
+                    ok = ejecutarPasoWifiConEspera(adb, serial, paso);
 
                 } else if (CMD_LLAMADA_MASIVA.equals(paso.getComando())) {
-                    boolean ok = ejecutarLlamadaMasiva(paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarLlamadaMasiva(paso);
 
                 } else if (CMD_LLAMADA_ENTRE_DOS.equals(paso.getComando())) {
-                    boolean ok = ejecutarLlamadaEntreDos(paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarLlamadaEntreDos(paso);
 
                 } else if (TOUCH_PINCH.equals(paso.getComando())) {
-                    boolean ok = ejecutarPinch(serial, adb);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarPinch(serial, adb);
 
                 } else if (TOUCH_SPREAD.equals(paso.getComando())) {
-                    boolean ok = ejecutarSpread(serial, adb);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
-                } else if (CLOCK_CHECK_TIME.equals(paso.getComando())) {
-                    boolean ok = comprobarHora(serial, adb);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
-                } else if (CLOCK_CHECK_ZONE.equals(paso.getComando())) {
-                    boolean ok = comprobarZonaHoraria(serial, adb);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarSpread(serial, adb);
+
+                } else if (INFO_CHANGE_NAME.equals(ref.getComando())) {
+                    ok = cambiarYRestaurarNombre(serial, adb);
+
+                } else if (INFO_DEVICE_NAME_PC.equals(ref.getComando())) {
+                    boolean esUSB = !serial.contains(":");
+                    if (esUSB) {
+                        try {
+                            adb.ejecutarComandoSincrono(serial, "shell svc usb setFunctions mtp");
+                            Thread.sleep(1500);
+
+                            new ProcessBuilder("explorer.exe", "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}").start();
+                        } catch (IOException | InterruptedException e) {
+                            System.err.println("[MTP] Error abriendo explorador: " + e.getMessage());
+                        }
+                    }
+                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+                    String info = esUSB ? null : "";
+                    ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner, info);
+
+                } else if (INFO_IP.equals(ref.getComando())) {
+                    ok = comprobarIPAddress(serial, adb);
+
+                } else if (INFO_LOGCAT_BRAND.equals(ref.getComando())) {
+                    String logcat = adb.ejecutarComandoSincrono(serial, "shell logcat -d -t 100");
+                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+                    ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner, logcat);
+
                 } else {
-                    boolean exito = adb.ejecutarPasoSync(serial, paso.getComando());
+                    ok = adb.ejecutarYVerificar(serial, ref.getComandos());
                     try {
                         Thread.sleep(1_000);
                     } catch (InterruptedException ignored) {
                     }
-                    Platform.runLater(() -> {
-                        ref.setEstado(exito ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
                 }
+
+                final boolean resultadoFinal = ok;
+                Platform.runLater(() -> {
+                    ref.setEstado(resultadoFinal ? "OK" : "ERROR");
+                    listaPasos.refresh();
+                });
             }
 
             Platform.runLater(() -> {
@@ -797,29 +779,31 @@ public class DiagnosticoController implements DispositivoAware {
     public void addClockTest() {
         List<BloquePrueba> bloqueReloj = List.of(
                 new BloquePrueba("SOFT.005.001", "Check if network-provided time is shown properly",
-                        "__CHECK_TIME__"),
+                        "shell settings get global auto_time"),
                 new BloquePrueba("SOFT.005.002", "Adjust manually date and time",
-                        "__DATE_SETTINGS__", true),
+                        "shell am start -a android.settings.DATE_SETTINGS", true),
                 new BloquePrueba("SOFT.005.003", "Check if network-provided time zone is shown (GMT)",
-                        "__CHECK_ZONE__"),
+                        "shell settings get global auto_time_zone"),
                 new BloquePrueba("SOFT.005.004", "Adjust manually time zone",
-                        "__ADJUST_ZONE__", true),
+                        "shell am start -a android.settings.TIMEZONE_SETTINGS", true),
                 new BloquePrueba("SOFT.005.005", "Adjust 24-hour time format",
-                        "__24H__", true),
+                        "shell am start -a android.settings.DATE_SETTINGS", true),
                 new BloquePrueba("SOFT.005.006", "Adjust 12-hour time format",
-                        "__12H__", true),
+                        "shell am start -a android.settings.DATE_SETTINGS", true),
                 new BloquePrueba("SOFT.005.007", "Add an hour of world time list",
-                        "__ADD_WORLD_TIME__", true),
+                        "shell am start -n com.google.android.deskclock/com.android.deskclock.DeskClock", true),
                 new BloquePrueba("SOFT.005.008", "Add a new alarm",
-                        "__ALARM__",true),
+                        "shell am start -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOUR 8 --ei android.intent.extra.alarm.MINUTES 0 --ez android.intent.extra.alarm.SKIP_UI false",
+                        true),
                 new BloquePrueba("SOFT.005.009", "Edit an alarm",
-                        "__ALARM_EDIT__", true),
+                        "shell am start -a android.intent.action.SHOW_ALARMS", true),
                 new BloquePrueba("SOFT.005.010", "Delete an alarm",
-                        "__ALARM_EDIT__", true),
+                        "shell am start -a android.intent.action.SHOW_ALARMS", true),
                 new BloquePrueba("SOFT.005.011", "Check that timer works properly",
-                        "__TIMER__", true),
+                        "shell am start -a android.intent.action.SET_TIMER --ei android.intent.extra.alarm.LENGTH 60 --ez android.intent.extra.alarm.SKIP_UI false",
+                        true),
                 new BloquePrueba("SOFT.005.012", "Check that stopwatch works properly",
-                        "__STOPWATCH__", true));
+                        "shell am start -n com.google.android.deskclock/com.android.deskclock.DeskClock", true));
 
         Stage owner = (Stage) btnEjecutar.getScene().getWindow();
         SelectorPruebasPopup.mostrar("SOFT.005 — Clock functions", bloqueReloj, owner,
@@ -828,26 +812,99 @@ public class DiagnosticoController implements DispositivoAware {
                         .forEach(pasos::add));
     }
 
-    private boolean comprobarHora(String serial, ADBService adb) {
-        try {
-            ADBService.EjecucionADB r = adb.ejecutarADBConCodigo("adb", "-s", serial, "shell", "settings", "get",
-                    "global", "auto_time");
-            return r.exito() && "1".equals(r.outputJunto());
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
+    // PRUEBAS DE INFO
+    @FXML
+    public void addInfoTest() {
+        List<BloquePrueba> bloqueInfo = List.of(
+                new BloquePrueba("SOFT.012.001", "Check device name",
+                        "shell getprop ro.product.name"),
+                new BloquePrueba("SOFT.012.002", "Change device name",
+                        "__CHANGE_NAME__"),
+                new BloquePrueba("SOFT.012.003", "Check model name",
+                        "shell getprop ro.product.model"),
+                new BloquePrueba("SOFT.012.004", "Check serial number",
+                        "shell getprop ro.serialno"),
+                new BloquePrueba("SOFT.012.005", "Check software version",
+                        "shell getprop ro.build.version.release"),
+                new BloquePrueba("SOFT.012.006", "Check hardware version",
+                        List.of("shell getprop ro.revision", "shell getprop ro.boot.hardware.revision",
+                                "shell getprop ro.hardware.revision", "shell getprop ro.hardware")),
+                new BloquePrueba("SOFT.012.007", "Check IMEI number",
+                        "shell service call iphonesubinfo 1"),
+                new BloquePrueba("SOFT.012.008", "Check IMEISV number",
+                        "shell service call iphonesubinfo 11"),
+                new BloquePrueba("SOFT.012.009", "Check device name when connected to PC",
+                        "__DEVICE_NAME_PC__"),
+                new BloquePrueba("SOFT.012.010", "Check network name (net.hostname)",
+                        List.of("shell getprop net.hostname", "shell getprop ro.product.device",
+                                "shell getprop ro.product.name", "shell getprop ro.build.product")),
+                new BloquePrueba("SOFT.012.011", "Check IP address",
+                        "__IP__"),
+                new BloquePrueba("SOFT.012.012", "Check Wi-Fi MAC address",
+                        List.of(
+                                "shell getprop ro.boot.wifimacaddr",
+                                "shell getprop wifi.interface",
+                                "shell getprop ro.boot.mac_addr",
+                                "shell getprop ro.ethernet.addr",
+                                "shell ip link show wlan0",
+                                "shell ip addr show wlan0")),
+                new BloquePrueba("SOFT.012.013", "Check Bluetooth address",
+                        "shell settings get secure bluetooth_address"),
+                new BloquePrueba("SOFT.012.014", "Check build number",
+                        "shell getprop ro.build.display.id"),
+                new BloquePrueba("SOFT.012.015", "Check ro.product.code",
+                        List.of("shell getprop ro.product.code", "shell getprop ro.product.name",
+                                "shell getprop ro.product.model", "shell getprop ro.build.product")),
+                new BloquePrueba("SOFT.012.016", "Check ro.product.brand",
+                        "shell getprop ro.product.brand"),
+                new BloquePrueba("SOFT.012.017", "Check logcat for fabricant references",
+                        "__LOGCAT_BRAND__"));
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar("SOFT.012 — Info", bloqueInfo, owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
     }
 
-    private boolean comprobarZonaHoraria(String serial, ADBService adb) {
-        try {
-            ADBService.EjecucionADB r = adb.ejecutarADBConCodigo("adb", "-s", serial, "shell", "settings", "get",
-                    "global", "auto_time_zone");
-            return r.exito() && "1".equals(r.outputJunto());
-        } catch (IOException e) {
-            e.printStackTrace();
+    private boolean cambiarYRestaurarNombre(String serial, ADBService adb) {
+        String nombreOriginal = adb.ejecutarComandoSincrono(serial,
+                "shell settings get global device_name");
+        if (nombreOriginal == null)
             return false;
+        nombreOriginal = nombreOriginal.trim();
+
+        adb.ejecutarComandoSincrono(serial,
+                "shell settings put global device_name TEST_DEVICE");
+
+        String verificacion = adb.ejecutarComandoSincrono(serial,
+                "shell settings get global device_name");
+        boolean cambioOk = "TEST_DEVICE".equals(verificacion != null ? verificacion.trim() : "");
+
+        adb.ejecutarComandoSincronoArray(serial,
+                "shell", "settings", "put", "global", "device_name", nombreOriginal);
+
+        String restauracion = adb.ejecutarComandoSincrono(serial,
+                "shell settings get global device_name");
+        boolean restauroOk = nombreOriginal.equals(restauracion != null ? restauracion.trim() : "");
+
+        // FALLBACK intentar con espacios sustituidos por barras bajas
+        if (!restauroOk) {
+            String nombreSeguro = nombreOriginal.replace(" ", "_");
+            adb.ejecutarComandoSincrono(serial,
+                    "shell settings put global device_name " + nombreSeguro);
+
+            restauracion = adb.ejecutarComandoSincrono(serial,
+                    "shell settings get global device_name");
+            restauroOk = nombreSeguro.equals(restauracion != null ? restauracion.trim() : "");
         }
+
+        return cambioOk && restauroOk;
+    }
+
+    private boolean comprobarIPAddress(String serial, ADBService adb) {
+        String output = adb.ejecutarComandoSincrono(serial, "shell ip addr show wlan0");
+        return output != null && output.contains("inet ");
     }
 
     private String obtenerSerialADBActual() {
@@ -1039,24 +1096,69 @@ public class DiagnosticoController implements DispositivoAware {
     // ─────────────────────────────────────────────────────────────────────────
     // WIFI CON ESPERA (igual que antes)
     // ─────────────────────────────────────────────────────────────────────────
+    // private boolean ejecutarPasoWifiConEspera(ADBService adb, String serial,
+    // PasoPrueba paso) {
+    // System.out.println("[WIFI] Activando interfaz WiFi...");
+    // adb.ejecutarPasoSync(serial, paso.getComando());
+
+    // if (tieneIpWifi(serial)) {
+    // System.out.println("[WIFI] Conectado automáticamente ✔");
+    // Platform.runLater(() -> {
+    // paso.setEstado("OK");
+    // listaPasos.refresh();
+    // });
+    // return true;
+    // }
+    // System.out.println("[WIFI] Sin red — abriendo ajustes WiFi...");
+    // ejecutarShellEnSerial(serial, "am start -a android.settings.WIFI_SETTINGS");
+    // Platform.runLater(() -> {
+    // paso.setEstado("ESPERANDO WIFI...");
+    // listaPasos.refresh();
+    // });
+
+    // long inicio = System.currentTimeMillis();
+    // boolean conectado = false;
+
+    // while (System.currentTimeMillis() - inicio < WIFI_TIMEOUT_MS) {
+    // try {
+    // Thread.sleep(WIFI_POLL_INTERVAL_MS);
+    // } catch (InterruptedException e) {
+    // Thread.currentThread().interrupt();
+    // break;
+    // }
+
+    // long restanteMs = WIFI_TIMEOUT_MS - (System.currentTimeMillis() - inicio);
+    // int min = (int) (restanteMs / 60_000);
+    // int seg = (int) ((restanteMs % 60_000) / 1_000);
+    // final String cuenta = String.format("ESPERANDO WIFI... %d:%02d", min, seg);
+    // Platform.runLater(() -> {
+    // paso.setEstado(cuenta);
+    // listaPasos.refresh();
+    // });
+    // if (tieneIpWifi(serial)) {
+    // conectado = true;
+    // break;
+    // }
+    // }
+    // final String estadoFinal = conectado ? "OK" : "ERROR";
+    // Platform.runLater(() -> {
+    // paso.setEstado(estadoFinal);
+    // listaPasos.refresh();
+    // });
+    // return conectado;
+    // }
     private boolean ejecutarPasoWifiConEspera(ADBService adb, String serial, PasoPrueba paso) {
         System.out.println("[WIFI] Activando interfaz WiFi...");
         adb.ejecutarPasoSync(serial, paso.getComando());
 
         if (tieneIpWifi(serial)) {
             System.out.println("[WIFI] Conectado automáticamente ✔");
-            Platform.runLater(() -> {
-                paso.setEstado("OK");
-                listaPasos.refresh();
-            });
+
             return true;
         }
+
         System.out.println("[WIFI] Sin red — abriendo ajustes WiFi...");
         ejecutarShellEnSerial(serial, "am start -a android.settings.WIFI_SETTINGS");
-        Platform.runLater(() -> {
-            paso.setEstado("ESPERANDO WIFI...");
-            listaPasos.refresh();
-        });
 
         long inicio = System.currentTimeMillis();
         boolean conectado = false;
@@ -1072,21 +1174,19 @@ public class DiagnosticoController implements DispositivoAware {
             long restanteMs = WIFI_TIMEOUT_MS - (System.currentTimeMillis() - inicio);
             int min = (int) (restanteMs / 60_000);
             int seg = (int) ((restanteMs % 60_000) / 1_000);
+
             final String cuenta = String.format("ESPERANDO WIFI... %d:%02d", min, seg);
+
             Platform.runLater(() -> {
                 paso.setEstado(cuenta);
                 listaPasos.refresh();
             });
+
             if (tieneIpWifi(serial)) {
                 conectado = true;
                 break;
             }
         }
-        final String estadoFinal = conectado ? "OK" : "ERROR";
-        Platform.runLater(() -> {
-            paso.setEstado(estadoFinal);
-            listaPasos.refresh();
-        });
         return conectado;
     }
 

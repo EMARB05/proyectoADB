@@ -95,6 +95,14 @@
                             </VBox>
                         </graphic>
                     </Button>
+                    <Button onAction="#addInfoTest" styleClass="btn-hw,btn-modern">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                <FontIcon iconLiteral="fas-info-circle" iconSize="24" iconColor="#517fff"/>
+                                <Label text="Info" style="-fx-font-size: 9px;"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
                 </HBox>
             </ScrollPane>
 
