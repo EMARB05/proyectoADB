@@ -30,39 +30,79 @@ import com.example.Model.Soc;
 public class ADBService {
     private String rutaRemotaActual;
 
-    /**
-     * MÉTODO MOTOR (Privado): Es el único que realmente toca el ProcessBuilder.
-     * Recibe un array de strings y devuelve la salida del comando.
-     */
-
-    private List<String> ejecutarADB(String... comando) throws IOException {
-        List<String> resultado = new ArrayList<>();
-
-        // Sustituye "adb" por la ruta del embebido ANTES de arrancar el proceso
+    // Motor privado que captura exit code + output
+    // Solo lo usan los métodos de diganóstico que necesitan saber si el comando
+    // realmente funcionó
+    private EjecucionADB ejecutarADBConCodigo(String... comando) throws IOException {
         String adbDir = System.getProperty("aea.adb.path");
-        if (adbDir != null && comando.length > 0 && comando[0].equals("adb")) {
+        if (adbDir != null && comando.length > 0 && comando[0].equals("adb"))
             comando[0] = adbDir + File.separator + "adb.exe";
-        }
 
         ProcessBuilder pb = new ProcessBuilder(comando);
         pb.redirectErrorStream(true);
-        Process proceso = pb.start(); // ← ahora sí arranca con la ruta correcta
+        Process proceso = pb.start();
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(proceso.getInputStream()))) {
+        List<String> lineas = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(proceso.getInputStream()))) {
             String linea;
-            while ((linea = reader.readLine()) != null) {
-                resultado.add(linea);
-            }
+            while ((linea = reader.readLine()) != null)
+                lineas.add(linea);
+        }
+
+        int exitCode;
+        try {
+            exitCode = proceso.waitFor();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            exitCode = -1;
         } finally {
             proceso.destroy();
+        }
+
+        return new EjecucionADB(exitCode, lineas);
+    }
+
+    // ejecutarADB ahora delega
+    private List<String> ejecutarADB(String... comando) throws IOException {
+        return ejecutarADBConCodigo(comando).lineas();
+    }
+
+    // ADBService — nuevo método que devuelve el resultado completo
+    public EjecucionADB ejecutarYObtener(String serial, List<String> comandos) {
+        for (String comandoShell : comandos) {
             try {
-                proceso.waitFor();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                List<String> fullCmd = new ArrayList<>(List.of("adb", "-s", serial));
+                Matcher m = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)").matcher(comandoShell);
+                while (m.find()) {
+                    if (m.group(1) != null)
+                        fullCmd.add(m.group(1));
+                    else if (m.group(2) != null)
+                        fullCmd.add(m.group(2));
+                    else
+                        fullCmd.add(m.group(3));
+                }
+                EjecucionADB r = ejecutarADBConCodigo(fullCmd.toArray(new String[0]));
+                String output = r.outputJunto().toLowerCase();
+
+                if (output.contains("error") || output.contains("not found") || output.contains("permission denied")) {
+                    continue;
+                }
+                if (r.exito()) {
+                    return r;
+                }
+            } catch (IOException e) {
+                // prueba el siguiente
             }
         }
-        return resultado;
+        return new EjecucionADB(-1, List.of()); // ninguno funcionó
+    }
+
+    public boolean ejecutarYVerificar(String serial, List<String> comandos) {
+        return ejecutarYObtener(serial, comandos).exito();
+    }
+
+    public boolean ejecutarYVerificar(String serial, String comandoShell) {
+        return ejecutarYVerificar(serial, List.of(comandoShell));
     }
 
     public String exportarApnsXml(String serial) throws IOException {
@@ -132,7 +172,6 @@ public class ADBService {
 
                 // Llamamos al motor
                 ejecutarADB(fullCmd.toArray(new String[0]));
-                System.out.println("ADB Ejecutado en hilo: " + comandoShell);
 
             } catch (IOException e) {
                 System.err.println("Error en hilo ADB: " + e.getMessage());
@@ -168,25 +207,42 @@ public class ADBService {
             // TESTING
 
             List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
-            System.out.println("ADB Ejecutado Sincrono: " + comandoShell);
-            System.out.println("Resultado del comando: " + salida);
 
             // Retornamos la primera línea de la respuesta (ej: "1") o vacío si no hay nada
             if (salida != null && !salida.isEmpty()) {
                 return String.join("\n", salida).trim();
             }
-
+            return "";
         } catch (IOException e) {
             System.err.println("Error ADB Síncrono: " + e.getMessage());
+            return null;
 
         }
-        return "";
+
+    }
+
+    public String ejecutarComandoSincronoArray(String serial, String... partes) {
+        try {
+            List<String> fullCmd = new ArrayList<>(List.of("adb", "-s", serial));
+            fullCmd.addAll(List.of(partes));
+            List<String> resultado = ejecutarADB(fullCmd.toArray(new String[0]));
+            return resultado != null ? String.join("\n", resultado).trim() : null;
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
+    // MÉTODO PARA DIAGNOSTICO CONTROLLER
+    public boolean ejecutarComandoSincronoBoolean(String serial, String comandoShell) {
+        String resultado = ejecutarComandoSincrono(serial, comandoShell);
+        return resultado != null;
     }
 
     public Map<String, String> obtenerSpecsHardware(String serial) {
         Map<String, String> specs = new HashMap<>();
         try {
-            // RAM en GB
+            // RAM en GBs
             String ramRaw = ejecutarComandoSincrono(serial, "shell cat /proc/meminfo | grep MemTotal");
             String ramKb = ramRaw.replaceAll("[^0-9]", "").trim();
             if (!ramKb.isEmpty()) {
@@ -853,5 +909,15 @@ public class ADBService {
         if (abi.contains("x86"))
             return nombre.contains("x86") && !nombre.contains("x86_64");
         return true; // si no reconocemos el ABI, incluimos todo
+    }
+
+    public record EjecucionADB(int exitCode, List<String> lineas) {
+        public boolean exito() {
+            return exitCode == 0;
+        }
+
+        public String outputJunto() {
+            return String.join("\n", lineas).trim();
+        }
     }
 }

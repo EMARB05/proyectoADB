@@ -10,8 +10,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import javax.imageio.ImageIO;
+
+import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
+
 import com.example.Controller.ADBService;
 import com.example.Controller.PerfilesManager;
+import com.example.Model.BloquePrueba;
 import com.example.Model.Dispositivo;
 import com.example.Model.Entradas;
 import com.example.Model.LlamadasD17;
@@ -69,6 +76,11 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private FichaTecnicaController fichaTecnicaController;
 
     @FXML
+    private ScrollPane scrollCategorias;
+    @FXML
+    private ScrollPane scrollHardware;
+
+    @FXML
     private Button btnEjecutar;
 
     @FXML
@@ -100,6 +112,23 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private String transferenciaResponderSerial = null;
     private String conferenciaNumero = null;
     private String conferenciaReceptorSerial = null;
+
+    private static final String TOUCH_PINCH = "__PINCH__";
+    private static final String TOUCH_SPREAD = "__SPREAD__";
+
+    private static final String INFO_CHANGE_NAME = "__CHANGE_NAME__";
+    private static final String INFO_DEVICE_NAME_PC = "__DEVICE_NAME_PC__";
+    private static final String INFO_IP = "__IP__";
+    private static final String INFO_LOGCAT_BRAND = "__LOGCAT_BRAND__";
+
+    private static final String DISPLAY_BRIGHTNESS_CHANGE = "__BRIGHTNESS_CHANGE__";
+    private static final String DISPLAY_BRIGHTNESS_CHECK = "__BRIGHTNESS_CHECK__";
+    private static final String DISPLAY_WALLPAPER = "__WALLPAPER__";
+    private static final String DISPLAY_TIMEOUT_CHECK = "__TIMEOUT_CHECK__";
+    private static final String DISPLAY_TIMEOUT_CHANGE = "__TIMEOUT_CHANGE__";
+    private static final String DISPLAY_FONT_SIZE = "__FONT_SIZE__";
+    private static final String DISPLAY_DISPLAY_SIZE = "__DISPLAY_SZIE__";
+    private static final String DISPLAY_SCREENSAVER = "__SCREENSAVER__";
 
     // ─── Datos extra para los pasos de llamada avanzados ─────────────────────
     // Se rellenan cuando el usuario configura el paso en el popup.
@@ -157,6 +186,40 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 }
             }
         });
+    }
+
+    private void scroll(ScrollPane scrollPane, int direccion) {
+        double width = scrollPane.getContent().getBoundsInLocal().getWidth();
+        double viewportWidth = scrollPane.getViewportBounds().getWidth();
+
+        double scrollRange = width - viewportWidth;
+        if (scrollRange > 0) {
+            double saltoPixeles = 100.0; // pixeles de scroll
+            double valorIncremento = saltoPixeles / scrollRange;
+
+            double nuevoValor = scrollPane.getHvalue() + (direccion * valorIncremento);
+            scrollPane.setHvalue(Math.max(0.0, Math.min(nuevoValor, 1.0)));
+        }
+    }
+
+    @FXML
+    private void scrollIzquierda() {
+        scroll(scrollCategorias, -1);
+    }
+
+    @FXML
+    private void scrollDerecha() {
+        scroll(scrollCategorias, 1);
+    }
+
+    @FXML
+    private void scrollIzquierdaHw() {
+        scroll(scrollHardware, -1);
+    }
+
+    @FXML
+    private void scrollDerechaHw() {
+        scroll(scrollHardware, 1);
     }
 
     @Override
@@ -815,104 +878,153 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
             for (PasoPrueba paso : pasos) {
                 final PasoPrueba ref = paso;
+
+                // 1. Marcar como ejecutando
                 Platform.runLater(() -> {
                     ref.setEstado("EJECUTANDO");
                     listaPasos.refresh();
                 });
 
+                boolean ok = false;
+                String outputDetalle = "";
                 boolean esWifi = paso.getNombre().toLowerCase().contains("wifi") &&
                         paso.getNombre().toLowerCase().contains("levantar");
 
-                if (esWifi) {
-                    ejecutarPasoWifiConEspera(adb, serial, paso);
+                if (ref.isManual()) {
+                    if (!ref.getComando().isBlank()) {
+                        adb.ejecutarAccionHilo(serial, ref.getComando());
+                    }
+                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+                    ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
+
+                } else if (esWifi) {
+                    ok = ejecutarPasoWifiConEspera(adb, serial, paso);
 
                 } else if (CMD_LLAMADA_MASIVA.equals(paso.getComando())) {
-                    boolean ok = ejecutarLlamadaMasiva(paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarLlamadaMasiva(paso);
 
                 } else if (CMD_LLAMADA_ENTRE_DOS.equals(paso.getComando())) {
-                    boolean ok = ejecutarLlamadaEntreDos(paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarLlamadaEntreDos(paso);
 
                 } else if (CMD_EMERGENCIA.equals(paso.getComando())) {
-                    boolean ok = ejecutarEmergencia(serial, paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarEmergencia(serial, paso);
 
                 } else if (CMD_HOLD_RETRIEVE.equals(paso.getComando())) {
-                    boolean ok = ejecutarHoldRetrieve(serial, paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarHoldRetrieve(serial, paso);
 
                 } else if (CMD_DTMF.equals(paso.getComando())) {
-                    boolean ok = ejecutarDTMF(serial, paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarDTMF(serial, paso);
 
                 } else if (CMD_LLAMADA_ENTRANTE.equals(paso.getComando())) {
-                    boolean ok = ejecutarLlamadaEntrante(paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarLlamadaEntrante(paso);
 
                 } else if (CMD_MUTE.equals(paso.getComando())) {
-                    boolean ok = ejecutarMute(serial, paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarMute(serial, paso);
 
                 } else if (CMD_RED_ACTIVA.equals(paso.getComando())) {
-                    boolean ok = ejecutarTestRedActiva(serial, paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarTestRedActiva(serial, paso);
                 } else if (CMD_TRANSFERENCIA.equals(paso.getComando())) {
-                    boolean ok = ejecutarTransferencia(serial, paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarTransferencia(serial, paso);
 
                 } else if (CMD_CONFERENCIA.equals(paso.getComando())) {
-                    boolean ok = ejecutarConferencia(serial, paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarConferencia(serial, paso);
                 } else if (CMD_TRANSFERENCIA_CIEGA.equals(paso.getComando())) {
-                    boolean ok = ejecutarTransferenciaCiega(serial, paso);
-                    Platform.runLater(() -> {
-                        ref.setEstado(ok ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
+                    ok = ejecutarTransferenciaCiega(serial, paso);
                 }
 
-                else {
-                    boolean exito = adb.ejecutarPasoSync(serial, paso.getComando());
+              
+                 else if (TOUCH_PINCH.equals(paso.getComando())) {
+                    ok = ejecutarPinch(serial, adb);
+
+                } else if (TOUCH_SPREAD.equals(paso.getComando())) {
+                    ok = ejecutarSpread(serial, adb);
+
+                } else if (INFO_CHANGE_NAME.equals(ref.getComando())) {
+                    ok = cambiarYRestaurarNombre(serial, adb);
+
+                } else if (INFO_DEVICE_NAME_PC.equals(ref.getComando())) {
+                    boolean esUSB = !serial.contains(":");
+                    if (esUSB) {
+                        try {
+                            adb.ejecutarComandoSincrono(serial, "shell svc usb setFunctions mtp");
+                            Thread.sleep(1500);
+
+                            new ProcessBuilder("explorer.exe", "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}").start();
+                        } catch (IOException | InterruptedException e) {
+                            System.err.println("[MTP] Error abriendo explorador: " + e.getMessage());
+                        }
+                    }
+                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+                    String info = esUSB ? null : "";
+                    ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner, info);
+
+                } else if (INFO_IP.equals(ref.getComando())) {
+                    String output = adb.ejecutarComandoSincrono(serial, "shell ip -f inet addr show wlan0");
+                    if (output != null && output.contains("inet ")) {
+                        ok = true;
+                        String ip = "";
+                        for (String linea : output.split("\n")) {
+                            linea = linea.trim();
+                            if (linea.startsWith("inet ")) {
+                                ip = linea.split(" ")[1];
+                                ip = ip.split("/")[0];
+                                break;
+                            }
+                        }
+                        outputDetalle = ip;
+                    } else {
+                        ok = false;
+                        outputDetalle = "";
+                    }
+
+                } else if (INFO_LOGCAT_BRAND.equals(ref.getComando())) {
+                    String logcat = adb.ejecutarComandoSincrono(serial, "shell logcat -d -t 100");
+                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+                    ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner, logcat);
+
+                } else if (DISPLAY_BRIGHTNESS_CHANGE.equals(ref.getComando())) {
+                    ok = cambiarYVerificarBrillo(serial, adb);
+                } else if (DISPLAY_BRIGHTNESS_CHECK.equals(ref.getComando())) {
+                    String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_brightness");
+                    ok = comprobarBrilloPorDefecto(serial, adb);
+                    outputDetalle = valor != null ? "DEFAULT: " + valor.trim() + "/255" : "";
+                } else if (DISPLAY_WALLPAPER.equals(ref.getComando())) {
+                    ok = cambiarWallpaper(serial, adb);
+                } else if (DISPLAY_TIMEOUT_CHECK.equals(ref.getComando())) {
+                    String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_off_timeout");
+                    ok = comprobarTimeoutPorDefecto(serial, adb);
+                    outputDetalle = valor != null ? "DEFAULT: " + valor.trim() + "ms" : "";
+                } else if (DISPLAY_TIMEOUT_CHANGE.equals(ref.getComando())) {
+                    ok = cambiarYVerificarTimeout(serial, adb);
+                } else if (DISPLAY_FONT_SIZE.equals(ref.getComando())) {
+                    ok = cambiarYRestaurarFuente(serial, adb);
+                } else if (DISPLAY_DISPLAY_SIZE.equals(ref.getComando())) {
+                    ok = cambiarYRestaurarDisplaySize(serial, adb);
+                } else if (DISPLAY_SCREENSAVER.equals(ref.getComando())) {
+                    ok = comprobarScreensaver(serial, adb);
+                    adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_WAKEUP");
+                } else {
+                    ADBService.EjecucionADB r = adb.ejecutarYObtener(serial, ref.getComandos());
+                    ok = r.exito();
+                    outputDetalle = r.outputJunto();
+                     boolean exito = adb.ejecutarPasoSync(serial, paso.getComando());
+                    if (outputDetalle.contains("Parcel")) {
+                        outputDetalle = parsearParcelIMEI(outputDetalle);
+                    }
+
                     try {
                         Thread.sleep(1_000);
                     } catch (InterruptedException ignored) {
                     }
-                    Platform.runLater(() -> {
-                        ref.setEstado(exito ? "OK" : "ERROR");
-                        listaPasos.refresh();
-                    });
                 }
+
+                final boolean resultadoFinal = ok;
+                final String detalleFinal = outputDetalle;
+                Platform.runLater(() -> {
+                    ref.setEstado(resultadoFinal ? "OK" : "ERROR");
+                    ref.setOutputDetalle(detalleFinal);
+                    listaPasos.refresh();
+                });
             }
 
             Platform.runLater(() -> {
@@ -1397,6 +1509,457 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
                 exito ? "PASS ✔" : "FAIL ✖");
         return exito;
     }
+      
+
+
+    // Pruebas de TOUCHSCREEN
+    @FXML
+    private void addTouchScreenTest() {
+        List<BloquePrueba> bloqueTouchScreen = List.of(
+                new BloquePrueba("SOFT.004.001", "Check single tap on touchscreen",
+                        "shell input tap 540 960"),
+                new BloquePrueba("SOFT.004.002", "Check double tap on touchscreen",
+                        "shell input tap 540 960 && sleep 0.3 && input tap 540 960"),
+                new BloquePrueba("SOFT.004.003", "Check long press (press and hold) on touchscreen",
+                        "shell input swipe 540 960 540 961 1500"),
+                new BloquePrueba("SOFT.004.004", "Check drag on touchscreen",
+                        "shell input swipe 200 500 700 500 800"),
+                new BloquePrueba("SOFT.004.005", "Check flick movement on touchscreen",
+                        "shell input swipe 200 500 700 500 100"),
+                new BloquePrueba("SOFT.004.006", "Check pinch on touchscreen",
+                        "__PINCH__"),
+                new BloquePrueba("SOFT.004.007", "Check spread on touchscreen",
+                        "__SPREAD__"));
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+
+        SelectorPruebasPopup.mostrar(
+                "SOFT.004 — Touch Screen",
+                bloqueTouchScreen,
+                owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
+    }
+
+    public boolean ejecutarPinch(String serial, ADBService adb) {
+        boolean[] resultados = { false, false };
+        Thread t1 = new Thread(
+                () -> resultados[0] = adb.ejecutarComandoSincronoBoolean(serial,
+                        "shell input swipe 200 600 540 960 600"));
+        Thread t2 = new Thread(
+                () -> resultados[1] = adb.ejecutarComandoSincronoBoolean(serial,
+                        "shell input swipe 880 1320 540 960 600"));
+        t1.start();
+        t2.start();
+        try {
+            t1.join(3_000);
+            t2.join(3_000);
+        } catch (InterruptedException ignored) {
+        }
+        return resultados[0] && resultados[1];
+    }
+
+    public boolean ejecutarSpread(String serial, ADBService adb) {
+        boolean[] resultados = { false, false };
+        Thread t1 = new Thread(
+                () -> resultados[0] = adb.ejecutarComandoSincronoBoolean(serial,
+                        "shell input swipe 540 960 200 600 600"));
+        Thread t2 = new Thread(
+                () -> resultados[1] = adb.ejecutarComandoSincronoBoolean(serial,
+                        "shell input swipe 540 960 880 1320 600"));
+        t1.start();
+        t2.start();
+
+        try {
+            t1.join(3_000);
+            t2.join(3_000);
+        } catch (InterruptedException ignored) {
+        }
+        return resultados[0] && resultados[1];
+    }
+
+    // PRUEBAS DEL RELOJ
+    @FXML
+    public void addClockTest() {
+        List<BloquePrueba> bloqueReloj = List.of(
+                new BloquePrueba("SOFT.005.001", "Check if network-provided time is shown properly",
+                        "shell settings get global auto_time"),
+                new BloquePrueba("SOFT.005.002", "Adjust manually date and time",
+                        "shell am start -a android.settings.DATE_SETTINGS", true),
+                new BloquePrueba("SOFT.005.003", "Check if network-provided time zone is shown (GMT)",
+                        "shell settings get global auto_time_zone"),
+                new BloquePrueba("SOFT.005.004", "Adjust manually time zone",
+                        "shell am start -a android.settings.TIMEZONE_SETTINGS", true),
+                new BloquePrueba("SOFT.005.005", "Adjust 24-hour time format",
+                        "shell am start -a android.settings.DATE_SETTINGS", true),
+                new BloquePrueba("SOFT.005.006", "Adjust 12-hour time format",
+                        "shell am start -a android.settings.DATE_SETTINGS", true),
+                new BloquePrueba("SOFT.005.007", "Add an hour of world time list",
+                        "shell am start -n com.google.android.deskclock/com.android.deskclock.DeskClock", true),
+                new BloquePrueba("SOFT.005.008", "Add a new alarm",
+                        "shell am start -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOUR 8 --ei android.intent.extra.alarm.MINUTES 0 --ez android.intent.extra.alarm.SKIP_UI false",
+                        true),
+                new BloquePrueba("SOFT.005.009", "Edit an alarm",
+                        "shell am start -a android.intent.action.SHOW_ALARMS", true),
+                new BloquePrueba("SOFT.005.010", "Delete an alarm",
+                        "shell am start -a android.intent.action.SHOW_ALARMS", true),
+                new BloquePrueba("SOFT.005.011", "Check that timer works properly",
+                        "shell am start -a android.intent.action.SET_TIMER --ei android.intent.extra.alarm.LENGTH 30 --ez android.intent.extra.alarm.SKIP_UI false",
+                        true),
+                new BloquePrueba("SOFT.005.012", "Check that stopwatch works properly",
+                        "shell am start -n com.google.android.deskclock/com.android.deskclock.DeskClock", true));
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar("SOFT.005 — Clock functions", bloqueReloj, owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
+    }
+
+    // PRUEBAS DE INFO
+    @FXML
+    public void addInfoTest() {
+        List<BloquePrueba> bloqueInfo = List.of(
+                new BloquePrueba("SOFT.012.001", "Check device name",
+                        "shell getprop ro.product.name"),
+                new BloquePrueba("SOFT.012.002", "Change device name",
+                        "__CHANGE_NAME__"),
+                new BloquePrueba("SOFT.012.003", "Check model name",
+                        "shell getprop ro.product.model"),
+                new BloquePrueba("SOFT.012.004", "Check serial number",
+                        "shell getprop ro.serialno"),
+                new BloquePrueba("SOFT.012.005", "Check software version",
+                        "shell getprop ro.build.version.release"),
+                new BloquePrueba("SOFT.012.006", "Check hardware version",
+                        List.of("shell getprop ro.revision", "shell getprop ro.boot.hardware.revision",
+                                "shell getprop ro.hardware.revision", "shell getprop ro.hardware")),
+                new BloquePrueba("SOFT.012.007", "Check IMEI number",
+                        List.of("shell service call iphonesubinfo 1 s16 com.android.shell",
+                                "shell service call iphonesubinfo 1")),
+                new BloquePrueba("SOFT.012.008", "Check IMEISV number",
+                        "shell am start -a android.settings.DEVICE_INFO_SETTINGS", true),
+                new BloquePrueba("SOFT.012.009", "Check device name when connected to PC",
+                        "__DEVICE_NAME_PC__"),
+                new BloquePrueba("SOFT.012.010", "Check network name (net.hostname)",
+                        List.of("shell getprop net.hostname", "shell getprop ro.product.device",
+                                "shell getprop ro.product.name", "shell getprop ro.build.product")),
+                new BloquePrueba("SOFT.012.011", "Check IP address",
+                        "__IP__"),
+                new BloquePrueba("SOFT.012.012", "Check Wi-Fi MAC address",
+                        List.of(
+                                "shell getprop ro.boot.wifimacaddr",
+                                "shell getprop wifi.interface",
+                                "shell getprop ro.boot.mac_addr",
+                                "shell getprop ro.ethernet.addr",
+                                "shell ip link show wlan0",
+                                "shell ip addr show wlan0")),
+                new BloquePrueba("SOFT.012.013", "Check Bluetooth address",
+                        "shell settings get secure bluetooth_address"),
+                new BloquePrueba("SOFT.012.014", "Check build number",
+                        "shell getprop ro.build.display.id"),
+                new BloquePrueba("SOFT.012.015", "Check ro.product.code",
+                        List.of("shell getprop ro.product.code", "shell getprop ro.product.name",
+                                "shell getprop ro.product.model", "shell getprop ro.build.product")),
+                new BloquePrueba("SOFT.012.016", "Check ro.product.brand",
+                        "shell getprop ro.product.brand"),
+                new BloquePrueba("SOFT.012.017", "Check logcat for fabricant references",
+                        "__LOGCAT_BRAND__"));
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar("SOFT.012 — Info", bloqueInfo, owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
+    }
+
+    private boolean cambiarYRestaurarNombre(String serial, ADBService adb) {
+        String nombreOriginal = adb.ejecutarComandoSincrono(serial,
+                "shell settings get global device_name");
+        if (nombreOriginal == null)
+            return false;
+        nombreOriginal = nombreOriginal.trim();
+
+        adb.ejecutarComandoSincrono(serial,
+                "shell settings put global device_name TEST_DEVICE");
+
+        String verificacion = adb.ejecutarComandoSincrono(serial,
+                "shell settings get global device_name");
+        boolean cambioOk = "TEST_DEVICE".equals(verificacion != null ? verificacion.trim() : "");
+
+        adb.ejecutarComandoSincronoArray(serial,
+                "shell", "settings", "put", "global", "device_name", nombreOriginal);
+
+        String restauracion = adb.ejecutarComandoSincrono(serial,
+                "shell settings get global device_name");
+        boolean restauroOk = nombreOriginal.equals(restauracion != null ? restauracion.trim() : "");
+
+        // FALLBACK intentar con espacios sustituidos por barras bajas
+        if (!restauroOk) {
+            String nombreSeguro = nombreOriginal.replace(" ", "_");
+            adb.ejecutarComandoSincrono(serial,
+                    "shell settings put global device_name " + nombreSeguro);
+
+            restauracion = adb.ejecutarComandoSincrono(serial,
+                    "shell settings get global device_name");
+            restauroOk = nombreSeguro.equals(restauracion != null ? restauracion.trim() : "");
+        }
+
+        return cambioOk && restauroOk;
+    }
+
+    // PRUEBAS DE DISPLAY
+    @FXML
+    private void addDisplayTest() {
+        List<BloquePrueba> bloqueDisplay = List.of(
+                new BloquePrueba("SOFT.008.001", "Change brightness level", DISPLAY_BRIGHTNESS_CHANGE),
+                new BloquePrueba("SOFT.008.002", "Check default brightness about 75%", DISPLAY_BRIGHTNESS_CHECK),
+                new BloquePrueba("SOFT.008.003", "Change wallpaper",
+                        DISPLAY_WALLPAPER),
+                new BloquePrueba("SOFT.008.004", "Check default time of screen timeout (1 minute)",
+                        DISPLAY_TIMEOUT_CHECK),
+                new BloquePrueba("SOFT.008.005", "Change the screen timeout and check if it works",
+                        DISPLAY_TIMEOUT_CHANGE),
+                new BloquePrueba("SOFT.008.006", "Change font size",
+                        DISPLAY_FONT_SIZE),
+                new BloquePrueba("SOFT.008.007", "Change display size",
+                        DISPLAY_DISPLAY_SIZE),
+                new BloquePrueba("SOFT.008.008", "Set a screen saver and check if it works",
+                        DISPLAY_SCREENSAVER),
+                new BloquePrueba("SOFT.008.009", "Check Company colour in UI",
+                        "shell am start -a android.settings.DISPLAY_SETTINGS", true));
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar("SOFT.008 - Display", bloqueDisplay, owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
+    }
+
+    private boolean cambiarYVerificarBrillo(String serial, ADBService adb) {
+        String valorInicial = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_brightness");
+        if (!valorInicial.equals("192")) {
+            adb.ejecutarComandoSincrono(serial, "shell settings put system screen_brightness 192");
+            String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_brightness");
+            adb.ejecutarComandoSincrono(serial, "shell settings put system screen_brightness " + valorInicial.trim());
+            return valor != null && valor.trim().equals("192");
+        } else {
+            adb.ejecutarComandoSincrono(serial, "shell settings put system screen_brightness 190");
+            String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_brightness");
+            adb.ejecutarComandoSincrono(serial, "shell settings put system screen_brightness " + valorInicial.trim());
+            return valor != null && valor.trim().equals("190");
+        }
+    }
+
+    private boolean comprobarBrilloPorDefecto(String serial, ADBService adb) {
+        String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_brightness");
+        if (valor == null) {
+            return false;
+        }
+        try {
+            int brillo = Integer.parseInt(valor.trim());
+            return brillo >= 150 && brillo <= 210;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private boolean cambiarWallpaper(String serial, ADBService adb) {
+        try {
+            String wallpaperOriginal = adb.ejecutarComandoSincrono(serial,
+                    "shell settings get secure wallpaper_component");
+            System.out.println("[WALLPAPER] Original: " + wallpaperOriginal);
+
+            BufferedImage img = new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = img.createGraphics();
+            g.setColor(java.awt.Color.RED);
+            g.fillRect(0, 0, 100, 100);
+            g.dispose();
+
+            File tempFile = File.createTempFile("wallpaper_test", ".jpg");
+            ImageIO.write(img, "jpg", tempFile);
+            System.out.println("[WALLPAPER] Imagen creada en: " + tempFile.getAbsolutePath());
+
+            String rutaImagen = "/data/local/tmp/wallpaper_test.jpg";
+            Process pushImg = new ProcessBuilder("adb", "-s", serial, "push",
+                    tempFile.getAbsolutePath(), rutaImagen).start();
+            pushImg.waitFor();
+            
+            System.out.println("[WALLPAPER] Push imagen exit code: " + pushImg.exitValue());
+            tempFile.delete();
+
+            adb.ejecutarComandoSincrono(serial, "shell chmod 644 "+rutaImagen);
+
+            java.net.URL apkUrl = getClass().getResource("/apk/WallpaperSetter.apk");
+            System.out.println("[WALLPAPER] APK URL: " + apkUrl);
+            if (apkUrl == null) {
+                System.out.println("[WALLPAPER] ERROR — APK no encontrada en resources");
+                return false;
+            }
+
+            File apkFile = new File(apkUrl.toURI());
+            String apkLocal = apkFile.getAbsolutePath();
+            System.out.println("[WALLPAPER] APK path corregido: " + apkLocal);
+
+            String rutaApk = "/sdcard/WallpaperSetter.apk";
+            Process pushApk = new ProcessBuilder("adb", "-s", serial, "push",
+                    apkLocal, rutaApk).start();
+            pushApk.waitFor();
+            System.out.println("[WALLPAPER] Push APK exit code: " + pushApk.exitValue());
+
+            Process install = new ProcessBuilder("adb", "-s", serial,
+                    "install", "-r", apkLocal).start();
+            install.waitFor();
+            // Leer output de instalación
+            String installOutput = new String(install.getInputStream().readAllBytes());
+            System.out.println("[WALLPAPER] Install output: " + installOutput);
+            System.out.println("[WALLPAPER] Install exit code: " + install.exitValue());
+            Thread.sleep(2000);
+
+            adb.ejecutarComandoSincrono(serial, "shell logcat -c");
+            adb.ejecutarComandoSincrono(serial,
+                    "shell am broadcast -a com.example.wallpapersetter.SET_WALLPAPER " +
+                            "--es image_path " + rutaImagen +
+                            " -n com.example.wallpapersetter/.WallpaperReceiver");
+
+            Thread.sleep(2000);
+
+            String logcat = adb.ejecutarComandoSincrono(serial,
+                    "shell logcat -d -t 50 -s WallpaperSetter");
+            System.out.println("[WALLPAPER] Logcat WallpaperSetter: " + logcat);
+            boolean cambioOk = logcat != null
+                    && logcat.contains("Wallpaper establecido correctamente");
+            System.out.println("[WALLPAPER] cambioOk: " + cambioOk);
+
+            if (wallpaperOriginal != null && !wallpaperOriginal.equals("null")
+                    && !wallpaperOriginal.isBlank()) {
+                String restoreResult = adb.ejecutarComandoSincrono(serial,
+                        "shell am broadcast -a com.example.wallpapersetter.SET_WALLPAPER " +
+                                "--es image_path " + wallpaperOriginal +
+                                " -n com.example.wallpapersetter/.WallpaperReceiver");
+                System.out.println("[WALLPAPER] Restore result: " + restoreResult);
+            }
+
+            Process uninstall = new ProcessBuilder("adb", "-s", serial,
+                    "uninstall", "com.example.wallpapersetter").start();
+            uninstall.waitFor();
+            System.out.println("[WALLPAPER] Uninstall exit code: " + uninstall.exitValue());
+
+            adb.ejecutarComandoSincrono(serial, "shell rm " + rutaImagen);
+            adb.ejecutarComandoSincrono(serial, "shell rm " + rutaApk);
+
+            return cambioOk;
+
+        } catch (Exception e) {
+            System.out.println("[WALLPAPER] Excepción: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean comprobarTimeoutPorDefecto(String serial, ADBService adb) {
+        String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_off_timeout");
+        if (valor == null) {
+            return false;
+        }
+        try {
+            int timeout = Integer.parseInt(valor.trim());
+            return timeout >= 55000 && timeout <= 65000;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private boolean cambiarYVerificarTimeout(String serial, ADBService adb) {
+        String valorInicial = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_off_timeout");
+        if (!valorInicial.equals("120000")) {
+            adb.ejecutarComandoSincrono(serial, "shell settings put system screen_off_timeout 120000");
+            String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_off_timeout");
+            adb.ejecutarComandoSincrono(serial, "shell settings put system screen_off_timeout " + valorInicial.trim());
+            return valor != null && valor.trim().equals("120000");
+        } else {
+            adb.ejecutarComandoSincrono(serial, "shell settings put system screen_off_timeout 110000");
+            String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_off_timeout");
+            adb.ejecutarComandoSincrono(serial, "shell settings put system screen_off_timeout " + valorInicial.trim());
+            return valor != null && valor.trim().equals("110000");
+        }
+    }
+
+    private boolean cambiarYRestaurarFuente(String serial, ADBService adb) {
+        String valorInicial = adb.ejecutarComandoSincrono(serial, "shell settings get system font_scale");
+        if (valorInicial == null) {
+            return false;
+        }
+        valorInicial = valorInicial.trim();
+        boolean cambioOk = false;
+        if (!valorInicial.equals("1.15")) {
+            adb.ejecutarComandoSincrono(serial, "shell settings put system font_scale 1.15");
+            String verificacion = adb.ejecutarComandoSincrono(serial, "shell settings get system font_scale");
+            cambioOk = verificacion != null && verificacion.trim().startsWith("1.15");
+        } else {
+            adb.ejecutarComandoSincrono(serial, "shell settings put system font_scale 1.13");
+            String verificacion = adb.ejecutarComandoSincrono(serial, "shell settings get system font_scale");
+            cambioOk = verificacion != null && verificacion.trim().startsWith("1.13");
+        }
+        adb.ejecutarComandoSincrono(serial, "shell settings put system font_scale " + valorInicial);
+        String restauracion = adb.ejecutarComandoSincrono(serial, "shell settings get system font_scale");
+        boolean restauroOk = valorInicial.equals(restauracion != null ? restauracion.trim() : "");
+
+        return cambioOk && restauroOk;
+    }
+
+    private boolean cambiarYRestaurarDisplaySize(String serial, ADBService adb) {
+        String salidaInicial = adb.ejecutarComandoSincrono(serial, "shell wm size");
+        if (salidaInicial == null || salidaInicial.isEmpty()) {
+            return false;
+        }
+        String valorOriginal = salidaInicial.trim();
+
+        boolean cambioOk = false;
+
+        if (!valorOriginal.contains("720x1280")) {
+            adb.ejecutarComandoSincrono(serial, "shell wm size " + "720x1280");
+            String verificacion = adb.ejecutarComandoSincrono(serial, "shell wm size");
+            cambioOk = verificacion != null && verificacion.contains("720x1280");
+        } else {
+            adb.ejecutarComandoSincrono(serial, "shell wm size 1080x1920");
+            String verificacion = adb.ejecutarComandoSincrono(serial, "shell wm size");
+            cambioOk = verificacion != null && verificacion.contains("1080x1920");
+        }
+
+        if (!valorOriginal.contains("Override size")) {
+            adb.ejecutarComandoSincrono(serial, "shell wm size reset");
+        } else {
+            String[] partes = valorOriginal.split(":");
+            String resolucionPura = partes[partes.length - 1].trim();
+            adb.ejecutarComandoSincrono(serial, "shell wm size " + resolucionPura);
+        }
+        String restauracion = adb.ejecutarComandoSincrono(serial, "shell wm size");
+        boolean restauroOk = restauracion != null && restauracion.trim().equals(valorOriginal);
+
+        return cambioOk && restauroOk;
+    }
+
+    private boolean comprobarScreensaver(String serial, ADBService adb) {
+        adb.ejecutarComandoSincrono(serial, "shell settings put secure screensaver_enabled 1");
+        adb.ejecutarComandoSincrono(serial, "shell service call dreams 1 s16 \"com.android.dreams.basic/.BasicDream\"");
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        String todoElEstado = adb.ejecutarComandoSincrono(serial, "shell dumpsys dreams");
+
+        if (todoElEstado == null || todoElEstado.isEmpty()) {
+            return false;
+        }
+
+        boolean tieneDreamActivo = todoElEstado.contains("mCurrentDream=DreamRecord")
+                && !todoElEstado.contains("mCurrentDream=null");
+        return tieneDreamActivo;
+    }
+
     private String obtenerSerialADBActual() {
         if (dispositivoActual == null)
             return null;
@@ -1580,24 +2143,69 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
     // ─────────────────────────────────────────────────────────────────────────
     // WIFI CON ESPERA (igual que antes)
     // ─────────────────────────────────────────────────────────────────────────
+    // private boolean ejecutarPasoWifiConEspera(ADBService adb, String serial,
+    // PasoPrueba paso) {
+    // System.out.println("[WIFI] Activando interfaz WiFi...");
+    // adb.ejecutarPasoSync(serial, paso.getComando());
+
+    // if (tieneIpWifi(serial)) {
+    // System.out.println("[WIFI] Conectado automáticamente ✔");
+    // Platform.runLater(() -> {
+    // paso.setEstado("OK");
+    // listaPasos.refresh();
+    // });
+    // return true;
+    // }
+    // System.out.println("[WIFI] Sin red — abriendo ajustes WiFi...");
+    // ejecutarShellEnSerial(serial, "am start -a android.settings.WIFI_SETTINGS");
+    // Platform.runLater(() -> {
+    // paso.setEstado("ESPERANDO WIFI...");
+    // listaPasos.refresh();
+    // });
+
+    // long inicio = System.currentTimeMillis();
+    // boolean conectado = false;
+
+    // while (System.currentTimeMillis() - inicio < WIFI_TIMEOUT_MS) {
+    // try {
+    // Thread.sleep(WIFI_POLL_INTERVAL_MS);
+    // } catch (InterruptedException e) {
+    // Thread.currentThread().interrupt();
+    // break;
+    // }
+
+    // long restanteMs = WIFI_TIMEOUT_MS - (System.currentTimeMillis() - inicio);
+    // int min = (int) (restanteMs / 60_000);
+    // int seg = (int) ((restanteMs % 60_000) / 1_000);
+    // final String cuenta = String.format("ESPERANDO WIFI... %d:%02d", min, seg);
+    // Platform.runLater(() -> {
+    // paso.setEstado(cuenta);
+    // listaPasos.refresh();
+    // });
+    // if (tieneIpWifi(serial)) {
+    // conectado = true;
+    // break;
+    // }
+    // }
+    // final String estadoFinal = conectado ? "OK" : "ERROR";
+    // Platform.runLater(() -> {
+    // paso.setEstado(estadoFinal);
+    // listaPasos.refresh();
+    // });
+    // return conectado;
+    // }
     private boolean ejecutarPasoWifiConEspera(ADBService adb, String serial, PasoPrueba paso) {
         System.out.println("[WIFI] Activando interfaz WiFi...");
         adb.ejecutarPasoSync(serial, paso.getComando());
 
         if (tieneIpWifi(serial)) {
             System.out.println("[WIFI] Conectado automáticamente ✔");
-            Platform.runLater(() -> {
-                paso.setEstado("OK");
-                listaPasos.refresh();
-            });
+
             return true;
         }
+
         System.out.println("[WIFI] Sin red — abriendo ajustes WiFi...");
         ejecutarShellEnSerial(serial, "am start -a android.settings.WIFI_SETTINGS");
-        Platform.runLater(() -> {
-            paso.setEstado("ESPERANDO WIFI...");
-            listaPasos.refresh();
-        });
 
         long inicio = System.currentTimeMillis();
         boolean conectado = false;
@@ -1613,21 +2221,19 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
             long restanteMs = WIFI_TIMEOUT_MS - (System.currentTimeMillis() - inicio);
             int min = (int) (restanteMs / 60_000);
             int seg = (int) ((restanteMs % 60_000) / 1_000);
+
             final String cuenta = String.format("ESPERANDO WIFI... %d:%02d", min, seg);
+
             Platform.runLater(() -> {
                 paso.setEstado(cuenta);
                 listaPasos.refresh();
             });
+
             if (tieneIpWifi(serial)) {
                 conectado = true;
                 break;
             }
         }
-        final String estadoFinal = conectado ? "OK" : "ERROR";
-        Platform.runLater(() -> {
-            paso.setEstado(estadoFinal);
-            listaPasos.refresh();
-        });
         return conectado;
     }
 
@@ -1753,103 +2359,143 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
         Map<String, String> specs = adb.obtenerSpecsHardware(serial);
 
         try (PDDocument doc = new PDDocument()) {
-            PDPage page = new PDPage();
-            doc.addPage(page);
 
-            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+            // ── Estado mutable de página ──────────────────────────────────────────
+            // Usamos array de 1 elemento para poder modificarlos desde lambdas/helpers
+            final PDPage[] paginaActual = { new PDPage() };
+            doc.addPage(paginaActual[0]);
+            final PDPageContentStream[] cs = {
+                    new PDPageContentStream(doc, paginaActual[0])
+            };
+            final int[] y = { 750 };
 
-                // ── TÍTULO ───────────────────────────────────────────────────────
-                cs.beginText();
-                cs.setFont(PDType1Font.HELVETICA_BOLD, 18);
-                cs.newLineAtOffset(50, 750);
-                cs.showText("CERTIFICADO DE DIAGN" + limpiar("OSTICO") + " T" + limpiar("ECNICO"));
-                cs.endText();
+            // Helper para saltar de página
+            // Cierra el stream actual, crea nueva página y abre nuevo stream
+            Runnable nuevaPagina = () -> {
+                try {
+                    cs[0].close();
+                    PDPage nuevaPag = new PDPage();
+                    doc.addPage(nuevaPag);
+                    cs[0] = new PDPageContentStream(doc, nuevaPag);
+                    y[0] = 750;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            };
 
-                // Línea separadora
-                cs.setLineWidth(1f);
-                cs.moveTo(50, 738);
-                cs.lineTo(550, 738);
-                cs.stroke();
+            // Helper para comprobar espacio y saltar si hace falta
+            Runnable checkSalto = () -> {
+                if (y[0] < 60)
+                    nuevaPagina.run();
+            };
 
-                // Fecha
-                cs.beginText();
-                cs.setFont(PDType1Font.HELVETICA, 10);
-                cs.newLineAtOffset(50, 724);
-                cs.showText("Fecha: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
-                cs.endText();
+            // ── TÍTULO ────────────────────────────────────────────────────────────
+            cs[0].beginText();
+            cs[0].setFont(PDType1Font.HELVETICA_BOLD, 18);
+            cs[0].newLineAtOffset(50, y[0]);
+            cs[0].showText("CERTIFICADO DE DIAGNOSTICO TECNICO");
+            cs[0].endText();
 
-                // ── IDENTIFICACIÓN ───────────────────────────────────────────────
-                int y = 700;
-                y = dibujarSeccion(cs, "IDENTIFICACION DEL DISPOSITIVO", y);
-                y = dibujarFila(cs, "Modelo", limpiar(dispositivoActual.getModelo().getNombreModelo()), y);
-                y = dibujarFila(cs, "Marca", limpiar(dispositivoActual.getModelo().getMarca().getNombre()), y);
-                y = dibujarFila(cs, "S/N", limpiar(dispositivoActual.getSerialNumber()), y);
-                y = dibujarFila(cs, "Android ID", limpiar(dispositivoActual.getAndroid_id()), y);
-                y = dibujarFila(cs, "IMEI", limpiar(specs.getOrDefault("IMEI", "N/A")), y);
+            cs[0].setLineWidth(1f);
+            cs[0].moveTo(50, y[0] - 12);
+            cs[0].lineTo(550, y[0] - 12);
+            cs[0].stroke();
+            y[0] -= 26;
 
-                // ── SOFTWARE ─────────────────────────────────────────────────────
-                y -= 8;
-                y = dibujarSeccion(cs, "SOFTWARE", y);
-                y = dibujarFila(cs, "Version Android", limpiar(specs.getOrDefault("Android", "N/A")), y);
-                y = dibujarFila(cs, "Parche seguridad", limpiar(specs.getOrDefault("Parche", "N/A")), y);
+            cs[0].beginText();
+            cs[0].setFont(PDType1Font.HELVETICA, 10);
+            cs[0].newLineAtOffset(50, y[0]);
+            cs[0].showText("Fecha: " + LocalDateTime.now()
+                    .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+            cs[0].endText();
+            y[0] -= 24;
 
-                // ── HARDWARE ─────────────────────────────────────────────────────
-                y -= 8;
-                y = dibujarSeccion(cs, "HARDWARE", y);
-                y = dibujarFila(cs, "CPU", limpiar(specs.getOrDefault("CPU", "N/A")), y);
-                y = dibujarFila(cs, "RAM", limpiar(specs.getOrDefault("RAM", "N/A")), y);
-                y = dibujarFila(cs, "Almacenamiento", limpiar(specs.getOrDefault("Storage", "N/A")), y);
-                y = dibujarFila(cs, "Resolucion", limpiar(specs.getOrDefault("Resolucion", "N/A")), y);
-                y = dibujarFila(cs, "DPI", limpiar(specs.getOrDefault("DPI", "N/A")), y);
+            // ── IDENTIFICACIÓN ────────────────────────────────────────────────────
+            y[0] = dibujarSeccionPDF(cs[0], "IDENTIFICACION DEL DISPOSITIVO", y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "Modelo", limpiar(dispositivoActual.getModelo().getNombreModelo()), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "Marca", limpiar(dispositivoActual.getModelo().getMarca().getNombre()), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "S/N", limpiar(dispositivoActual.getSerialNumber()), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "Android ID", limpiar(dispositivoActual.getAndroid_id()), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "IMEI", limpiar(specs.getOrDefault("IMEI", "N/A")), y[0]);
 
-                // ── BATERÍA ──────────────────────────────────────────────────────
-                y -= 8;
-                y = dibujarSeccion(cs, "BATERIA", y);
-                y = dibujarFila(cs, "Nivel", limpiar(specs.getOrDefault("Bateria", "N/A")), y);
-                y = dibujarFila(cs, "Estado", limpiar(specs.getOrDefault("EstadoCarga", "N/A")), y);
+            // ── SOFTWARE ──────────────────────────────────────────────────────────
+            y[0] -= 8;
+            y[0] = dibujarSeccionPDF(cs[0], "SOFTWARE", y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "Version Android", limpiar(specs.getOrDefault("Android", "N/A")), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "Parche seguridad", limpiar(specs.getOrDefault("Parche", "N/A")), y[0]);
 
-                // ── RESULTADOS DE PRUEBAS ────────────────────────────────────────
-                y -= 8;
-                y = dibujarSeccion(cs, "RESULTADOS DE PRUEBAS", y);
+            // ── HARDWARE ──────────────────────────────────────────────────────────
+            y[0] -= 8;
+            y[0] = dibujarSeccionPDF(cs[0], "HARDWARE", y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "CPU", limpiar(specs.getOrDefault("CPU", "N/A")), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "RAM", limpiar(specs.getOrDefault("RAM", "N/A")), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "Almacenamiento", limpiar(specs.getOrDefault("Storage", "N/A")), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "Resolucion", limpiar(specs.getOrDefault("Resolucion", "N/A")), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "DPI", limpiar(specs.getOrDefault("DPI", "N/A")), y[0]);
 
-                for (PasoPrueba paso : pasos) {
-                    String nombreLimpio = limpiar(paso.getNombre());
+            // ── BATERÍA ───────────────────────────────────────────────────────────
+            y[0] -= 8;
+            y[0] = dibujarSeccionPDF(cs[0], "BATERIA", y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "Nivel", limpiar(specs.getOrDefault("Bateria", "N/A")), y[0]);
+            y[0] = dibujarFilaPDF(cs[0], "Estado", limpiar(specs.getOrDefault("EstadoCarga", "N/A")), y[0]);
 
-                    cs.beginText();
-                    cs.setFont(PDType1Font.HELVETICA, 9);
-                    cs.setNonStrokingColor(java.awt.Color.BLACK);
-                    cs.newLineAtOffset(55, y);
-                    cs.showText(nombreLimpio);
-                    cs.endText();
+            // ── RESULTADOS DE PRUEBAS ─────────────────────────────────────────────
+            y[0] -= 8;
+            checkSalto.run();
+            y[0] = dibujarSeccionPDF(cs[0], "RESULTADOS DE PRUEBAS", y[0]);
 
-                    cs.beginText();
-                    cs.setFont(PDType1Font.HELVETICA_BOLD, 9);
-                    cs.newLineAtOffset(450, y);
-                    if ("OK".equals(paso.getEstado())) {
-                        cs.setNonStrokingColor(new java.awt.Color(34, 139, 34));
-                        cs.showText("PASS");
-                    } else {
-                        cs.setNonStrokingColor(java.awt.Color.RED);
-                        cs.showText("FAIL");
-                    }
-                    cs.endText();
-
-                    y -= 14;
+            for (PasoPrueba paso : pasos) {
+                // Salto de página si no hay espacio
+                if (y[0] < 60) {
+                    nuevaPagina.run();
+                    y[0] = dibujarSeccionPDF(cs[0], "RESULTADOS DE PRUEBAS (cont.)", y[0]);
                 }
 
-                // ── VEREDICTO FINAL ──────────────────────────────────────────────
-                y -= 15;
+                // Nombre de la prueba
+                cs[0].beginText();
+                cs[0].setFont(PDType1Font.HELVETICA, 9);
+                cs[0].setNonStrokingColor(java.awt.Color.BLACK);
+                cs[0].newLineAtOffset(55, y[0]);
+                cs[0].showText(limpiar(paso.getNombre()));
+                cs[0].endText();
 
-                cs.fill();
+                // PASS / FAIL
+                cs[0].beginText();
+                cs[0].setFont(PDType1Font.HELVETICA_BOLD, 9);
+                cs[0].newLineAtOffset(450, y[0]);
+                if ("OK".equals(paso.getEstado())) {
+                    cs[0].setNonStrokingColor(new java.awt.Color(34, 139, 34));
+                    cs[0].showText("PASS");
+                } else {
+                    cs[0].setNonStrokingColor(java.awt.Color.RED);
+                    cs[0].showText("FAIL");
+                }
+                cs[0].endText();
+                y[0] -= 14;
 
-                cs.beginText();
-                cs.setFont(PDType1Font.HELVETICA_BOLD, 12);
-                cs.setNonStrokingColor(java.awt.Color.WHITE);
-                cs.newLineAtOffset(55, y + 2);
+                // Output detalle
+                String detalle = paso.getOutputDetalle();
+                if (detalle != null && !detalle.isBlank()) {
+                    if (y[0] < 60) {
+                        nuevaPagina.run();
+                        y[0] = dibujarSeccionPDF(cs[0], "RESULTADOS DE PRUEBAS (cont.)", y[0]);
+                    }
+                    String detalleLimpio = limpiar(detalle);
+                    if (detalleLimpio.length() > 80)
+                        detalleLimpio = detalleLimpio.substring(0, 80) + "...";
 
-                cs.endText();
-
+                    cs[0].beginText();
+                    cs[0].setFont(PDType1Font.HELVETICA_OBLIQUE, 7);
+                    cs[0].setNonStrokingColor(new java.awt.Color(100, 100, 100));
+                    cs[0].newLineAtOffset(65, y[0]);
+                    cs[0].showText(detalleLimpio);
+                    cs[0].endText();
+                    y[0] -= 10;
+                }
             }
+
+            // Cerrar el último stream
+            cs[0].close();
 
             try {
                 doc.save(file);
@@ -1866,36 +2512,53 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
         }
     }
 
-    private int dibujarSeccion(PDPageContentStream cs, String titulo, int y) throws IOException {
+    private int dibujarSeccionPDF(PDPageContentStream cs, String titulo, int y) throws IOException {
         cs.setNonStrokingColor(new java.awt.Color(30, 30, 60));
         cs.addRect(50, y - 4, 500, 16);
         cs.fill();
-
         cs.beginText();
         cs.setNonStrokingColor(java.awt.Color.WHITE);
         cs.setFont(PDType1Font.HELVETICA_BOLD, 10);
         cs.newLineAtOffset(55, y);
         cs.showText(titulo);
         cs.endText();
-
         cs.setNonStrokingColor(java.awt.Color.BLACK);
         return y - 20;
     }
 
-    private int dibujarFila(PDPageContentStream cs, String clave, String valor, int y) throws IOException {
+    private int dibujarFilaPDF(PDPageContentStream cs, String clave, String valor, int y) throws IOException {
         cs.beginText();
         cs.setFont(PDType1Font.HELVETICA_BOLD, 9);
         cs.newLineAtOffset(55, y);
         cs.showText(limpiar(clave) + ":");
         cs.endText();
-
         cs.beginText();
         cs.setFont(PDType1Font.HELVETICA, 9);
         cs.newLineAtOffset(200, y);
         cs.showText(limpiar(valor));
         cs.endText();
-
         return y - 14;
+    }
+
+    private String parsearParcelIMEI(String parcelRaw) {
+        StringBuilder resultado = new StringBuilder();
+        for (String linea : parcelRaw.split("\n")) {
+            int fin = linea.indexOf('\'');
+            int inicio = linea.lastIndexOf('\'');
+            if (fin == inicio || fin == -1)
+                continue;
+            String chars = linea.substring(fin + 1, inicio);
+            for (String c : chars.split("\\.")) {
+                c = c.trim();
+                if (c.matches("[0-9]"))
+                    resultado.append(c);
+            }
+        }
+        String r = resultado.toString();
+        // IMEI = 15 dígitos, IMEISV = 16 — usamos lo que haya hasta el máximo
+        if (r.length() >= 15)
+            return r.substring(0, Math.min(r.length(), 16));
+        return parcelRaw;
     }
 
     private String limpiar(String texto) {

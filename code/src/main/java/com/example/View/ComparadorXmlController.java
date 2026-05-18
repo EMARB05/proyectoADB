@@ -208,7 +208,7 @@ private String generarIdVisible(Element el) {
 
     }
 
-    private void limpiarComentariosPatch(Document doc) {
+    public void limpiarComentariosPatch(Document doc) {
         NodeList hijos = doc.getDocumentElement().getChildNodes();
         List<Node> aEliminar = new ArrayList<>();
 
