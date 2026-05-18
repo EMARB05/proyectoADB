@@ -67,32 +67,38 @@ public class ADBService {
         return ejecutarADBConCodigo(comando).lineas();
     }
 
-    public boolean ejecutarYVerificar(String serial, List<String> comandos) {
+    // ADBService — nuevo método que devuelve el resultado completo
+    public EjecucionADB ejecutarYObtener(String serial, List<String> comandos) {
         for (String comandoShell : comandos) {
             try {
                 List<String> fullCmd = new ArrayList<>(List.of("adb", "-s", serial));
                 Matcher m = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)").matcher(comandoShell);
                 while (m.find()) {
-                    if (m.group(1) != null) {
+                    if (m.group(1) != null)
                         fullCmd.add(m.group(1));
-                    } else if (m.group(2) != null) {
+                    else if (m.group(2) != null)
                         fullCmd.add(m.group(2));
-                    } else {
+                    else
                         fullCmd.add(m.group(3));
-                    }
                 }
                 EjecucionADB r = ejecutarADBConCodigo(fullCmd.toArray(new String[0]));
                 String output = r.outputJunto().toLowerCase();
 
-                if (r.exito() && !output.isBlank() && !output.contains("error") && !output.contains("not found")
-                        && !output.contains("permission denied")) {
-                    return true;
+                if (output.contains("error") || output.contains("not found") || output.contains("permission denied")) {
+                    continue;
+                }
+                if (r.exito()) {
+                    return r;
                 }
             } catch (IOException e) {
-
+                // prueba el siguiente
             }
         }
-        return false;
+        return new EjecucionADB(-1, List.of()); // ninguno funcionó
+    }
+
+    public boolean ejecutarYVerificar(String serial, List<String> comandos) {
+        return ejecutarYObtener(serial, comandos).exito();
     }
 
     public boolean ejecutarYVerificar(String serial, String comandoShell) {
@@ -215,17 +221,17 @@ public class ADBService {
 
     }
 
-public String ejecutarComandoSincronoArray(String serial, String... partes) {
-    try {
-        List<String> fullCmd = new ArrayList<>(List.of("adb", "-s", serial));
-        fullCmd.addAll(List.of(partes));
-        List<String> resultado = ejecutarADB(fullCmd.toArray(new String[0]));
-        return resultado != null ? String.join("\n", resultado).trim() : null;
-    } catch (IOException e) {
-        System.out.println(e.getMessage());
-        return null;
+    public String ejecutarComandoSincronoArray(String serial, String... partes) {
+        try {
+            List<String> fullCmd = new ArrayList<>(List.of("adb", "-s", serial));
+            fullCmd.addAll(List.of(partes));
+            List<String> resultado = ejecutarADB(fullCmd.toArray(new String[0]));
+            return resultado != null ? String.join("\n", resultado).trim() : null;
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
     }
-}
 
     // MÉTODO PARA DIAGNOSTICO CONTROLLER
     public boolean ejecutarComandoSincronoBoolean(String serial, String comandoShell) {

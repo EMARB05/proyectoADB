@@ -10,12 +10,14 @@ public class PasoPrueba {
     private final List<String> comandos;
     private final boolean manual;
     private final StringProperty estado;
+    private String outputDetalle;
 
     public PasoPrueba(String nombre, List<String> comandos, boolean manual) {
         this.nombre = nombre;
         this.comandos = comandos;
         this.manual = manual;
         this.estado = new SimpleStringProperty("PENDIENTE");
+        this.outputDetalle = "";
     }
 
     // Compatibilidad con pasos existentes de un solo comando
@@ -50,5 +52,13 @@ public class PasoPrueba {
 
     public void setEstado(String nuevoEstado) {
         this.estado.set(nuevoEstado);
+    }
+
+    public String getOutputDetalle() {
+        return outputDetalle;
+    }
+
+    public void setOutputDetalle(String out) {
+        this.outputDetalle = out;
     }
 }

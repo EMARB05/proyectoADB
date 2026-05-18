@@ -103,6 +103,7 @@
                             </VBox>
                         </graphic>
                     </Button>
+
                 </HBox>
             </ScrollPane>
 
@@ -115,53 +116,77 @@
         </HBox>
     </VBox>
 
-        <VBox spacing="8"
+<VBox spacing="8" prefWidth="530" maxWidth="530"
               style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;"
               styleClass="card-container">
+            
             <Label text="Pruebas de Hardware"
                    style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
-            <FlowPane hgap="50" vgap="10" alignment="CENTER" styleClass="fila2">
-                <Button onAction="#addSoundTest" styleClass="btn-hw,btn-modern">
+
+            <HBox alignment="CENTER" spacing="10" maxWidth="Infinity">
+                <Button fx:id="btnFlechaIzquierdaHw" onAction="#scrollIzquierdaHw" styleClass="btn-flecha-slider">
                     <graphic>
-                        <VBox alignment="CENTER" spacing="5">
-                            <FontIcon iconLiteral="fas-volume-up" iconSize="24" iconColor="#cba6f7"/>
-                            <Label text="SOUND" style="-fx-font-size: 9px;"/>
-                        </VBox>
-                    </graphic>
-                </Button>
-                <Button onAction="#addVibrateStep" styleClass="btn-hw,btn-modern">
-                    <graphic>
-                        <VBox alignment="CENTER" spacing="5">
-                            <FontIcon iconLiteral="fas-mobile-alt" iconSize="24" iconColor="#fab387"/>
-                            <Label text="VIBRATE" style="-fx-font-size: 9px;"/>
-                        </VBox>
-                    </graphic>
-                </Button>
-                <Button onAction="#addCallTest" styleClass="btn-hw,btn-modern">
-                    <graphic>
-                        <VBox alignment="CENTER" spacing="5">
-                            <FontIcon iconLiteral="fas-phone" iconSize="24" iconColor="#f9e2af"/>
-                            <Label text="CALL" style="-fx-font-size: 9px;"/>
-                        </VBox>
+                        <FontIcon iconLiteral="fas-chevron-left" iconSize="16" iconColor="#cdd6f4"/>
                     </graphic>
                 </Button>
 
-                <Button onAction="#addTouchScreenTest" styleClass="btn-hw,btn-modern">
+                <ScrollPane fx:id="scrollHardware" vbarPolicy="NEVER" hbarPolicy="NEVER" 
+                            fitToHeight="true" HBox.hgrow="ALWAYS"
+                            style="-fx-background: transparent; -fx-background-color: transparent; -fx-border-color: transparent;">
+                    
+                    <HBox spacing="25" alignment="CENTER_LEFT">
+                        <Button onAction="#addSoundTest" styleClass="btn-hw,btn-modern">
+                            <graphic>
+                                <VBox alignment="CENTER" spacing="5">
+                                    <FontIcon iconLiteral="fas-volume-up" iconSize="24" iconColor="#cba6f7"/>
+                                    <Label text="SOUND" style="-fx-font-size: 9px;"/>
+                                </VBox>
+                            </graphic>
+                        </Button>
+                        <Button onAction="#addVibrateStep" styleClass="btn-hw,btn-modern">
+                            <graphic>
+                                <VBox alignment="CENTER" spacing="5">
+                                    <FontIcon iconLiteral="fas-mobile-alt" iconSize="24" iconColor="#fab387"/>
+                                    <Label text="VIBRATE" style="-fx-font-size: 9px;"/>
+                                </VBox>
+                            </graphic>
+                        </Button>
+                        <Button onAction="#addCallTest" styleClass="btn-hw,btn-modern">
+                            <graphic>
+                                <VBox alignment="CENTER" spacing="5">
+                                    <FontIcon iconLiteral="fas-phone" iconSize="24" iconColor="#f9e2af"/>
+                                    <Label text="CALL" style="-fx-font-size: 9px;"/>
+                                </VBox>
+                            </graphic>
+                        </Button>
+                        <Button onAction="#addTouchScreenTest" styleClass="btn-hw,btn-modern">
+                            <graphic>
+                                <VBox alignment="CENTER" spacing="5">
+                                    <FontIcon iconLiteral="fas-fingerprint" iconSize="24" iconColor="#dcfbff"/>
+                                    <Label text="TOUCHSCREEN" style="-fx-font-size: 9px;"/>
+                                </VBox>
+                            </graphic>
+                        </Button>
+                        <Button onAction="#addDisplayTest" styleClass="btn-hw,btn-modern">
+                            <graphic>
+                                <VBox alignment="CENTER" spacing="5">
+                                    <FontIcon iconLiteral="fas-expand" iconSize="24" iconColor="#36fc61"/>
+                                    <Label text="Display" style="-fx-font-size: 9px;"/>
+                                </VBox>
+                            </graphic>
+                        </Button>
+                    </HBox>
+                </ScrollPane>
+
+                <Button fx:id="btnFlechaDerechaHw" onAction="#scrollDerechaHw" styleClass="btn-flecha-slider">
                     <graphic>
-                        <VBox alignment="CENTER" spacing="5">
-                            <FontIcon iconLiteral="fas-fingerprint" iconSize="24" iconColor="#dcfbff"/>
-                            <Label text="TOUCHSCREEN" style="-fx-font-size: 9px;"/>
-                        </VBox>
+                        <FontIcon iconLiteral="fas-chevron-right" iconSize="16" iconColor="#cdd6f4"/>
                     </graphic>
                 </Button>
-
-            </FlowPane>
+            </HBox>
         </VBox>
 
-     
-
-        <ListView fx:id="listaPasos" VBox.vgrow="ALWAYS"
-                  style="-fx-text-fill: #6a0dad;"/>
+        <ListView fx:id="listaPasos" VBox.vgrow="ALWAYS" style="-fx-text-fill: #6a0dad;"/>
 
         <HBox spacing="10">
             <Button fx:id="btnEjecutar" text="EJECUTAR" onAction="#ejecutarScript"
@@ -172,9 +197,7 @@
             <Button text="Limpiar" onAction="#limpiarPasos" styleClass="btn-footer">
                 <graphic>
                     <ImageView fitHeight="18" fitWidth="18" preserveRatio="true">
-                        <image>
-                            <Image url="@../img/borrar.png"/>
-                        </image>
+                        <image><Image url="@../img/borrar.png"/></image>
                     </ImageView>
                 </graphic>
             </Button>
