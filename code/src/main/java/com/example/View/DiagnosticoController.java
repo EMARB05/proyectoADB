@@ -6,16 +6,23 @@ import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import com.example.Controller.ADBService;
+import com.example.Controller.PerfilesManager;
 import com.example.Model.Dispositivo;
+import com.example.Model.Entradas;
+import com.example.Model.LlamadasD17;
+
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 
 import com.example.Model.PasoPrueba;
+import com.example.Model.PerfilDialer;
+
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -23,6 +30,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
@@ -41,13 +49,19 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseEvent;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 
-public class DiagnosticoController implements DispositivoAware {
+public class DiagnosticoController extends com.example.Model.AdbCallSupport implements DispositivoAware {
 
     @FXML
     private ListView<PasoPrueba> listaPasos;
@@ -79,6 +93,13 @@ public class DiagnosticoController implements DispositivoAware {
     private static final String CMD_DTMF = "__CMD_DTMF__";
     private static final String CMD_MUTE = "__CMD_MUTE__";
     private static final String CMD_RED_ACTIVA = "__CMD_RED_ACTIVA__";
+    private static final String CMD_TRANSFERENCIA = "__CMD_TRANSFERENCIA__";
+    private static final String CMD_TRANSFERENCIA_CIEGA = "__CMD_TRANSFERENCIA_CIEGA__";
+    private static final String CMD_CONFERENCIA = "__CMD_CONFERENCIA__";
+    private String transferenciaNumero = null;
+    private String transferenciaResponderSerial = null;
+    private String conferenciaNumero = null;
+    private String conferenciaReceptorSerial = null;
 
     // ─── Datos extra para los pasos de llamada avanzados ─────────────────────
     // Se rellenan cuando el usuario configura el paso en el popup.
@@ -87,7 +108,6 @@ public class DiagnosticoController implements DispositivoAware {
     private String llamadaEntreDosSerial2 = null; // serial del teléfono 2
     private String llamadaEntranteSerial = null;
     private String llamadaEntranteNumero = null;
-    // Los números se detectan en tiempo de ejecución por ADB
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -145,6 +165,134 @@ public class DiagnosticoController implements DispositivoAware {
         if (fichaTecnicaController != null) {
             fichaTecnicaController.setDispositivo(dispositivo);
         }
+    }
+
+
+    @FXML
+    private void calibrarDispositivo() {
+        if (dispositivoActual == null)
+            return;
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Calibración");
+        alert.setHeaderText("Calibrar botones del dialer");
+        alert.setContentText(
+                "1. Haz una llamada manual en el teléfono\n" +
+                        "2. Abre el menú 'Más' durante la llamada\n" +
+                        "3. Pulsa OK sin cerrar el menú");
+
+        alert.showAndWait().ifPresent(r -> {
+            if (r == ButtonType.OK) {
+                new Thread(() -> {
+                    try {
+                        String serial = obtenerSerialADBActual();
+                        String modelo = ejecutarShellEnSerial(serial,
+                                "getprop ro.product.model").trim();
+
+                        Platform.runLater(() -> fichaTecnicaController.mostrarToast("Calibrando " + modelo + "..."));
+
+                        PerfilDialer perfil = PerfilesManager.calibrarNuevoModelo(serial, modelo);
+
+                        Platform.runLater(() -> {
+                            if (perfil.getXHold() > 0 && perfil.getXMute() > 0) {
+                                fichaTecnicaController.mostrarToast(
+                                        "✅ " + modelo + " calibrado correctamente");
+                            } else {
+                                fichaTecnicaController.mostrarToast(
+                                        "❌ Calibración incompleta: faltan botones del dialer");
+                            }
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+            }
+        });
+    }
+
+    @FXML
+    private void calibrarTecladoManual() {
+        if (dispositivoActual == null) return;
+
+        new Thread(() -> {
+            try {
+                String serial = obtenerSerialADBActual();
+                if (serial == null) return;
+
+                Platform.runLater(() -> fichaTecnicaController.mostrarToast("Calibrando teclado automaticamente..."));
+
+                PerfilDialer prev = PerfilesManager.obtenerPerfil(serial);
+                if (prev == null || prev.getXTeclado() <= 0 || prev.getYTeclado() <= 0) {
+                    Platform.runLater(() -> fichaTecnicaController
+                            .mostrarToast("No se detecto el boton Teclado. Haz una llamada y abre el dialer."));
+                    return;
+                }
+
+                // Asegurar teclado abierto antes de leer nodos DTMF
+                ejecutarShellEnSerial(serial, "input tap " + prev.getXTeclado() + " " + prev.getYTeclado());
+                Thread.sleep(1000);
+
+                Map<Integer, int[]> coords = new HashMap<>();
+                for (int intento = 0; intento < 3 && coords.size() < 10; intento++) {
+                    String uiDump = ejecutarShellEnSerial(serial,
+                            "uiautomator dump /sdcard/ui_dtmf_cal.xml >/dev/null 2>&1; cat /sdcard/ui_dtmf_cal.xml");
+                    coords = extraerCoordsNumerosDesdeDump(uiDump);
+                    if (coords.size() < 10) {
+                        Thread.sleep(500);
+                    }
+                }
+
+                if (coords.size() < 10) {
+                    Platform.runLater(() -> fichaTecnicaController.mostrarToast(
+                            "No pude leer los 10 digitos automaticamente. Repite con teclado DTMF visible."));
+                    return;
+                }
+
+                String modelo = ejecutarShellEnSerial(serial, "getprop ro.product.model").trim();
+                boolean esTactil = true;
+                int xMas = prev.getXMostrarMas();
+                int yMas = prev.getYMostrarMas();
+                int xHold = prev.getXHold();
+                int yHold = prev.getYHold();
+                int xMute = prev.getXMute();
+                int yMute = prev.getYMute();
+
+                PerfilDialer nuevo = new PerfilDialer(modelo, esTactil, xMas, yMas, xHold, yHold, xMute, yMute,
+                        prev.getXTeclado(), prev.getYTeclado(), coords);
+                PerfilesManager.guardarPerfil(nuevo);
+
+                ejecutarShellEnSerial(serial, "input keyevent KEYCODE_BACK");
+                Platform.runLater(() -> fichaTecnicaController.mostrarToast("Teclado calibrado sin mostrar captura"));
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private Map<Integer, int[]> extraerCoordsNumerosDesdeDump(String uiDump) {
+        Map<Integer, int[]> out = new HashMap<>();
+        if (uiDump == null || uiDump.isBlank()) return out;
+
+        java.util.regex.Pattern nodePattern = java.util.regex.Pattern.compile("<node\\s+([^>]+)>");
+        java.util.regex.Matcher nodeMatcher = nodePattern.matcher(uiDump);
+
+        java.util.regex.Pattern digitPattern = java.util.regex.Pattern.compile("(?:text|content-desc)=\"([0-9])\"");
+        java.util.regex.Pattern boundsPattern = java.util.regex.Pattern
+            .compile("bounds=\"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]\"");
+
+        while (nodeMatcher.find()) {
+            String attrs = nodeMatcher.group(1);
+            java.util.regex.Matcher dm = digitPattern.matcher(attrs);
+            java.util.regex.Matcher bm = boundsPattern.matcher(attrs);
+            if (!dm.find() || !bm.find()) continue;
+
+            int numero = Integer.parseInt(dm.group(1));
+            int x = (Integer.parseInt(bm.group(1)) + Integer.parseInt(bm.group(3))) / 2;
+            int y = (Integer.parseInt(bm.group(2)) + Integer.parseInt(bm.group(4))) / 2;
+            out.putIfAbsent(numero, new int[] { x, y });
+        }
+        return out;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -247,7 +395,13 @@ public class DiagnosticoController implements DispositivoAware {
                 new Tarjeta("📥", "Llamada Entrante",
                         "Tel.2 llama a Tel.1. Verifica que suena y se puede contestar.", "#94e2d5"),
                 new Tarjeta("🔇", "Test Mute",
-                        "Silencia y recupera el micrófono durante una llamada activa.", "#eba0ac"));
+                        "Silencia y recupera el micrófono durante una llamada activa.", "#eba0ac"),
+                new Tarjeta("↗", "Transferencia consultativa 4G",
+                        "Transfiere la llamada activa a un número hablando con él primero.", "#89dceb"),
+                new Tarjeta("↗", "Transferencia Ciega 4G",
+                        "Transfiere sin hablar con el receptor.", "#f9e2af"),
+                new Tarjeta("🤝", "Llamada Conferencia",
+                        "Añade un tercer participante a la llamada activa.", "#b4befe"));
 
         // ── Renderiza tarjetas en el grid ─────────────────────────────────────
         for (int i = 0; i < tarjetas.size(); i++) {
@@ -347,30 +501,41 @@ public class DiagnosticoController implements DispositivoAware {
 
             case "Llamada entre 2" -> {
                 List<String> seriales = obtenerSerialesADB();
+                List<String> opciones = seriales.stream()
+                        .map(this::etiquetaDispositivo)
+                        .toList();
                 Label l1 = crearLabelConfig("Teléfono 1 (llama primero):");
-                ComboBox<String> cb1 = crearCombo(seriales);
+                ComboBox<String> cb1 = crearCombo(opciones);
                 Label l2 = crearLabelConfig("Número del Teléfono 1:");
                 TextField tf1 = crearTextField("+34612345678");
                 Label l3 = crearLabelConfig("Teléfono 2 (recibe primero):");
-                ComboBox<String> cb2 = crearCombo(seriales);
+                ComboBox<String> cb2 = crearCombo(opciones);
                 Label l4 = crearLabelConfig("Número del Teléfono 2:");
                 TextField tf2 = crearTextField("+34698765432");
                 Label aviso = new Label();
                 aviso.setTextFill(Color.web("#f38ba8"));
                 aviso.setFont(Font.font(11));
+                Label ayuda = new Label("Selecciona el modelo del equipo. A la derecha verás su serial o IP.");
+                ayuda.setTextFill(Color.web("#6c7086"));
+                ayuda.setFont(Font.font(10));
+                ayuda.setWrapText(true);
 
                 String serialActual = obtenerSerialADBActual();
                 if (serialActual != null && seriales.contains(serialActual)) {
-                    cb1.getSelectionModel().select(serialActual);
+                    cb1.getSelectionModel().select(etiquetaDispositivo(serialActual));
                     cb1.setDisable(true);
-                } else if (!seriales.isEmpty())
+                } else if (!opciones.isEmpty()) {
                     cb1.getSelectionModel().select(0);
+                }
                 seriales.stream().filter(s -> !s.equals(serialActual)).findFirst()
-                        .ifPresent(s -> cb2.getSelectionModel().select(s));
+                        .ifPresent(s -> cb2.getSelectionModel().select(etiquetaDispositivo(s)));
+                if (cb2.getSelectionModel().isEmpty() && !opciones.isEmpty()) {
+                    cb2.getSelectionModel().select(0);
+                }
 
                 Button btn = crearBoton("➕  Añadir al script", "#a6e3a1");
                 btn.setOnAction(e -> {
-                    String s1 = cb1.getValue(), s2 = cb2.getValue();
+                    String s1 = serialDesdeEtiqueta(cb1.getValue()), s2 = serialDesdeEtiqueta(cb2.getValue());
                     String n1 = tf1.getText().trim(), n2 = tf2.getText().trim();
                     if (s1 == null || s2 == null) {
                         aviso.setText("No hay dispositivos ADB.");
@@ -496,6 +661,114 @@ public class DiagnosticoController implements DispositivoAware {
                 });
                 panel.getChildren().addAll(info, btn);
             }
+            case "Transferencia consultativa 4G" -> {
+                Label info = new Label("Requiere una llamada activa. Pulsa el botón\n" +
+                        "físico de transferencia y marca el número destino.");
+                info.setTextFill(Color.web("#6c7086"));
+                info.setFont(Font.font(11));
+                info.setWrapText(true);
+                TextField tf = crearTextField("Número destino (ej: +34612345678)");
+                List<String> seriales = obtenerSerialesADB();
+                List<String> opcionesReceptor = seriales.stream()
+                        .map(this::etiquetaDispositivo)
+                        .toList();
+                ComboBox<String> cbReceptor = crearCombo(opcionesReceptor);
+                if (!opcionesReceptor.isEmpty()) {
+                    String serialActual = obtenerSerialADBActual();
+                    seriales.stream().filter(s -> !s.equals(serialActual)).findFirst()
+                            .ifPresent(s -> cbReceptor.getSelectionModel().select(etiquetaDispositivo(s)));
+                    if (cbReceptor.getSelectionModel().isEmpty()) {
+                        cbReceptor.getSelectionModel().select(0);
+                    }
+                }
+                Label lReceptor = crearLabelConfig("Teléfono que debe contestar automáticamente:");
+                Label ayuda = new Label("Se muestra el modelo del equipo y su serial/IP para identificarlo mejor.");
+                ayuda.setTextFill(Color.web("#6c7086"));
+                ayuda.setFont(Font.font(10));
+                ayuda.setWrapText(true);
+                Label aviso = new Label();
+                aviso.setTextFill(Color.web("#f38ba8"));
+                aviso.setFont(Font.font(11));
+                Button btn = crearBoton("➕  Añadir al script", "#89dceb");
+                btn.setOnAction(e -> {
+                    String num = tf.getText().trim();
+                    String receptor = serialDesdeEtiqueta(cbReceptor.getValue());
+                    if (num.isBlank()) {
+                        aviso.setText("Introduce el número destino.");
+                        return;
+                    }
+                    transferenciaNumero = num;
+                    transferenciaResponderSerial = receptor;
+                    pasos.add(new PasoPrueba("Transferencia → " + num, CMD_TRANSFERENCIA));
+                    popup.close();
+                });
+                panel.getChildren().addAll(info, tf, lReceptor, ayuda, cbReceptor, aviso, btn);
+            }
+
+            case "Transferencia Ciega 4G" -> {
+                Label info = new Label("Transfiere la llamada activa sin hablar con el receptor.\n" +
+                        "Sigue la secuencia de botones físicos del F780.");
+                info.setTextFill(Color.web("#6c7086"));
+                info.setFont(Font.font(11));
+                info.setWrapText(true);
+                TextField tf = crearTextField("Número destino (ej: +34612345678)");
+                Label aviso = new Label();
+                aviso.setTextFill(Color.web("#f38ba8"));
+                aviso.setFont(Font.font(11));
+                Button btn = crearBoton("➕  Añadir al script", "#f9e2af");
+                btn.setOnAction(e -> {
+                    String num = tf.getText().trim();
+                    if (num.isBlank()) {
+                        aviso.setText("Introduce el número destino.");
+                        return;
+                    }
+                    transferenciaNumero = num;
+                    pasos.add(new PasoPrueba("Transferencia Ciega → " + num, CMD_TRANSFERENCIA_CIEGA));
+                    popup.close();
+                });
+                panel.getChildren().addAll(info, tf, aviso, btn);
+            }
+
+           case "Llamada Conferencia" -> {
+    Label info = new Label("Requiere una llamada activa. Añade un tercer\n" +
+            "participante marcando el número indicado.");
+    info.setTextFill(Color.web("#6c7086"));
+    info.setFont(Font.font(11));
+    info.setWrapText(true);
+    TextField tf = crearTextField("Número del tercer participante");
+    
+    List<String> seriales = obtenerSerialesADB();
+    List<String> opciones = seriales.stream()
+            .map(this::etiquetaDispositivo)
+            .toList();
+    Label lReceptor = crearLabelConfig("Dispositivo que debe contestar:");
+    ComboBox<String> cbReceptor = crearCombo(opciones);
+    if (!opciones.isEmpty()) {
+        String serialActual = obtenerSerialADBActual();
+        seriales.stream().filter(s -> !s.equals(serialActual)).findFirst()
+                .ifPresent(s -> cbReceptor.getSelectionModel().select(etiquetaDispositivo(s)));
+        if (cbReceptor.getSelectionModel().isEmpty())
+            cbReceptor.getSelectionModel().select(0);
+    }
+    
+    Label aviso = new Label();
+    aviso.setTextFill(Color.web("#f38ba8"));
+    aviso.setFont(Font.font(11));
+    Button btn = crearBoton("➕  Añadir al script", "#b4befe");
+    btn.setOnAction(e -> {
+        String num = tf.getText().trim();
+        String receptor = serialDesdeEtiqueta(cbReceptor.getValue());
+        if (num.isBlank()) {
+            aviso.setText("Introduce el número destino.");
+            return;
+        }
+        conferenciaNumero = num;
+        conferenciaReceptorSerial = receptor;
+        pasos.add(new PasoPrueba("Conferencia con " + num, CMD_CONFERENCIA));
+        popup.close();
+    });
+    panel.getChildren().addAll(info, tf, lReceptor, cbReceptor, aviso, btn);
+}
         }
         javafx.application.Platform.runLater(() -> scroll.setVvalue(1.0));
     }
@@ -608,6 +881,25 @@ public class DiagnosticoController implements DispositivoAware {
                         ref.setEstado(ok ? "OK" : "ERROR");
                         listaPasos.refresh();
                     });
+                } else if (CMD_TRANSFERENCIA.equals(paso.getComando())) {
+                    boolean ok = ejecutarTransferencia(serial, paso);
+                    Platform.runLater(() -> {
+                        ref.setEstado(ok ? "OK" : "ERROR");
+                        listaPasos.refresh();
+                    });
+
+                } else if (CMD_CONFERENCIA.equals(paso.getComando())) {
+                    boolean ok = ejecutarConferencia(serial, paso);
+                    Platform.runLater(() -> {
+                        ref.setEstado(ok ? "OK" : "ERROR");
+                        listaPasos.refresh();
+                    });
+                } else if (CMD_TRANSFERENCIA_CIEGA.equals(paso.getComando())) {
+                    boolean ok = ejecutarTransferenciaCiega(serial, paso);
+                    Platform.runLater(() -> {
+                        ref.setEstado(ok ? "OK" : "ERROR");
+                        listaPasos.refresh();
+                    });
                 }
 
                 else {
@@ -631,6 +923,12 @@ public class DiagnosticoController implements DispositivoAware {
         }).start();
     }
 
+   
+
+    
+
+   
+
     private boolean ejecutarEmergencia(String serial, PasoPrueba paso) {
         try {
             System.out.println("[EMERGENCIA] Marcando 112...");
@@ -650,87 +948,168 @@ public class DiagnosticoController implements DispositivoAware {
         }
     }
 
-       private boolean esPantallaTactil(String serial) {
-    String out = ejecutarShellEnSerial(serial, "getprop ro.product.model");
-    // El F730 y modelos COCOM feature phone tienen resolución 320x240
-    String size = ejecutarShellEnSerial(serial, "wm size");
-    return !size.contains("320x240") && !size.contains("240x320");
+    private boolean ejecutarHoldRetrieve(String serial, PasoPrueba paso) {
+    PerfilDialer perfil = PerfilesManager.obtenerPerfil(serial);
+    LlamadasD17 llamadas = new LlamadasD17(serial);
+    actualizarEstadoPaso(paso, "Hold...");
+    return llamadas.ejecutarHold(perfil);
 }
 
-  private boolean ejecutarHoldRetrieve(String serial, PasoPrueba paso) {
-    try {
-        if (!llamadaActiva(serial)) return false;
-
-        boolean esTactil = esPantallaTactil(serial);
-
-        if (esTactil) {
-            // HOLD — abrir menú Más y tocar Retener
-            actualizarEstadoPaso(paso, "Hold...");
-            ejecutarShellEnSerial(serial, "input tap 1018 2077"); // Mostrar más
-            Thread.sleep(800);
-            ejecutarShellEnSerial(serial, "input tap 610 1811");  // Retener llamada
-            Thread.sleep(5_000);
-
-            // RETRIEVE — abrir menú Más y tocar Reanudar
-            actualizarEstadoPaso(paso, "Retrieve...");
-            Thread.sleep(800);
-            ejecutarShellEnSerial(serial, "input tap 610 1811");  // Reanudar llamada
-            Thread.sleep(1_000);
-            ejecutarShellEnSerial(serial, "input tap 1018 2077");
-
-        } else {
-            // HOLD — menú físico F730
-            actualizarEstadoPaso(paso, "Hold...");
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MENU");
-            Thread.sleep(800);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
-            Thread.sleep(300);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
-            Thread.sleep(300);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_CENTER");
-            Thread.sleep(5_000);
-
-            // RETRIEVE
-            actualizarEstadoPaso(paso, "Retrieve...");
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_BACK");
-            Thread.sleep(800);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MENU");
-            Thread.sleep(800);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
-            Thread.sleep(300);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
-            Thread.sleep(300);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_CENTER");
-            Thread.sleep(1_000);
-        }
-
-        return llamadaActiva(serial);
-    } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return false;
-    }
+private boolean ejecutarMute(String serial, PasoPrueba paso) {
+    PerfilDialer perfil = PerfilesManager.obtenerPerfil(serial);
+    LlamadasD17 llamadas = new LlamadasD17(serial);
+    actualizarEstadoPaso(paso, "Mute...");
+    return llamadas.ejecutarMute(perfil);
 }
+
+private boolean ejecutarTransferencia(String serial, PasoPrueba paso) {
+    LlamadasD17 llamadas = new LlamadasD17(serial);
+    actualizarEstadoPaso(paso, "Transfiriendo...");
+    return llamadas.ejecutarTransferencia(transferenciaNumero, transferenciaResponderSerial);
+}
+
+private boolean ejecutarTransferenciaCiega(String serial, PasoPrueba paso) {
+    LlamadasD17 llamadas = new LlamadasD17(serial);
+    actualizarEstadoPaso(paso, "Transferencia ciega...");
+    return llamadas.ejecutarTransferenciaCiega(transferenciaNumero);
+}
+
+private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
+    LlamadasD17 llamadas = new LlamadasD17(serial);
+    actualizarEstadoPaso(paso, "Conferencia...");
+    return llamadas.ejecutarConferencia(conferenciaNumero, conferenciaReceptorSerial);
+}
+
+   
 
     private boolean ejecutarDTMF(String serial, PasoPrueba paso) {
-    try {
-        if (!llamadaActiva(serial)) return false;
+        try {
+            if (!llamadaActiva(serial))
+                return false;
 
-        actualizarEstadoPaso(paso, "Enviando DTMF...");
+            PerfilDialer perfil = PerfilesManager.obtenerPerfil(serial);
+            actualizarEstadoPaso(paso, "Enviando DTMF...");
 
-        // En feature phone los keycodes numéricos son KEYCODE_0 al KEYCODE_9
-        int[] keycodes = {7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        for (int kc : keycodes) {
-            ejecutarShellEnSerial(serial, "input keyevent " + kc);
-            Thread.sleep(600);
+            if (!perfil.tieneComandos()) {
+                // Dispositivo táctil — abrir teclado y enviar números por TAPs
+                if (perfil.getXTeclado() <= 0) {
+                    System.out.println("[DTMF] ⚠ No se encontró botón Teclado");
+                    return false;
+                }
+
+                System.out.println("[DTMF] Abriendo teclado...");
+                ejecutarShellEnSerial(serial, "input tap " + perfil.getXTeclado() + " " + perfil.getYTeclado());
+                Thread.sleep(1500);
+
+                int[] numeros = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
+                Map<Integer, int[]> coordsRun = new HashMap<>();
+                for (int intento = 0; intento < 3 && coordsRun.size() < 10; intento++) {
+                    String uiDump = ejecutarShellEnSerial(serial,
+                            "uiautomator dump /sdcard/ui_dtmf_now.xml >/dev/null 2>&1; cat /sdcard/ui_dtmf_now.xml");
+                    coordsRun = extraerCoordsNumerosDesdeDump(uiDump);
+                    if (coordsRun.size() < 10) Thread.sleep(300);
+                }
+
+                boolean usoCoordsManual = false;
+                if (coordsRun.size() >= 10) {
+                    usoCoordsManual = true;
+                    System.out.println("[DTMF] Usando coordenadas detectadas en tiempo real");
+                } else if (perfil.getCoordNumeros() != null && perfil.getCoordNumeros().size() >= 10) {
+                    usoCoordsManual = true;
+                    coordsRun = perfil.getCoordNumeros();
+                    System.out.println("[DTMF] Usando coordenadas guardadas de perfil");
+                }
+
+                if (usoCoordsManual) {
+                    for (int numero : numeros) {
+                        if (!llamadaActiva(serial)) {
+                            System.out.println("[DTMF] Llamada terminada");
+                            break;
+                        }
+
+                        int[] c = coordsRun.getOrDefault(numero, new int[] { 0, 0 });
+                        if (c[0] <= 0 || c[1] <= 0) {
+                            System.out.println("[DTMF] Coordenada inválida para " + numero + ", usando fallback");
+                            usoCoordsManual = false;
+                            break;
+                        }
+
+                        System.out.println("[DTMF] TAP manual " + numero + " -> " + c[0] + "," + c[1]);
+                        ejecutarShellEnSerial(serial, "input tap " + c[0] + " " + c[1]);
+                        Thread.sleep(600);
+                    }
+                }
+
+                if (!usoCoordsManual) {
+                    String wmSize = ejecutarShellEnSerial(serial, "wm size");
+                    int screenWidth = 1080;
+                    int screenHeight = 2400;
+                    java.util.regex.Pattern p = java.util.regex.Pattern.compile("(\\d+)x(\\d+)");
+                    java.util.regex.Matcher m = p.matcher(wmSize);
+                    if (m.find()) {
+                        screenWidth = Integer.parseInt(m.group(1));
+                        screenHeight = Integer.parseInt(m.group(2));
+                    }
+
+                    int[] coordX = {
+                            (int) Math.round(screenWidth * 0.22),
+                            (int) Math.round(screenWidth * 0.50),
+                            (int) Math.round(screenWidth * 0.78)
+                    };
+                    int tecladoTop = (int) Math.round(screenHeight * 0.58);
+                    int tecladoBottom = (int) Math.round(screenHeight * 0.96);
+                    int filaAlto = Math.max(1, (tecladoBottom - tecladoTop) / 4);
+                    int[] coordY = {
+                            tecladoTop + filaAlto / 2,
+                            tecladoTop + filaAlto + filaAlto / 2,
+                            tecladoTop + 2 * filaAlto + filaAlto / 2,
+                            tecladoTop + 3 * filaAlto + filaAlto / 2
+                    };
+
+                    int[] xPos = { 0, 1, 2, 0, 1, 2, 0, 1, 2, 1 };
+                    int[] yPos = { 0, 0, 0, 1, 1, 1, 2, 2, 2, 3 };
+
+                    System.out.println("[DTMF] Usando fallback por rejilla");
+                    for (int i = 0; i < numeros.length; i++) {
+                        if (!llamadaActiva(serial)) {
+                            System.out.println("[DTMF] Llamada terminada");
+                            break;
+                        }
+                        int x = coordX[xPos[i]];
+                        int y = coordY[yPos[i]];
+                        System.out.println("[DTMF] TAP fallback " + numeros[i] + " -> " + x + "," + y);
+                        ejecutarShellEnSerial(serial, "input tap " + x + " " + y);
+                        Thread.sleep(600);
+                    }
+                }
+
+                Thread.sleep(800);
+                System.out.println("[DTMF] Cerrando teclado...");
+                ejecutarShellEnSerial(serial, "input keyevent KEYCODE_BACK");
+                Thread.sleep(500);
+            } else {
+                // Feature phone — usar keycodes directo
+                int[] keycodes = { 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+                for (int i = 0; i < keycodes.length; i++) {
+                    if (!llamadaActiva(serial)) {
+                        System.out.println("[DTMF] Llamada terminada");
+                        break;
+                    }
+                    System.out.println("[DTMF] Enviando KEYCODE_" + i + " (" + keycodes[i] + ")");
+                    ejecutarShellEnSerial(serial, "input keyevent " + keycodes[i]);
+                    Thread.sleep(600);
+                }
+            }
+
+            System.out.println("[DTMF] ✔ Tonos enviados");
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
         }
-
-        System.out.println("[DTMF] ✔ Tonos enviados");
-        return true;
-    } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return false;
     }
-}
+
+
 
     private boolean ejecutarLlamadaEntrante(PasoPrueba paso) {
         if (llamadaEntranteSerial == null || llamadaEntranteNumero == null) {
@@ -763,8 +1142,6 @@ public class DiagnosticoController implements DispositivoAware {
         }
     }
 
- 
-
     private boolean ejecutarTestRedActiva(String serial, PasoPrueba paso) {
         actualizarEstadoPaso(paso, "Leyendo red...");
         String out = ejecutarShellEnSerial(serial,
@@ -790,44 +1167,7 @@ public class DiagnosticoController implements DispositivoAware {
         return !red.equals("DESCONOCIDA");
     }
 
-  private boolean ejecutarMute(String serial, PasoPrueba paso) {
-    try {
-        if (!llamadaActiva(serial)) return false;
-
-        boolean esTactil = esPantallaTactil(serial);
-
-        actualizarEstadoPaso(paso, "Mute...");
-        if (esTactil) {
-            ejecutarShellEnSerial(serial, "input tap 473 2077"); // Silenciar
-        } else {
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MENU");
-            Thread.sleep(800);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
-            Thread.sleep(300);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_CENTER");
-        }
-        Thread.sleep(3_000);
-
-        actualizarEstadoPaso(paso, "Unmute...");
-        if (esTactil) {
-            ejecutarShellEnSerial(serial, "input tap 473 2077"); // Silenciar de nuevo
-        } else {
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MENU");
-            Thread.sleep(800);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_DOWN");
-            Thread.sleep(300);
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_DPAD_CENTER");
-        }
-        Thread.sleep(1_000);
-
-        return true;
-    } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return false;
-    }
-}
-
-
+   
 
     // ─────────────────────────────────────────────────────────────────────────
     // LLAMADA MASIVA
@@ -1057,35 +1397,6 @@ public class DiagnosticoController implements DispositivoAware {
                 exito ? "PASS ✔" : "FAIL ✖");
         return exito;
     }
-
-    // Espera activamente hasta que el receptor detecte la llamada entrante
-    // Comprueba cada segundo hasta maxSegundos — contesta en cuanto suena
-    private boolean esperarHastaQueSuene(String serialReceptor, int maxSegundos) {
-        System.out.println("[ENTRE2] Esperando que suene en: " + serialReceptor);
-        for (int i = 0; i < maxSegundos; i++) {
-            try {
-                Thread.sleep(1_000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return false;
-            }
-            String out = ejecutarShellEnSerial(serialReceptor, "dumpsys telephony.registry");
-            if (out.contains("mCallState=1")) { // RINGING = sonando
-                System.out.println("[ENTRE2] ¡Está sonando! (tardó " + (i + 1) + "s)");
-                return true;
-            }
-        }
-        System.out.println("[ENTRE2] No sonó en " + maxSegundos + "s — timeout");
-        return false;
-    }
-
-    // Verifica si el dispositivo tiene una llamada activa o sonando
-    private boolean llamadaActiva(String serial) {
-        String out = ejecutarShellEnSerial(serial, "dumpsys telephony.registry");
-        return out.contains("mCallState=2") || // OFFHOOK = llamada activa
-                out.contains("mCallState=1"); // RINGING = sonando
-    }
-
     private String obtenerSerialADBActual() {
         if (dispositivoActual == null)
             return null;
@@ -1096,17 +1407,6 @@ public class DiagnosticoController implements DispositivoAware {
             // Fallback al serial guardado en BD
             return dispositivoActual.getSerialNumber();
         }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // DESPERTAR DISPOSITIVO
-    // Enciende la pantalla y quita el keyguard para garantizar
-    // que los eventos de teclado se procesen correctamente
-    // ─────────────────────────────────────────────────────────────────────────
-    private void despertarDispositivo(String serial) {
-        ejecutarShellEnSerial(serial, "input keyevent KEYCODE_WAKEUP");
-        ejecutarShellEnSerial(serial, "wm dismiss-keyguard");
-        System.out.println("[WAKE] Pantalla encendida: " + serial);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1155,25 +1455,7 @@ public class DiagnosticoController implements DispositivoAware {
     // ─────────────────────────────────────────────────────────────────────────
 
     /** Ejecuta un comando shell en un serial específico y devuelve la salida. */
-    private String ejecutarShellEnSerial(String serial, String shellCmd) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    "adb", "-s", serial, "shell", shellCmd);
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            java.io.BufferedReader br = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(p.getInputStream()));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null)
-                sb.append(line).append("\n");
-            p.waitFor(10, TimeUnit.SECONDS);
-            return sb.toString().trim();
-        } catch (Exception e) {
-            System.out.println("[ADB] Error en " + serial + ": " + e.getMessage());
-            return "";
-        }
-    }
+   
 
     /** Actualiza el estado de un paso en el hilo de UI. */
     private void actualizarEstadoPaso(PasoPrueba paso, String estado) {
@@ -1270,6 +1552,29 @@ public class DiagnosticoController implements DispositivoAware {
         if (items.isEmpty())
             cb.setPromptText("No hay dispositivos ADB conectados");
         return cb;
+    }
+
+    private String etiquetaDispositivo(String serial) {
+        try {
+            String modelo = ejecutarShellEnSerial(serial, "getprop ro.product.model").trim();
+            if (modelo.isBlank() || "null".equalsIgnoreCase(modelo)) {
+                return serial;
+            }
+            return modelo + " — " + serial;
+        } catch (Exception e) {
+            return serial;
+        }
+    }
+
+    private String serialDesdeEtiqueta(String etiqueta) {
+        if (etiqueta == null || etiqueta.isBlank()) {
+            return null;
+        }
+        int separador = etiqueta.indexOf(" — ");
+        if (separador < 0) {
+            return etiqueta.trim();
+        }
+        return etiqueta.substring(separador + 3).trim();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

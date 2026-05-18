@@ -1,0 +1,27 @@
+# Temporales
+tmp/
+*.xml
+*.log
+
+# Maven
+target/
+*.jar
+*.war
+dependency-reduced-pom.xml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Java
+*.class
+*.classpath
+.project
+.settings/
