@@ -3,6 +3,7 @@ package com.example.View;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -20,7 +21,6 @@ import com.example.Controller.ADBService;
 import com.example.Controller.PerfilesManager;
 import com.example.Model.BloquePrueba;
 import com.example.Model.Dispositivo;
-import com.example.Model.Entradas;
 import com.example.Model.LlamadasD17;
 
 import javafx.fxml.FXML;
@@ -29,6 +29,7 @@ import javafx.geometry.Insets;
 
 import com.example.Model.PasoPrueba;
 import com.example.Model.PerfilDialer;
+import com.example.View.ContactosConfigPopup.DispositivoCombo;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -56,13 +57,8 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 
+import org.apache.commons.collections4.functors.IfClosure;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -84,6 +80,9 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private Button btnEjecutar;
 
     @FXML
+    private Button btnLimpiar;
+
+    @FXML
     private Button btnInforme;
     private String llamadaEntreDosNumero1 = null; // número del teléfono 1 (introducido por usuario)
     private String llamadaEntreDosNumero2 = null; // número del teléfono 2 (introducido por usuario)
@@ -93,6 +92,13 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     // ─── WiFi timeout ─────────────────────────────────────────────────────────
     private static final int WIFI_TIMEOUT_MS = 3 * 60 * 1000;
     private static final int WIFI_POLL_INTERVAL_MS = 3_000;
+
+    // ─── Variables para la configuración del bloque Contactos
+    private String contactoTestNombre = "Test_ADB";
+    private String contactoTestTelefonoDUT = "";
+    private String contactoTestTelefono = "";
+    private String contactoTestEmail = "test@adb.com";
+    private String contactoSerialReceptor = null;
 
     // ─── Marcadores especiales para pasos de llamada avanzados ───────────────
     // El comando del PasoPrueba se usa como identificador interno cuando la
@@ -117,6 +123,7 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private static final String TOUCH_SPREAD = "__SPREAD__";
 
     private static final String INFO_CHANGE_NAME = "__CHANGE_NAME__";
+    private static final String INFO_HW_VERSION = "__HW_VERSION__";
     private static final String INFO_DEVICE_NAME_PC = "__DEVICE_NAME_PC__";
     private static final String INFO_IP = "__IP__";
     private static final String INFO_LOGCAT_BRAND = "__LOGCAT_BRAND__";
@@ -129,6 +136,22 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private static final String DISPLAY_FONT_SIZE = "__FONT_SIZE__";
     private static final String DISPLAY_DISPLAY_SIZE = "__DISPLAY_SZIE__";
     private static final String DISPLAY_SCREENSAVER = "__SCREENSAVER__";
+
+    private static final String CONTACT_CREATE_SIM = "__CREATE_SIM__";
+    private static final String CONTACT_EDIT_SIM = "__EDIT_SIM__";
+    private static final String CONTACT_DELETE_SIM = "__DELETE_SIM__";
+    private static final String CONTACT_CALL_SIM = "__CALL_SIM__";
+    private static final String CONTACT_RECEIVE_CALL_SIM = "__RECEIVE_CALL_SIM__";
+    private static final String CONTACT_CREATE_PHONE = "__CREATE_PHONE__";
+    private static final String CONTACT_EDIT_PHONE = "__EDIT_PHONE__";
+    private static final String CONTACT_CALL_PHONE = "__CALL_PHONE__";
+    private static final String CONTACT_DELETE_PHONE = "__DELETE_PHONE__";
+    private static final String CONTACT_RECEIVE_CALL_PHONE = "__RECEIVE_CALL_PHONE__";
+    private static final String CONTACT_COPY_SIM_PHONE = "__COPY_SIM_PHONE__";
+    private static final String CONTACT_COPY_PHONE_SIM = "__COPY_PHONE_SIM__";
+    private static final String CONTACT_IMPORT_VCARD = "__IMPORT_VCARD__";
+    private static final String CONTACT_EXPORT_VCARD = "__EXPORT_VCARD__";
+    private static final String CONTACT_MEMORY_STATUS = "__MEMORY_STATUS__";
 
     // ─── Datos extra para los pasos de llamada avanzados ─────────────────────
     // Se rellenan cuando el usuario configura el paso en el popup.
@@ -230,7 +253,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
         }
     }
 
-
     @FXML
     private void calibrarDispositivo() {
         if (dispositivoActual == null)
@@ -275,12 +297,14 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
     @FXML
     private void calibrarTecladoManual() {
-        if (dispositivoActual == null) return;
+        if (dispositivoActual == null)
+            return;
 
         new Thread(() -> {
             try {
                 String serial = obtenerSerialADBActual();
-                if (serial == null) return;
+                if (serial == null)
+                    return;
 
                 Platform.runLater(() -> fichaTecnicaController.mostrarToast("Calibrando teclado automaticamente..."));
 
@@ -335,20 +359,22 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
     private Map<Integer, int[]> extraerCoordsNumerosDesdeDump(String uiDump) {
         Map<Integer, int[]> out = new HashMap<>();
-        if (uiDump == null || uiDump.isBlank()) return out;
+        if (uiDump == null || uiDump.isBlank())
+            return out;
 
         java.util.regex.Pattern nodePattern = java.util.regex.Pattern.compile("<node\\s+([^>]+)>");
         java.util.regex.Matcher nodeMatcher = nodePattern.matcher(uiDump);
 
         java.util.regex.Pattern digitPattern = java.util.regex.Pattern.compile("(?:text|content-desc)=\"([0-9])\"");
         java.util.regex.Pattern boundsPattern = java.util.regex.Pattern
-            .compile("bounds=\"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]\"");
+                .compile("bounds=\"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]\"");
 
         while (nodeMatcher.find()) {
             String attrs = nodeMatcher.group(1);
             java.util.regex.Matcher dm = digitPattern.matcher(attrs);
             java.util.regex.Matcher bm = boundsPattern.matcher(attrs);
-            if (!dm.find() || !bm.find()) continue;
+            if (!dm.find() || !bm.find())
+                continue;
 
             int numero = Integer.parseInt(dm.group(1));
             int x = (Integer.parseInt(bm.group(1)) + Integer.parseInt(bm.group(3))) / 2;
@@ -792,46 +818,46 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 panel.getChildren().addAll(info, tf, aviso, btn);
             }
 
-           case "Llamada Conferencia" -> {
-    Label info = new Label("Requiere una llamada activa. Añade un tercer\n" +
-            "participante marcando el número indicado.");
-    info.setTextFill(Color.web("#6c7086"));
-    info.setFont(Font.font(11));
-    info.setWrapText(true);
-    TextField tf = crearTextField("Número del tercer participante");
-    
-    List<String> seriales = obtenerSerialesADB();
-    List<String> opciones = seriales.stream()
-            .map(this::etiquetaDispositivo)
-            .toList();
-    Label lReceptor = crearLabelConfig("Dispositivo que debe contestar:");
-    ComboBox<String> cbReceptor = crearCombo(opciones);
-    if (!opciones.isEmpty()) {
-        String serialActual = obtenerSerialADBActual();
-        seriales.stream().filter(s -> !s.equals(serialActual)).findFirst()
-                .ifPresent(s -> cbReceptor.getSelectionModel().select(etiquetaDispositivo(s)));
-        if (cbReceptor.getSelectionModel().isEmpty())
-            cbReceptor.getSelectionModel().select(0);
-    }
-    
-    Label aviso = new Label();
-    aviso.setTextFill(Color.web("#f38ba8"));
-    aviso.setFont(Font.font(11));
-    Button btn = crearBoton("➕  Añadir al script", "#b4befe");
-    btn.setOnAction(e -> {
-        String num = tf.getText().trim();
-        String receptor = serialDesdeEtiqueta(cbReceptor.getValue());
-        if (num.isBlank()) {
-            aviso.setText("Introduce el número destino.");
-            return;
-        }
-        conferenciaNumero = num;
-        conferenciaReceptorSerial = receptor;
-        pasos.add(new PasoPrueba("Conferencia con " + num, CMD_CONFERENCIA));
-        popup.close();
-    });
-    panel.getChildren().addAll(info, tf, lReceptor, cbReceptor, aviso, btn);
-}
+            case "Llamada Conferencia" -> {
+                Label info = new Label("Requiere una llamada activa. Añade un tercer\n" +
+                        "participante marcando el número indicado.");
+                info.setTextFill(Color.web("#6c7086"));
+                info.setFont(Font.font(11));
+                info.setWrapText(true);
+                TextField tf = crearTextField("Número del tercer participante");
+
+                List<String> seriales = obtenerSerialesADB();
+                List<String> opciones = seriales.stream()
+                        .map(this::etiquetaDispositivo)
+                        .toList();
+                Label lReceptor = crearLabelConfig("Dispositivo que debe contestar:");
+                ComboBox<String> cbReceptor = crearCombo(opciones);
+                if (!opciones.isEmpty()) {
+                    String serialActual = obtenerSerialADBActual();
+                    seriales.stream().filter(s -> !s.equals(serialActual)).findFirst()
+                            .ifPresent(s -> cbReceptor.getSelectionModel().select(etiquetaDispositivo(s)));
+                    if (cbReceptor.getSelectionModel().isEmpty())
+                        cbReceptor.getSelectionModel().select(0);
+                }
+
+                Label aviso = new Label();
+                aviso.setTextFill(Color.web("#f38ba8"));
+                aviso.setFont(Font.font(11));
+                Button btn = crearBoton("➕  Añadir al script", "#b4befe");
+                btn.setOnAction(e -> {
+                    String num = tf.getText().trim();
+                    String receptor = serialDesdeEtiqueta(cbReceptor.getValue());
+                    if (num.isBlank()) {
+                        aviso.setText("Introduce el número destino.");
+                        return;
+                    }
+                    conferenciaNumero = num;
+                    conferenciaReceptorSerial = receptor;
+                    pasos.add(new PasoPrueba("Conferencia con " + num, CMD_CONFERENCIA));
+                    popup.close();
+                });
+                panel.getChildren().addAll(info, tf, lReceptor, cbReceptor, aviso, btn);
+            }
         }
         javafx.application.Platform.runLater(() -> scroll.setVvalue(1.0));
     }
@@ -864,6 +890,9 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
         if (dispositivoActual == null || pasos.isEmpty())
             return;
 
+        btnLimpiar.setDisable(true);
+        btnEjecutar.setDisable(true);
+
         new Thread(() -> {
             ADBService adb = new ADBService();
 
@@ -895,7 +924,13 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                         adb.ejecutarAccionHilo(serial, ref.getComando());
                     }
                     Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-                    ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
+                    if (paso.getNombre().contains("IMEISV")) {
+                        String valor = ConfirmacionManualPopup.mostrarYEsperarConValor(ref.getNombre(), owner);
+                        ok = !valor.isEmpty();
+                        outputDetalle = ok ? valor : "";
+                    } else {
+                        ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
+                    }
 
                 } else if (esWifi) {
                     ok = ejecutarPasoWifiConEspera(adb, serial, paso);
@@ -932,8 +967,7 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     ok = ejecutarTransferenciaCiega(serial, paso);
                 }
 
-              
-                 else if (TOUCH_PINCH.equals(paso.getComando())) {
+                else if (TOUCH_PINCH.equals(paso.getComando())) {
                     ok = ejecutarPinch(serial, adb);
 
                 } else if (TOUCH_SPREAD.equals(paso.getComando())) {
@@ -941,6 +975,20 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                 } else if (INFO_CHANGE_NAME.equals(ref.getComando())) {
                     ok = cambiarYRestaurarNombre(serial, adb);
+
+                } else if (INFO_HW_VERSION.equals(ref.getComando())) {
+                    adb.ejecutarComandoSincrono(serial, "shell am start -a android.intent.action.DIAL");
+                    try {
+                        Thread.sleep(1500);
+                        adb.ejecutarComandoSincrono(serial, "shell input text '*#0000#'");
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+                    String valor = ConfirmacionManualPopup.mostrarYEsperarConValor(ref.getNombre(), owner);
+                    ok = !valor.isEmpty();
+                    outputDetalle = ok ? valor : "";
 
                 } else if (INFO_DEVICE_NAME_PC.equals(ref.getComando())) {
                     boolean esUSB = !serial.contains(":");
@@ -987,13 +1035,47 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 } else if (DISPLAY_BRIGHTNESS_CHECK.equals(ref.getComando())) {
                     String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_brightness");
                     ok = comprobarBrilloPorDefecto(serial, adb);
-                    outputDetalle = valor != null ? "DEFAULT: " + valor.trim() + "/255" : "";
+
+                    if (valor != null && !valor.trim().isEmpty()) {
+                        try {
+                            int brilloInt = Integer.parseInt(valor.trim());
+                            int porcentaje = (int) Math.round((brilloInt * 100.0) / 255.0);
+
+                            outputDetalle = porcentaje + "%";
+                        } catch (NumberFormatException e) {
+                            outputDetalle = "Error al parsear el brillo: " + valor.trim();
+                        }
+                    } else {
+                        outputDetalle = "";
+                    }
                 } else if (DISPLAY_WALLPAPER.equals(ref.getComando())) {
                     ok = cambiarWallpaper(serial, adb);
                 } else if (DISPLAY_TIMEOUT_CHECK.equals(ref.getComando())) {
                     String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_off_timeout");
                     ok = comprobarTimeoutPorDefecto(serial, adb);
-                    outputDetalle = valor != null ? "DEFAULT: " + valor.trim() + "ms" : "";
+
+                    if (valor != null && !valor.trim().isEmpty()) {
+                        try {
+                            long ms = Long.parseLong(valor.trim());
+
+                            long segundos = ms / 1000;
+                            long minutos = segundos / 60;
+                            long segundosRestantes = segundos % 60;
+
+                            if (segundosRestantes == 0) {
+                                outputDetalle = minutos + " min";
+                            } else if (minutos > 0) {
+                                outputDetalle = minutos + " min " + segundosRestantes + " s";
+                            } else {
+                                outputDetalle = segundos + " s";
+                            }
+
+                        } catch (NumberFormatException e) {
+                            outputDetalle = "Error al parsear timeout: " + valor.trim();
+                        }
+                    } else {
+                        outputDetalle = "";
+                    }
                 } else if (DISPLAY_TIMEOUT_CHANGE.equals(ref.getComando())) {
                     ok = cambiarYVerificarTimeout(serial, adb);
                 } else if (DISPLAY_FONT_SIZE.equals(ref.getComando())) {
@@ -1003,13 +1085,64 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 } else if (DISPLAY_SCREENSAVER.equals(ref.getComando())) {
                     ok = comprobarScreensaver(serial, adb);
                     adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_WAKEUP");
+
+                } else if (CONTACT_CREATE_SIM.equals(ref.getComando())) {
+                    ok = crearContactoSIM(serial, adb);
+
+                } else if (CONTACT_EDIT_SIM.equals(ref.getComando())) {
+                    ok = editarContactoSIM(serial, adb);
+
+                } else if (CONTACT_DELETE_SIM.equals(ref.getComando())) {
+                    ok = borrarContactoSIM(serial, adb);
+
+                } else if (CONTACT_CALL_SIM.equals(ref.getComando())) {
+                    ok = hacerLlamadaDesdeSIM(serial, adb);
+
+                } else if (CONTACT_RECEIVE_CALL_SIM.equals(ref.getComando())) {
+                    ok = recibirLlamadaSIM(serial, adb);
+
+                } else if (CONTACT_CREATE_PHONE.equals(ref.getComando())) {
+                    ok = crearContactoPhone(serial, adb);
+
+                } else if (CONTACT_EDIT_PHONE.equals(ref.getComando())) {
+                    ok = editarContactoPhone(serial, adb);
+
+                } else if (CONTACT_CALL_PHONE.equals(ref.getComando())) {
+                    ok = hacerLlamadaDesdePhone(serial, adb);
+
+                } else if (CONTACT_DELETE_PHONE.equals(ref.getComando())) {
+                    ok = borrarContactoPhone(serial, adb);
+
+                } else if (CONTACT_RECEIVE_CALL_PHONE.equals(ref.getComando())) {
+                    ok = recibirLlamadaPhone(serial, adb);
+
+                } else if (CONTACT_COPY_SIM_PHONE.equals(ref.getComando())) {
+
+                } else if (CONTACT_COPY_PHONE_SIM.equals(ref.getComando())) {
+
+                } else if (CONTACT_IMPORT_VCARD.equals(ref.getComando())) {
+                    ok = importarVCard(serial, adb);
+                } else if (CONTACT_EXPORT_VCARD.equals(ref.getComando())) {
+                    ok = exportarVCard(serial, adb);
+
+                } else if (CONTACT_MEMORY_STATUS.equals(ref.getComando())) {
+                    ok = comprobarMemoriaContactos(serial, adb);
+
                 } else {
-                    ADBService.EjecucionADB r = adb.ejecutarYObtener(serial, ref.getComandos());
+                    ADBService.EjecucionADB r = adb.ejecutarYObtener(serial, ref.getComandos(), ref.isSinOutput());
                     ok = r.exito();
                     outputDetalle = r.outputJunto();
-                     boolean exito = adb.ejecutarPasoSync(serial, paso.getComando());
+                    boolean exito = adb.ejecutarPasoSync(serial, paso.getComando());
+
                     if (outputDetalle.contains("Parcel")) {
                         outputDetalle = parsearParcelIMEI(outputDetalle);
+                    } else if (outputDetalle.contains("link/ether") || outputDetalle.contains("wlan0")) {
+                        String macExtraida = parsearMacAddress(outputDetalle);
+                        if (macExtraida != null) {
+                            outputDetalle = macExtraida;
+                        }
+                    } else if (outputDetalle.contains("name=") || outputDetalle.contains("display_name=")) {
+                        outputDetalle = parsearListaContactos(outputDetalle);
                     }
 
                     try {
@@ -1030,16 +1163,11 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
             Platform.runLater(() -> {
                 btnInforme.setDisable(false);
                 btnEjecutar.setDisable(false);
+                btnLimpiar.setDisable(false);
                 System.out.println("[DIAG] Secuencia completada.");
             });
         }).start();
     }
-
-   
-
-    
-
-   
 
     private boolean ejecutarEmergencia(String serial, PasoPrueba paso) {
         try {
@@ -1061,38 +1189,36 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     }
 
     private boolean ejecutarHoldRetrieve(String serial, PasoPrueba paso) {
-    PerfilDialer perfil = PerfilesManager.obtenerPerfil(serial);
-    LlamadasD17 llamadas = new LlamadasD17(serial);
-    actualizarEstadoPaso(paso, "Hold...");
-    return llamadas.ejecutarHold(perfil);
-}
+        PerfilDialer perfil = PerfilesManager.obtenerPerfil(serial);
+        LlamadasD17 llamadas = new LlamadasD17(serial);
+        actualizarEstadoPaso(paso, "Hold...");
+        return llamadas.ejecutarHold(perfil);
+    }
 
-private boolean ejecutarMute(String serial, PasoPrueba paso) {
-    PerfilDialer perfil = PerfilesManager.obtenerPerfil(serial);
-    LlamadasD17 llamadas = new LlamadasD17(serial);
-    actualizarEstadoPaso(paso, "Mute...");
-    return llamadas.ejecutarMute(perfil);
-}
+    private boolean ejecutarMute(String serial, PasoPrueba paso) {
+        PerfilDialer perfil = PerfilesManager.obtenerPerfil(serial);
+        LlamadasD17 llamadas = new LlamadasD17(serial);
+        actualizarEstadoPaso(paso, "Mute...");
+        return llamadas.ejecutarMute(perfil);
+    }
 
-private boolean ejecutarTransferencia(String serial, PasoPrueba paso) {
-    LlamadasD17 llamadas = new LlamadasD17(serial);
-    actualizarEstadoPaso(paso, "Transfiriendo...");
-    return llamadas.ejecutarTransferencia(transferenciaNumero, transferenciaResponderSerial);
-}
+    private boolean ejecutarTransferencia(String serial, PasoPrueba paso) {
+        LlamadasD17 llamadas = new LlamadasD17(serial);
+        actualizarEstadoPaso(paso, "Transfiriendo...");
+        return llamadas.ejecutarTransferencia(transferenciaNumero, transferenciaResponderSerial);
+    }
 
-private boolean ejecutarTransferenciaCiega(String serial, PasoPrueba paso) {
-    LlamadasD17 llamadas = new LlamadasD17(serial);
-    actualizarEstadoPaso(paso, "Transferencia ciega...");
-    return llamadas.ejecutarTransferenciaCiega(transferenciaNumero);
-}
+    private boolean ejecutarTransferenciaCiega(String serial, PasoPrueba paso) {
+        LlamadasD17 llamadas = new LlamadasD17(serial);
+        actualizarEstadoPaso(paso, "Transferencia ciega...");
+        return llamadas.ejecutarTransferenciaCiega(transferenciaNumero);
+    }
 
-private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
-    LlamadasD17 llamadas = new LlamadasD17(serial);
-    actualizarEstadoPaso(paso, "Conferencia...");
-    return llamadas.ejecutarConferencia(conferenciaNumero, conferenciaReceptorSerial);
-}
-
-   
+    private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
+        LlamadasD17 llamadas = new LlamadasD17(serial);
+        actualizarEstadoPaso(paso, "Conferencia...");
+        return llamadas.ejecutarConferencia(conferenciaNumero, conferenciaReceptorSerial);
+    }
 
     private boolean ejecutarDTMF(String serial, PasoPrueba paso) {
         try {
@@ -1119,7 +1245,8 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
                     String uiDump = ejecutarShellEnSerial(serial,
                             "uiautomator dump /sdcard/ui_dtmf_now.xml >/dev/null 2>&1; cat /sdcard/ui_dtmf_now.xml");
                     coordsRun = extraerCoordsNumerosDesdeDump(uiDump);
-                    if (coordsRun.size() < 10) Thread.sleep(300);
+                    if (coordsRun.size() < 10)
+                        Thread.sleep(300);
                 }
 
                 boolean usoCoordsManual = false;
@@ -1221,8 +1348,6 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
         }
     }
 
-
-
     private boolean ejecutarLlamadaEntrante(PasoPrueba paso) {
         if (llamadaEntranteSerial == null || llamadaEntranteNumero == null) {
             System.out.println("[ENTRANTE] Sin configurar");
@@ -1278,8 +1403,6 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
         // PASS si está en alguna red conocida
         return !red.equals("DESCONOCIDA");
     }
-
-   
 
     // ─────────────────────────────────────────────────────────────────────────
     // LLAMADA MASIVA
@@ -1509,30 +1632,61 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
                 exito ? "PASS ✔" : "FAIL ✖");
         return exito;
     }
-      
-
 
     // Pruebas de TOUCHSCREEN
     @FXML
     private void addTouchScreenTest() {
+        // Obtener resolución real del dispositivo
+        ADBService adb = new ADBService();
+        String serial;
+        try {
+            serial = adb.getSerialActivo(dispositivoActual.getAndroid_id());
+        } catch (IOException e) {
+            serial = dispositivoActual.getSerialNumber();
+        }
+
+        String resolucion = adb.ejecutarComandoSincrono(serial, "shell wm size");
+        // Output: "Physical size: 1080x2340"
+        int centroX = 540;
+        int centroY = 960;
+        if (resolucion != null && resolucion.contains("x")) {
+            try {
+                String[] partes = resolucion.replaceAll("[^0-9x]", "").split("x");
+                centroX = Integer.parseInt(partes[0]) / 2;
+                centroY = Integer.parseInt(partes[1]) / 2;
+            } catch (Exception e) {
+                System.out.println("[TOUCH] Error parseando resolución, usando valores por defecto");
+            }
+        }
+        System.out.println("[TOUCH] Centro calculado: " + centroX + "x" + centroY);
+
+        // Coordenadas derivadas del centro
+        int margenX = centroX / 2;
+        int margenY = centroY / 4;
+
+        final int cx = centroX;
+        final int cy = centroY;
+
         List<BloquePrueba> bloqueTouchScreen = List.of(
                 new BloquePrueba("SOFT.004.001", "Check single tap on touchscreen",
-                        "shell input tap 540 960"),
+                        "shell input tap " + cx + " " + cy, false, true),
                 new BloquePrueba("SOFT.004.002", "Check double tap on touchscreen",
-                        "shell input tap 540 960 && sleep 0.3 && input tap 540 960"),
+                        "shell input tap " + cx + " " + cy + " && sleep 0.3 && input tap " + cx + " " + cy, false,
+                        true),
                 new BloquePrueba("SOFT.004.003", "Check long press (press and hold) on touchscreen",
-                        "shell input swipe 540 960 540 961 1500"),
+                        "shell input swipe " + cx + " " + cy + " " + cx + " " + (cy + 1) + " 1500", false, true),
                 new BloquePrueba("SOFT.004.004", "Check drag on touchscreen",
-                        "shell input swipe 200 500 700 500 800"),
+                        "shell input swipe " + (cx - margenX) + " " + cy + " " + (cx + margenX) + " " + cy + " 800",
+                        false, true),
                 new BloquePrueba("SOFT.004.005", "Check flick movement on touchscreen",
-                        "shell input swipe 200 500 700 500 100"),
+                        "shell input swipe " + (cx - margenX) + " " + cy + " " + (cx + margenX) + " " + cy + " 100",
+                        false, true),
                 new BloquePrueba("SOFT.004.006", "Check pinch on touchscreen",
-                        "__PINCH__"),
+                        "__PINCH__", false, true),
                 new BloquePrueba("SOFT.004.007", "Check spread on touchscreen",
-                        "__SPREAD__"));
+                        "__SPREAD__", false, true));
 
         Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-
         SelectorPruebasPopup.mostrar(
                 "SOFT.004 — Touch Screen",
                 bloqueTouchScreen,
@@ -1542,40 +1696,67 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
                         .forEach(pasos::add));
     }
 
-    public boolean ejecutarPinch(String serial, ADBService adb) {
+    private boolean ejecutarPinch(String serial, ADBService adb) {
+        String resolucion = adb.ejecutarComandoSincrono(serial, "shell wm size");
+        int cx = 540, cy = 960;
+        if (resolucion != null && resolucion.contains("x")) {
+            try {
+                String[] p = resolucion.replaceAll("[^0-9x]", "").split("x");
+                cx = Integer.parseInt(p[0]) / 2;
+                cy = Integer.parseInt(p[1]) / 2;
+            } catch (Exception ignored) {
+            }
+        }
+        int margen = cx / 3;
+
         boolean[] resultados = { false, false };
-        Thread t1 = new Thread(
-                () -> resultados[0] = adb.ejecutarComandoSincronoBoolean(serial,
-                        "shell input swipe 200 600 540 960 600"));
-        Thread t2 = new Thread(
-                () -> resultados[1] = adb.ejecutarComandoSincronoBoolean(serial,
-                        "shell input swipe 880 1320 540 960 600"));
+        final int fcx = cx, fcy = cy, fm = margen;
+
+        Thread t1 = new Thread(() -> resultados[0] = adb.ejecutarComandoSincronoBoolean(serial,
+                "shell input swipe " + (fcx - fm) + " " + (fcy - fm) + " " + fcx + " " + fcy + " 600"));
+        Thread t2 = new Thread(() -> resultados[1] = adb.ejecutarComandoSincronoBoolean(serial,
+                "shell input swipe " + (fcx + fm) + " " + (fcy + fm) + " " + fcx + " " + fcy + " 600"));
+
         t1.start();
         t2.start();
         try {
-            t1.join(3_000);
-            t2.join(3_000);
+            t1.join(3000);
+            t2.join(3000);
         } catch (InterruptedException ignored) {
         }
+
         return resultados[0] && resultados[1];
     }
 
-    public boolean ejecutarSpread(String serial, ADBService adb) {
+    private boolean ejecutarSpread(String serial, ADBService adb) {
+        String resolucion = adb.ejecutarComandoSincrono(serial, "shell wm size");
+        int cx = 540, cy = 960;
+        if (resolucion != null && resolucion.contains("x")) {
+            try {
+                String[] p = resolucion.replaceAll("[^0-9x]", "").split("x");
+                cx = Integer.parseInt(p[0]) / 2;
+                cy = Integer.parseInt(p[1]) / 2;
+            } catch (Exception ignored) {
+            }
+        }
+        int margen = cx / 3;
+
         boolean[] resultados = { false, false };
-        Thread t1 = new Thread(
-                () -> resultados[0] = adb.ejecutarComandoSincronoBoolean(serial,
-                        "shell input swipe 540 960 200 600 600"));
-        Thread t2 = new Thread(
-                () -> resultados[1] = adb.ejecutarComandoSincronoBoolean(serial,
-                        "shell input swipe 540 960 880 1320 600"));
+        final int fcx = cx, fcy = cy, fm = margen;
+
+        Thread t1 = new Thread(() -> resultados[0] = adb.ejecutarComandoSincronoBoolean(serial,
+                "shell input swipe " + fcx + " " + fcy + " " + (fcx - fm) + " " + (fcy - fm) + " 600"));
+        Thread t2 = new Thread(() -> resultados[1] = adb.ejecutarComandoSincronoBoolean(serial,
+                "shell input swipe " + fcx + " " + fcy + " " + (fcx + fm) + " " + (fcy + fm) + " 600"));
+
         t1.start();
         t2.start();
-
         try {
-            t1.join(3_000);
-            t2.join(3_000);
+            t1.join(3000);
+            t2.join(3000);
         } catch (InterruptedException ignored) {
         }
+
         return resultados[0] && resultados[1];
     }
 
@@ -1632,8 +1813,7 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
                 new BloquePrueba("SOFT.012.005", "Check software version",
                         "shell getprop ro.build.version.release"),
                 new BloquePrueba("SOFT.012.006", "Check hardware version",
-                        List.of("shell getprop ro.revision", "shell getprop ro.boot.hardware.revision",
-                                "shell getprop ro.hardware.revision", "shell getprop ro.hardware")),
+                        INFO_HW_VERSION),
                 new BloquePrueba("SOFT.012.007", "Check IMEI number",
                         List.of("shell service call iphonesubinfo 1 s16 com.android.shell",
                                 "shell service call iphonesubinfo 1")),
@@ -1708,6 +1888,17 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
         return cambioOk && restauroOk;
     }
 
+    private String parsearMacAddress(String log) {
+        String regex = "link/ether\\s+([0-9a-fA-F:]{17})";
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regex);
+        java.util.regex.Matcher matcher = pattern.matcher(log);
+
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
     // PRUEBAS DE DISPLAY
     @FXML
     private void addDisplayTest() {
@@ -1766,92 +1957,52 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
 
     private boolean cambiarWallpaper(String serial, ADBService adb) {
         try {
-            String wallpaperOriginal = adb.ejecutarComandoSincrono(serial,
-                    "shell settings get secure wallpaper_component");
-            System.out.println("[WALLPAPER] Original: " + wallpaperOriginal);
-
+            // Crear imagen y subirla
             BufferedImage img = new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB);
             Graphics2D g = img.createGraphics();
-            g.setColor(java.awt.Color.RED);
+            g.setColor(java.awt.Color.BLUE);
             g.fillRect(0, 0, 100, 100);
             g.dispose();
 
             File tempFile = File.createTempFile("wallpaper_test", ".jpg");
             ImageIO.write(img, "jpg", tempFile);
-            System.out.println("[WALLPAPER] Imagen creada en: " + tempFile.getAbsolutePath());
 
             String rutaImagen = "/data/local/tmp/wallpaper_test.jpg";
-            Process pushImg = new ProcessBuilder("adb", "-s", serial, "push",
-                    tempFile.getAbsolutePath(), rutaImagen).start();
-            pushImg.waitFor();
-            
-            System.out.println("[WALLPAPER] Push imagen exit code: " + pushImg.exitValue());
+            new ProcessBuilder("adb", "-s", serial, "push",
+                    tempFile.getAbsolutePath(), rutaImagen)
+                    .start().waitFor();
             tempFile.delete();
 
-            adb.ejecutarComandoSincrono(serial, "shell chmod 644 "+rutaImagen);
-
-            java.net.URL apkUrl = getClass().getResource("/apk/WallpaperSetter.apk");
-            System.out.println("[WALLPAPER] APK URL: " + apkUrl);
-            if (apkUrl == null) {
-                System.out.println("[WALLPAPER] ERROR — APK no encontrada en resources");
-                return false;
-            }
-
-            File apkFile = new File(apkUrl.toURI());
-            String apkLocal = apkFile.getAbsolutePath();
-            System.out.println("[WALLPAPER] APK path corregido: " + apkLocal);
-
-            String rutaApk = "/sdcard/WallpaperSetter.apk";
-            Process pushApk = new ProcessBuilder("adb", "-s", serial, "push",
-                    apkLocal, rutaApk).start();
-            pushApk.waitFor();
-            System.out.println("[WALLPAPER] Push APK exit code: " + pushApk.exitValue());
-
-            Process install = new ProcessBuilder("adb", "-s", serial,
-                    "install", "-r", apkLocal).start();
-            install.waitFor();
-            // Leer output de instalación
-            String installOutput = new String(install.getInputStream().readAllBytes());
-            System.out.println("[WALLPAPER] Install output: " + installOutput);
-            System.out.println("[WALLPAPER] Install exit code: " + install.exitValue());
+            // Instalar APK
+            File apkFile = new File(getClass().getClassLoader()
+                    .getResource("apk/WallpaperSetter.apk").toURI());
+            new ProcessBuilder("adb", "-s", serial, "install", "-r",
+                    apkFile.getAbsolutePath()).start().waitFor();
             Thread.sleep(2000);
 
+            // Cambiar wallpaper
             adb.ejecutarComandoSincrono(serial, "shell logcat -c");
             adb.ejecutarComandoSincrono(serial,
                     "shell am broadcast -a com.example.wallpapersetter.SET_WALLPAPER " +
+                            "--es action set " +
                             "--es image_path " + rutaImagen +
                             " -n com.example.wallpapersetter/.WallpaperReceiver");
+            Thread.sleep(4000);
 
-            Thread.sleep(2000);
-
+            // Verificar via logcat
             String logcat = adb.ejecutarComandoSincrono(serial,
                     "shell logcat -d -t 50 -s WallpaperSetter");
-            System.out.println("[WALLPAPER] Logcat WallpaperSetter: " + logcat);
-            boolean cambioOk = logcat != null
+            boolean ok = logcat != null
                     && logcat.contains("Wallpaper establecido correctamente");
-            System.out.println("[WALLPAPER] cambioOk: " + cambioOk);
 
-            if (wallpaperOriginal != null && !wallpaperOriginal.equals("null")
-                    && !wallpaperOriginal.isBlank()) {
-                String restoreResult = adb.ejecutarComandoSincrono(serial,
-                        "shell am broadcast -a com.example.wallpapersetter.SET_WALLPAPER " +
-                                "--es image_path " + wallpaperOriginal +
-                                " -n com.example.wallpapersetter/.WallpaperReceiver");
-                System.out.println("[WALLPAPER] Restore result: " + restoreResult);
-            }
-
-            Process uninstall = new ProcessBuilder("adb", "-s", serial,
-                    "uninstall", "com.example.wallpapersetter").start();
-            uninstall.waitFor();
-            System.out.println("[WALLPAPER] Uninstall exit code: " + uninstall.exitValue());
-
+            // Limpiar
+            new ProcessBuilder("adb", "-s", serial, "uninstall",
+                    "com.example.wallpapersetter").start().waitFor();
             adb.ejecutarComandoSincrono(serial, "shell rm " + rutaImagen);
-            adb.ejecutarComandoSincrono(serial, "shell rm " + rutaApk);
 
-            return cambioOk;
+            return ok;
 
         } catch (Exception e) {
-            System.out.println("[WALLPAPER] Excepción: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -1960,6 +2111,678 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
         return tieneDreamActivo;
     }
 
+    // PRUEBAS DE CONTACTOS
+    @FXML
+    private void addContactsTest() {
+        ADBService adb = new ADBService();
+        String serial;
+        try {
+            serial = adb.getSerialActivo(dispositivoActual.getAndroid_id());
+        } catch (IOException e) {
+            serial = dispositivoActual.getSerialNumber();
+        }
+
+        List<DispositivoCombo> otrosDispositivos = new ArrayList<>();
+        try {
+            Map<String, String> todos = adb.obtenerDispositivosConectados();
+            for (Map.Entry<String, String> entry : todos.entrySet()) {
+                String serialDispositivo = entry.getValue();
+                // Excluir el dispositico actual
+                if (!serialDispositivo.equals(serial)) {
+                    try {
+                        Dispositivo disp = adb.obtenerProps(serialDispositivo);
+                        String nombreModeloDispositivo = disp.getModelo().getNombreModelo();
+                        String androidIdDispositivo = disp.getAndroid_id();
+                        otrosDispositivos.add(
+                                new DispositivoCombo(nombreModeloDispositivo, serialDispositivo, androidIdDispositivo));
+                    } catch (IOException e) {
+                        String androidIdFallback = entry.getKey();
+                        otrosDispositivos.add(new DispositivoCombo("Dispositivo (" + serialDispositivo + ")",
+                                serialDispositivo, androidIdFallback));
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("[CONTACTS] No se pudieron obtener otros dispositivos");
+        }
+
+        String[] telefonoDUT = { contactoTestTelefonoDUT };
+        String[] telefono = { contactoTestTelefono };
+        String[] serialReceptor = { contactoSerialReceptor != null ? contactoSerialReceptor : "" };
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+
+        boolean confirmado = ContactosConfigPopup.mostrar(otrosDispositivos, telefonoDUT, telefono, serialReceptor,
+                owner);
+
+        if (!confirmado) {
+            return;
+        }
+        contactoTestTelefonoDUT = telefonoDUT[0];
+        contactoTestTelefono = telefono[0];
+        contactoSerialReceptor = (serialReceptor != null && serialReceptor.length > 0 && serialReceptor[0] != null
+                && !serialReceptor[0].isEmpty())
+                        ? serialReceptor[0]
+                        : null;
+
+        mostrarSelectorContactos();
+    }
+
+    private void mostrarSelectorContactos() {
+        List<BloquePrueba> bloqueContactos = List.of(
+                new BloquePrueba("SOFT.006.001", "Create several SIM contacts", CONTACT_CREATE_SIM),
+                new BloquePrueba("SOFT.006.002", "Insert SIM card on other device and check SIM contacts created", "",
+                        true),
+                new BloquePrueba("SOFT.006.003", "Edit SIM card contacts",
+                        "shell am start -a android.intent.action.VIEW -t vnd.android.cursor.dir/contact", true),
+                new BloquePrueba("SOFR.006.004", "Delete a SIM card contact",
+                        "shell am start -a android.intent.action.VIEW -t vnd.android.cursor.dir/contact", true),
+                new BloquePrueba("SOFT.006.005", "Make a call to a SIM card contact", CONTACT_CALL_SIM),
+                new BloquePrueba("SOFT.006.006", "Receive a call from a SIM card contact",
+                        contactoSerialReceptor != null ? CONTACT_RECEIVE_CALL_SIM : "",
+                        contactoSerialReceptor != null ? false : true),
+                new BloquePrueba("SOFT.006.007", "Create several phone contacts", CONTACT_CREATE_PHONE),
+                new BloquePrueba("SOFT.006.008", "Edit phone contacts", CONTACT_EDIT_PHONE),
+                new BloquePrueba("SOFT.006.009", "Make a call to a phone contact", CONTACT_CALL_PHONE),
+                new BloquePrueba("SOFT.006.010", "Delete a phone contact", CONTACT_DELETE_PHONE),
+                new BloquePrueba("SOFT.006.011", "Receive a call from a phone contact",
+                        contactoSerialReceptor != null ? CONTACT_RECEIVE_CALL_PHONE : "",
+                        contactoSerialReceptor != null ? false : true),
+                new BloquePrueba("SOFT.006.012", "Create several exchange contacts", "", true),
+                new BloquePrueba("SOFT.006.013", "Check exchange contacts via web", "", true),
+                new BloquePrueba("SOFT.006.014", "Edit exchange contacts", "", true),
+                new BloquePrueba("SOFT.006.015", "Delete an exchange contact", "", true),
+                new BloquePrueba("SOFT.006.016", "Make a call to exchange contact", "", true),
+                new BloquePrueba("SOFT.006.017", "Receive call from exchange contact", "", true),
+                new BloquePrueba("SOFT.006.018", "List only SIM card contacts",
+                        "shell content query --uri content://icc/adn --projection tag"),
+                new BloquePrueba("SOFT.006.019", "List only phone contacts",
+                        "shell content query --uri content://com.android.contacts/raw_contacts --projection display_name --where \\\"account_type IS NULL\\\""),
+                new BloquePrueba("SOFT.006.020", "List only exchange contacts", "", true),
+                new BloquePrueba("SOFT.006.021", "Copy several SIM contacts to phone", CONTACT_COPY_SIM_PHONE),
+                new BloquePrueba("SOFT.006.022", "Copy SIM contacts to exchange", "", true),
+                new BloquePrueba("SOFT.006.023", "Copy phone contacts to SIM", CONTACT_COPY_PHONE_SIM),
+                new BloquePrueba("SOFT.006.024", "Copy phone contacts to exchange", "", true),
+                new BloquePrueba("SOFT.006.025", "Copy exchange contacts to SIM", "", true),
+                new BloquePrueba("SOFT.006.026", "Copy exchange contacts to phone", "", true),
+                new BloquePrueba("SOFT.006.027", "Import vCard from internal storage to phone", CONTACT_IMPORT_VCARD),
+                new BloquePrueba("SOFT.006.028", "Import vCard to exchange account", "", true),
+                new BloquePrueba("SOFT.006.029", "Import vCard from microSD to phone", "", true),
+                new BloquePrueba("SOFT.006.030", "Import vCard from microSD to exchange", "", true),
+                new BloquePrueba("SOFT.006.031", "Export contacts to vCard", CONTACT_EXPORT_VCARD),
+                new BloquePrueba("SOFT.006.032", "Share contacts via Bluetooth", "", true),
+                new BloquePrueba("SOFT.006.033", "Share contacts via SMS", "", true),
+                new BloquePrueba("SOFT.006.034", "Receive vCard via Bluetooth", "", true),
+                new BloquePrueba("SOFT.006.035", "Receive vCard via MMS", "", true),
+                new BloquePrueba("SOFT.006.036", "Check Service Dial Numbers (SDN)", "", true),
+                new BloquePrueba("SOFT.006.037", "Memory status: Check size for Phone contacts and USIM contacts",
+                        CONTACT_MEMORY_STATUS));
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar("SOFT.006 — Contacts functions", bloqueContactos, owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
+    }
+
+    public String parsearListaContactos(String rawOutput) {
+        if (rawOutput == null || rawOutput.trim().isEmpty() || rawOutput.contains("usage:")
+                || rawOutput.toLowerCase().contains("no result")) {
+            if (rawOutput != null && rawOutput.contains("display_name")) {
+                return "Contactos del Dispositivo: 0 encontrados";
+            }
+            return "Contactos de la SIM: 0 econtrados";
+        }
+
+        String[] lineas = rawOutput.split("\n");
+        int contadorTotal = 0;
+        boolean esDispositivo = false;
+
+        for (String linea : lineas) {
+            String nombreExtraido = "";
+
+            if (linea.contains("display_name=")) {
+                esDispositivo = true;
+                String[] partes = linea.split("display_name=");
+                if (partes.length > 1) {
+                    nombreExtraido = partes[1].trim();
+                }
+            } else if (linea.contains("name=")) {
+                String[] partes = linea.split("name=");
+                if (partes.length > 1) {
+                    String resto = partes[1];
+                    if (resto.contains(",")) {
+                        nombreExtraido = resto.substring(0, resto.indexOf(",")).trim();
+                    } else {
+                        nombreExtraido = resto.trim();
+                    }
+                }
+            }
+
+            nombreExtraido = nombreExtraido.replace("\"", "").trim();
+
+            if (!nombreExtraido.isEmpty() && !nombreExtraido.equalsIgnoreCase("null")) {
+                contadorTotal++;
+            }
+        }
+
+        if (esDispositivo) {
+            return "Contactos del Dispositivo: " + contadorTotal + " encontrados";
+        } else {
+            return "Contactos de la SIM: " + contadorTotal + " encontrados";
+        }
+    }
+
+    // CONTACTOS SIM
+    private boolean crearContactoSIM(String serial, ADBService adb) {
+        boolean ok = true;
+        for (int i = 1; i <= 3; i++) {
+            String r = adb.ejecutarComandoSincrono(serial,
+                    "shell content insert --uri content://icc/adn " +
+                            "--bind tag:s:" + contactoTestNombre + "_SIM_" + i + " " +
+                            "--bind number:s:" + contactoTestTelefono);
+            if (r != null && r.toLowerCase().contains("error")) {
+                ok = false;
+            }
+        }
+
+        return ok;
+    }
+
+    private boolean editarContactoSIM(String serial, ADBService adb) {
+        boolean ok = true;
+        for (int i = 1; i <= 3; i++) {
+            String nombreOriginal = contactoTestNombre + "_SIM_" + i;
+            String nombreEditado = contactoTestNombre + "_SIM_" + i + "_Edited";
+
+            String r = adb.ejecutarComandoSincrono(serial,
+                    "shell content update --uri content://icc/adn " +
+                            "--bind tag:s:" + nombreEditado + " " +
+                            "--where \"tag='" + nombreOriginal + "'\"");
+            if (r != null && r.toLowerCase().contains("error")) {
+                ok = false;
+            }
+        }
+        return ok;
+    }
+
+    private boolean borrarContactoSIM(String serial, ADBService adb) {
+        boolean ok = true;
+        adb.ejecutarComandoSincrono(serial,
+                "shell content delete --uri content://icc/adn " +
+                        "--where \"number='" + contactoTestTelefono + "'\"");
+
+        String checkFinal = adb.ejecutarComandoSincrono(serial,
+                "shell content query --uri content://icc/adn " +
+                        "--where \"number='" + contactoTestTelefono + "'\"");
+        ok = checkFinal == null || checkFinal.contains("No result found") || checkFinal.isBlank();
+        return ok;
+    }
+
+    // CONTACTOS TElÉFONO
+    private boolean crearContactoPhone(String serial, ADBService adb) {
+        boolean ok = true;
+
+        try {
+            for (int i = 1; i <= 3; i++) {
+                adb.ejecutarComandoSincrono(serial,
+                        "shell content insert --uri content://com.android.contacts/raw_contacts " +
+                                "--bind account_type:n:null --bind account_name:n:null");
+                Thread.sleep(200);
+
+                // Buscamos la última fila insertada y extraemos el ID
+                String idStr = adb.ejecutarComandoSincrono(serial,
+                        "shell content query --uri content://com.android.contacts/raw_contacts --projection _id");
+
+                if (idStr == null || idStr.trim().isEmpty() || idStr.contains("usage:")) {
+                    ok = false;
+                    continue;
+                }
+
+                String[] lineas = idStr.split("\n");
+                int idMasAlto = 0;
+
+                for (String linea : lineas) {
+                    if (linea.contains("_id=")) {
+                        String[] partes = linea.split("=");
+                        if (partes.length > 1) {
+                            String idLimpio = partes[1].replaceAll("[^0-9]", "").trim();
+                            if (!idLimpio.isEmpty()) {
+                                int idActual = Integer.parseInt(idLimpio);
+                                if (idActual > idMasAlto) {
+                                    idMasAlto = idActual;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                String id = String.valueOf(idMasAlto);
+
+                if (id.isEmpty()) {
+                    ok = false;
+                    continue;
+                }
+
+                // Insertamos Datos vinculados con el ID
+                adb.ejecutarComandoSincrono(serial,
+                        "shell content insert --uri content://com.android.contacts/data " +
+                                "--bind raw_contact_id:i:" + id + " " +
+                                "--bind mimetype:s:vnd.android.cursor.item/name " +
+                                "--bind data1:s:" + contactoTestNombre + "_Phone_" + i);
+                if (i > 1) {
+                    adb.ejecutarComandoSincrono(serial,
+                            "shell content insert --uri content://com.android.contacts/data " +
+                                    "--bind raw_contact_id:i:" + id + " " +
+                                    "--bind mimetype:s:vnd.android.cursor.item/phone_v2 " +
+                                    "--bind data1:s:" + contactoTestTelefono + i + " " +
+                                    "--bind data2:i:2");
+                } else {
+                    adb.ejecutarComandoSincrono(serial,
+                            "shell content insert --uri content://com.android.contacts/data " +
+                                    "--bind raw_contact_id:i:" + id + " " +
+                                    "--bind mimetype:s:vnd.android.cursor.item/phone_v2 " +
+                                    "--bind data1:s:" + contactoTestTelefono + " " +
+                                    "--bind data2:i:2");
+                }
+                // Forzamos a android a recargar la interfaz
+                adb.ejecutarComandoSincrono(serial,
+                        "shell am broadcast -a android.intent.action.PROVIDER_CHANGED --receiver-include-background content://com.android.contacts");
+
+                Thread.sleep(500);
+            }
+        } catch (Exception e) {
+            ok = false;
+        }
+
+        return ok;
+    }
+
+    private boolean editarContactoPhone(String serial, ADBService adb) {
+        boolean ok = true;
+        for (int i = 1; i <= 3; i++) {
+            String nombreOriginal = contactoTestNombre + "_Phone_" + i;
+            String nombreEditado = contactoTestNombre + "_Phone_EDITADO_" + i;
+
+            String idStr = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://com.android.contacts/data " +
+                            "--projection raw_contact_id " +
+                            "--where \"data1=\\'" + nombreOriginal + "\\'\" " +
+                            "--extra mimetype:s:vnd.android.cursor.item/name");
+
+            if (idStr == null || idStr.trim().isEmpty() || idStr.contains("usage:")) {
+                System.out.println("Error o vacío al buscar el contacto: " + nombreOriginal);
+                ok = false;
+                continue;
+            }
+
+            // Extraemos el ID numérico de la fila devuelta
+            String id = "";
+            int idMasAlto = 0;
+
+            for (String linea : idStr.split("\n")) {
+                if (linea.contains("raw_contact_id=")) {
+                    String[] partes = linea.split("=");
+                    if (partes.length > 1) {
+                        String idLimpio = partes[1].replaceAll("[^0-9]", "").trim();
+                        if (!idLimpio.isEmpty()) {
+                            int idActual = Integer.parseInt(idLimpio);
+                            if (idActual > idMasAlto) {
+                                idMasAlto = idActual;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (idMasAlto > 0) {
+                id = String.valueOf(idMasAlto);
+            }
+
+            if (id.isEmpty()) {
+                ok = false;
+                continue;
+            }
+
+            // Editar nombre aplicando el filtro correcto en el update
+            String r = adb.ejecutarComandoSincrono(serial,
+                    "shell content update --uri content://com.android.contacts/data " +
+                            "--bind data1:s:" + nombreEditado + " " +
+                            "--where \"raw_contact_id=" + id + "\" " +
+                            "--extra mimetype:s:vnd.android.cursor.item/name");
+
+            if (r != null && (r.toLowerCase().contains("error") || r.contains("usage:"))) {
+                ok = false;
+            }
+        }
+
+        // Notificación final al sistema operativo
+        adb.ejecutarComandoSincrono(serial,
+                "shell am broadcast -a android.intent.action.PROVIDER_CHANGED --receiver-include-background content://com.android.contacts");
+
+        return ok;
+    }
+
+    private boolean borrarContactoPhone(String serial, ADBService adb) {
+        boolean ok = true;
+
+        // Intentamos borrar los 3 contactos editados o no
+        for (int i = 1; i <= 3; i++) {
+            String nombreOriginal = contactoTestNombre + "_Phone_" + i;
+            String nombreEditado = contactoTestNombre + "_Phone_EDITADO_" + i;
+
+            String r1 = adb.ejecutarComandoSincrono(serial,
+                    "shell content delete --uri content://com.android.contacts/raw_contacts " +
+                            "--where \"display_name=\\'" + nombreOriginal + "\\'\"");
+
+            String r2 = adb.ejecutarComandoSincrono(serial,
+                    "shell content delete --uri content://com.android.contacts/raw_contacts " +
+                            "--where \"display_name=\\'" + nombreEditado + "\\'\"");
+
+            if ((r1 != null && r1.contains("usage:")) || (r2 != null && r2.contains("usage:"))) {
+                ok = false;
+            }
+        }
+
+        // Notificar al sistema
+        adb.ejecutarComandoSincrono(serial,
+                "shell am broadcast -a android.intent.action.PROVIDER_CHANGED --receiver-include-background content://com.android.contacts");
+
+        // Verificacion
+        String checkOriginal = adb.ejecutarComandoSincrono(serial,
+                "shell content query --uri content://com.android.contacts/raw_contacts --projection _id " +
+                        "--where \"display_name=\\'" + (contactoTestNombre + "_Phone_3") + "\\'\"");
+
+        String checkEditado = adb.ejecutarComandoSincrono(serial,
+                "shell content query --uri content://com.android.contacts/raw_contacts --projection _id " +
+                        "--where \"display_name=\\'" + (contactoTestNombre + "_Phone_EDITADO_3") + "\\'\"");
+        boolean originalBorrado = (checkOriginal == null || checkOriginal.trim().isEmpty()
+                || checkOriginal.toLowerCase().contains("no result"));
+        boolean editadoBorrado = (checkEditado == null || checkEditado.trim().isEmpty()
+                || checkEditado.toLowerCase().contains("no result"));
+
+        return ok && originalBorrado && editadoBorrado;
+    }
+
+    // LLAMADAS (CONTACTOS)
+    private boolean hacerLlamadaDesdeSIM(String serial, ADBService adb) {
+        // Verificar que existe el contacto en la SIM
+        String check = adb.ejecutarComandoSincrono(serial,
+                "shell content query --uri content://icc/adn " +
+                        "--where \"number='" + contactoTestTelefono + "'\"");
+        boolean existeEnSIM = check != null && !check.isBlank()
+                && !check.contains("No result found");
+
+        // Si no existe en SIM lo creamos antes de llamar
+        if (!existeEnSIM) {
+            adb.ejecutarComandoSincrono(serial,
+                    "shell content insert --uri content://icc/adn " +
+                            "--bind tag:s:" + contactoTestNombre + "_SIM_call " +
+                            "--bind number:s:" + contactoTestTelefono);
+        }
+
+        return hacerLlamada(serial, adb);
+    }
+
+    private boolean hacerLlamadaDesdePhone(String serial, ADBService adb) {
+        // Verificar que existe el contacto en el teléfono
+        String check = adb.ejecutarComandoSincrono(serial,
+                "shell content query --uri content://com.android.contacts/data " +
+                        "--projection raw_contact_id --where \"mimetype='vnd.android.cursor.item/phone_v2'" +
+                        " AND data1='" + contactoTestTelefono + "'\"");
+        boolean existeEnPhone = check != null && !check.isBlank()
+                && !check.contains("No result found");
+
+        // Si no existe en phone lo creamos antes de llamar
+        if (!existeEnPhone) {
+            crearContactoPhone(serial, adb);
+        }
+
+        return hacerLlamada(serial, adb);
+    }
+
+    // Motor común de llamada
+    private boolean hacerLlamada(String serial, ADBService adb) {
+        System.out.println("CONTACTO = " + contactoTestTelefono);
+        adb.ejecutarComandoSincrono(serial,
+                "shell am start -a android.intent.action.CALL -d tel:" + contactoTestTelefono);
+
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+        }
+
+        String estado = adb.ejecutarComandoSincrono(serial, "shell dumpsys telephony.registry | grep mCallState");
+        boolean activa = estado != null && estado.contains("mCallState=2");
+
+        adb.ejecutarComandoSincrono(serial, "shell input keyevent 26");
+
+        int intentosMaximos = 10;
+        int intento = 0;
+        boolean llamadaTerminada = false;
+
+        while (!llamadaTerminada && intento < intentosMaximos) {
+            String estadoActual = adb.ejecutarComandoSincrono(serial,
+                    "shell dumpsys telephony.registry | grep mCallState");
+            if (estadoActual != null && estadoActual.contains("mCallState=0")) {
+                llamadaTerminada = true;
+            } else {
+                intento++;
+                try {
+                    Thread.sleep(1000);
+                } catch (Exception e) {
+                }
+            }
+        }
+        try {
+            Thread.sleep(1000);
+        } catch (Exception e) {
+        }
+        return activa;
+    }
+
+    private boolean recibirLlamadaSIM(String serial, ADBService adb) {
+        // Verificar que el contacto que llama está en la SIM del receptor
+        String check = adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                "shell content query --uri content://icc/adn " +
+                        "--where \"number='" + contactoTestTelefonoDUT + "'\"");
+        boolean existeEnSIM = check != null && !check.isBlank()
+                && !check.contains("No result found");
+
+        if (!existeEnSIM) {
+            adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                    "shell content insert --uri content://icc/adn " +
+                            "--bind tag:s:" + contactoTestNombre + "_SIM_recv " +
+                            "--bind number:s:" + contactoTestTelefonoDUT);
+        }
+
+        return recibirLlamada(serial, adb);
+    }
+
+    private boolean recibirLlamadaPhone(String serial, ADBService adb) {
+        // Verificar que el contacto que llama está en el teléfono del receptor
+        String check = adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                "shell content query --uri content://com.android.contacts/data " +
+                        "--projection raw_contact_id --where \"mimetype='vnd.android.cursor.item/phone_v2'" +
+                        " AND data1='" + contactoTestTelefonoDUT + "'\"");
+        boolean existeEnPhone = check != null && !check.isBlank()
+                && !check.contains("No result found");
+
+        if (!existeEnPhone) {
+            // Crear contacto en el receptor con el número del DUT
+            adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                    "shell content insert --uri content://com.android.contacts/raw_contacts " +
+                            "--bind account_type:s:LOCAL --bind account_name:s:LOCAL");
+            // ... mismo proceso que crearContactoPhone pero en el receptor
+            // y con contactoTestTelefonoDUT como número
+        }
+
+        return recibirLlamada(serial, adb);
+    }
+
+    // Motor común de recepción
+    private boolean recibirLlamada(String serial, ADBService adb) {
+        if (contactoSerialReceptor == null)
+            return false;
+
+        adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                "shell am start -a android.intent.action.CALL " +
+                        "-d tel:" + contactoTestTelefonoDUT);
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException ignored) {
+        }
+
+        String estadoDUT = adb.ejecutarComandoSincrono(serial,
+                "shell dumpsys telephony.registry | grep mCallState");
+        boolean sonando = estadoDUT != null && estadoDUT.contains("1");
+
+        adb.ejecutarComandoSincrono(serial,
+                "shell input keyevent KEYCODE_CALL");
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException ignored) {
+        }
+
+        String estadoActiva = adb.ejecutarComandoSincrono(serial,
+                "shell dumpsys telephony.registry | grep mCallState");
+        boolean activa = estadoActiva != null && estadoActiva.contains("2");
+
+        adb.ejecutarComandoSincrono(serial,
+                "shell input keyevent KEYCODE_ENDCALL");
+        adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                "shell input keyevent KEYCODE_ENDCALL");
+
+        return sonando && activa;
+    }
+
+    // COPIA DE CONTACTOS
+
+    // VCARD
+    private boolean importarVCard(String serial, ADBService adb) {
+        String nombreTest = "Test_import";
+        String telefonoTest = "600112233";
+        String rutaVCard = "/sdcard/Download/import_test.vcf";
+        String paqueteAPK = "com.example.vcardagent";
+
+        try {
+            // Limpiar rutas
+            adb.ejecutarComandoSincrono(serial,
+                    "shell content delete --uri content://com.android.contacts/raw_contacts " +
+                            "--where \"display_name='" + nombreTest + "'\"");
+            adb.ejecutarComandoSincrono(serial, "shell rm " + rutaVCard);
+
+            // Crear archivo VCard
+            String vcardContenido = "BEGIN:VCARD\nVERSION:3.0\nFN:" + nombreTest + "\nTEL;TYPE=CELL:" + telefonoTest
+                    + "\nEND:VCARD\n";
+            File tempFile = File.createTempFile("import_test", ".vcf");
+            java.nio.file.Files.writeString(tempFile.toPath(), vcardContenido);
+
+            new ProcessBuilder("adb", "-s", serial, "push", tempFile.getAbsolutePath(), rutaVCard).start()
+                    .waitFor();
+            tempFile.delete(); // Limpiar el archivo temporal
+
+            // Extraer e Instalar la apk
+            File apkFile = new File(getClass().getClassLoader().getResource("apk/VCardAgent.apk").toURI());
+            new ProcessBuilder("adb", "-s", serial, "install", "-r", apkFile.getAbsolutePath()).start().waitFor();
+            Thread.sleep(2000);
+
+            // Permisos
+            adb.ejecutarComandoSincrono(serial, "shell pm grant " + paqueteAPK + " android.permission.WRITE_CONTACTS");
+
+            // Limpiar el logcat
+            adb.ejecutarComandoSincrono(serial, "shell logcat -c");
+
+            // Broadcast importacion
+            adb.ejecutarComandoSincrono(serial, "shell am broadcast -a com.example.vcardagent.ACTION_IMPORT_VCARD " +
+                    "-n " + paqueteAPK + "/.VCardReceiver");
+            Thread.sleep(4000);
+
+            // Verificaciones
+            String logcat = adb.ejecutarComandoSincrono(serial, "shell logcat -d -t 50 -s VCARD_AGENT");
+            boolean apkDiceOk = logcat != null && logcat.contains("Importación verídica completada");
+
+            String queryBaseDatos = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://com.android.contacts/data/phones --projection display_name " +
+                            "--where \"display_name='" + nombreTest + "'\"");
+            boolean contactoExisteEnAgenda = queryBaseDatos != null && queryBaseDatos.contains(nombreTest);
+
+            new ProcessBuilder("adb", "-s", serial, "uninstall", paqueteAPK).start().waitFor();
+
+            return apkDiceOk && contactoExisteEnAgenda;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+
+    }
+
+    private boolean exportarVCard(String serial, ADBService adb) {
+        String rutaVCard = "/sdcard/Download/contactos_backup_test.vcf";
+        String paqueteAPK = "com.example.vcardagent";
+
+        try {
+            // Limpiar
+            adb.ejecutarComandoSincrono(serial, "shell rm " + rutaVCard);
+
+            // Extraer e Instalar la APK
+            File apkFile = new File(getClass().getClassLoader().getResource("apk/VCardAgent.apk").toURI());
+            new ProcessBuilder("adb", "-s", serial, "install", "-r", apkFile.getAbsolutePath()).start().waitFor();
+            Thread.sleep(2000);
+
+            // Conceder permisos a la apk
+            adb.ejecutarComandoSincrono(serial, "shell pm grant " + paqueteAPK + " android.permission.READ_CONTACTS");
+
+            // Limpiar logcat
+            adb.ejecutarComandoSincrono(serial, "shell logcat -c");
+
+            // Broadcast Exportar
+            adb.ejecutarComandoSincrono(serial, "shell am broadcast -a com.example.vcardagent.ACTION_EXPORT_VCARD " +
+                    "-n " + paqueteAPK + "/.VCardReceiver");
+            Thread.sleep(4000);
+
+            // Verificar si la apk terminó con éxito
+            String logcat = adb.ejecutarComandoSincrono(serial, "shell logcat -d -t 50 -s VCARD_AGENT");
+            boolean apkOk = logcat != null && logcat.contains("Exportación exitosa");
+
+            boolean archivoExiste = false;
+            String checkLs = adb.ejecutarComandoSincrono(serial, "shell ls -l " + rutaVCard);
+            if (checkLs != null && checkLs.contains(".vcf")) {
+                String[] partes = checkLs.trim().split("\\s+");
+                for (String parte : partes) {
+                    if (parte.matches("\\d+")) {
+                        long tamanoBytes = Long.parseLong(parte);
+                        if (tamanoBytes > 0) {
+                            archivoExiste = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            new ProcessBuilder("adb", "-s", serial, "uninstall", paqueteAPK).start().waitFor();
+
+            return apkOk && archivoExiste;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // MEMORIA
+
+    private boolean comprobarMemoriaContactos(String serial, ADBService adb) {
+        String phone = adb.ejecutarComandoSincrono(serial,
+                "shell content query --uri content://com.android.contacts/contacts " +
+                        "--projection _id");
+        String sim = adb.ejecutarComandoSincrono(serial,
+                "shell content query --uri content://icc/adn " +
+                        "--projection tag");
+        return phone != null && sim != null;
+    }
+
     private String obtenerSerialADBActual() {
         if (dispositivoActual == null)
             return null;
@@ -2018,7 +2841,6 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
     // ─────────────────────────────────────────────────────────────────────────
 
     /** Ejecuta un comando shell en un serial específico y devuelve la salida. */
-   
 
     /** Actualiza el estado de un paso en el hilo de UI. */
     private void actualizarEstadoPaso(PasoPrueba paso, String estado) {
@@ -2026,29 +2848,6 @@ private boolean ejecutarConferencia(String serial, PasoPrueba paso) {
             paso.setEstado(estado);
             listaPasos.refresh();
         });
-    }
-
-    /** Crea un VBox con estilo de "tarjeta" para cada opción del popup. */
-    private VBox crearBoxOpcion(String titulo, String descripcion) {
-        VBox box = new VBox(8);
-        box.setPadding(new Insets(12));
-        box.setStyle(
-                "-fx-background-color: #313244;" +
-                        "-fx-border-color: #45475a;" +
-                        "-fx-border-radius: 6;" +
-                        "-fx-background-radius: 6;");
-
-        Label lblTitulo = new Label(titulo);
-        lblTitulo.setFont(Font.font("Poppins", FontWeight.BOLD, 15));
-        lblTitulo.setTextFill(Color.web("#cdd6f4"));
-
-        Label lblDesc = new Label(descripcion);
-        lblDesc.setTextFill(Color.web("#a6adc8"));
-        lblDesc.setFont(Font.font("Poppins", FontWeight.NORMAL, 13));
-        lblDesc.setWrapText(true);
-
-        box.getChildren().addAll(lblTitulo, lblDesc);
-        return box;
     }
 
     /** Crea un Button con el color de acento indicado. */

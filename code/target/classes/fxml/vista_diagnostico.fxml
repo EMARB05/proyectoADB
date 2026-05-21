@@ -103,6 +103,14 @@
                             </VBox>
                         </graphic>
                     </Button>
+                    <Button onAction="#addContactsTest" styleClass="btn-hw,btn-modern">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                <FontIcon iconLiteral="fas-users" iconSize="24" iconColor="#f04d02"/>
+                                <Label text="Contacts" style="-fx-font-size: 9px;"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
 
                 </HBox>
             </ScrollPane>
@@ -176,13 +184,13 @@
                     </graphic>
                 </Button>
                 <Button onAction="#calibrarDispositivo" styleClass="btn-hw,btn-modern">
-    <graphic>
-        <VBox alignment="CENTER" spacing="5">
-            <FontIcon iconLiteral="fas-sliders-h" iconSize="24" iconColor="#89dceb"/>
-            <Label text="CALIBRAR" style="-fx-font-size: 9px;"/>
-        </VBox>
-    </graphic>
-</Button>
+                    <graphic>
+                        <VBox alignment="CENTER" spacing="5">
+                            <FontIcon iconLiteral="fas-sliders-h" iconSize="24" iconColor="#89dceb"/>
+                            <Label text="CALIBRAR" style="-fx-font-size: 9px;"/>
+                        </VBox>
+                    </graphic>
+                </Button>
                                 <Button onAction="#calibrarTecladoManual" styleClass="btn-hw,btn-modern">
                                     <graphic>
                                         <VBox alignment="CENTER" spacing="5">
@@ -211,7 +219,7 @@
                     styleClass="btnEjecutar" style="-fx-padding: 10"/>
             <Button fx:id="btnInforme" text="INFORME" onAction="#generarInformePDF"
                     disable="true" styleClass="#btnInforme" style="-fx-padding: 10"/>
-            <Button text="Limpiar" onAction="#limpiarPasos" styleClass="btn-footer">
+            <Button fx:id="btnLimpiar" text="Limpiar" onAction="#limpiarPasos" styleClass="btn-footer">
                 <graphic>
                     <ImageView fitHeight="18" fitWidth="18" preserveRatio="true">
                         <image><Image url="@../img/borrar.png"/></image>

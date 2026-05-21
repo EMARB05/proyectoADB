@@ -7,24 +7,34 @@ public class BloquePrueba {
     private final String descripcion;
     private final List<String> comandos;
     private final boolean manual;
+    private final boolean sinOutput;
 
     public BloquePrueba(String id, String descripcion, String comando) {
-        this(id, descripcion, List.of(comando), false);
+        this(id, descripcion, List.of(comando), false,false);
     }
 
     public BloquePrueba(String id, String descripcion, String comando, boolean manual) {
-        this(id, descripcion, List.of(comando), manual);
+        this(id, descripcion, List.of(comando), manual,false);
+    }
+
+    public BloquePrueba(String id, String descripcion, String comando, boolean manual, boolean sinOutput) {
+        this(id,descripcion,List.of(comando),manual,sinOutput);
     }
 
     public BloquePrueba(String id, String descripcion, List<String> comandos) {
-        this(id, descripcion, comandos, false);
+        this(id, descripcion, comandos, false,false);
     }
 
-    public BloquePrueba(String id, String descripcion, List<String> comandos, boolean manual) {
+    public BloquePrueba(String id, String descripcion, List<String> comandos,boolean manual) {
+        this(id, descripcion, comandos, manual,false);
+    }
+
+    public BloquePrueba(String id, String descripcion, List<String> comandos, boolean manual, boolean sinOutput) {
         this.id = id;
         this.descripcion = descripcion;
         this.comandos = comandos;
         this.manual = manual;
+        this.sinOutput = sinOutput;
     }
 
     public String getId() {
@@ -43,8 +53,12 @@ public class BloquePrueba {
         return comandos.get(0);
     }
 
+    public boolean isSinOuput(){
+        return sinOutput;
+    }
+
     public PasoPrueba toPasoPrueba() {
-        return new PasoPrueba(id + "  —  " + descripcion, comandos, manual);
+        return new PasoPrueba(id + "  —  " + descripcion, comandos, manual,sinOutput);
     }
 
     @Override

@@ -9,20 +9,26 @@ public class PasoPrueba {
     private final String nombre;
     private final List<String> comandos;
     private final boolean manual;
+    private final boolean sinOutput;
     private final StringProperty estado;
     private String outputDetalle;
 
-    public PasoPrueba(String nombre, List<String> comandos, boolean manual) {
+    public PasoPrueba(String nombre, List<String> comandos, boolean manual,boolean sinOutput) {
         this.nombre = nombre;
         this.comandos = comandos;
         this.manual = manual;
+        this.sinOutput = sinOutput;
         this.estado = new SimpleStringProperty("PENDIENTE");
         this.outputDetalle = "";
     }
 
     // Compatibilidad con pasos existentes de un solo comando
+    public PasoPrueba(String nombre, List<String> comandos,boolean manual){
+        this(nombre,comandos,manual,false);
+    }
+    
     public PasoPrueba(String nombre, String comando) {
-        this(nombre, List.of(comando), false);
+        this(nombre, List.of(comando), false,false);
     }
 
     // Getters
@@ -40,6 +46,10 @@ public class PasoPrueba {
 
     public String getComando() {
         return comandos.get(0);
+    }
+
+    public boolean isSinOutput(){
+        return sinOutput;
     }
 
     public String getEstado() {
