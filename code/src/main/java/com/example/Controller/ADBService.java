@@ -221,6 +221,89 @@ public class ADBService {
 
     }
 
+    // En tu archivo ADBService.java (al mismo nivel que ejecutarComandoSincrono, getSerialActivo, etc.)
+    public String getCameraPackage(String serial) {
+    String output = ejecutarComandoSincrono(serial,
+        "shell sh -c \"pm list packages | grep -i camera | head -1\"");
+
+    if (output == null || output.isEmpty()) {
+        return "com.android.camera2";
+    }
+
+    output = output.trim().toLowerCase();
+    
+    // Orden de prioridad basado en prevalencia en dispositivos de prueba
+    if (output.contains("android.camera2")) {
+        return "com.android.camera2"; // AOSP, Google Pixel, OnePlus, etc.
+    }
+    if (output.contains("sec") || output.contains("samsung")) {
+        return "com.sec.android.app.camera"; // Samsung
+    }
+    if (output.contains("miui") || output.contains("xiaomi")) {
+        return "com.miui.camera"; // Xiaomi/Redmi/Poco
+    }
+    if (output.contains("huawei") || output.contains("honor")) {
+        return "com.huawei.camera"; // Huawei/Honor
+    }
+    if (output.contains("oppo") || output.contains("realme")) {
+        return "com.oppo.camera"; // OPPO/Realme
+    }
+    if (output.contains("vivo")) {
+        return "com.vivo.camera"; // Vivo
+    }
+    
+    // Fallback genérico (funciona en la mayoría de casos)
+    return output.contains("camera2") 
+        ? output.split(":")[1].trim() 
+        : "com.android.camera2";
+}
+
+/**
+ * Intenta lanzar la aplicación de cámara del dispositivo.
+ * Estrategia:
+ * 1) Buscar paquete con "pm list packages | grep -i camera | head -1"
+ * 2) Intentar resolver la activity lanzadora con "cmd package resolve-activity"
+ * 3) Si se obtiene componente, ejecutar "am start -n <component>"
+ * 4) Si falla, usar el intent genérico de cámara: "am start -a android.media.action.STILL_IMAGE_CAMERA"
+ */
+public boolean startCamera(String serial) {
+    try {
+        String pkg = getCameraPackage(serial);
+        if (pkg == null || pkg.isBlank()) {
+            // Primero intentar la acción IMAGE_CAPTURE (funciona en algunos Xiaomi)
+            ejecutarComandoSincrono(serial, "shell am start -a android.media.action.IMAGE_CAPTURE");
+            // Si no arranca, intentar STILL_IMAGE_CAMERA como fallback
+            ejecutarComandoSincrono(serial, "shell am start -a android.media.action.STILL_IMAGE_CAMERA");
+            return true;
+        }
+
+        // Intentamos resolver la activity lanzadora del package
+        String resolveCmd = String.format("shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER %s", pkg);
+        String resolved = ejecutarComandoSincrono(serial, resolveCmd);
+        if (resolved != null && resolved.contains("/")) {
+            // resolved suele venir como 'com.miui.camera/.MainActivity' o similar
+            ejecutarComandoSincrono(serial, "shell am start -n " + resolved.trim());
+            return true;
+        }
+
+        // Si no hay resolved, intentamos arrancar con activity común
+        String tryCommon = pkg + "/.Camera";
+        String out = ejecutarComandoSincrono(serial, "shell am start -n " + tryCommon);
+        if (out != null && (out.contains("Starting") || out.contains("Error") == false)) {
+            return true;
+        }
+
+        // Último recurso: probar IMAGE_CAPTURE primero, luego STILL_IMAGE_CAMERA
+        ejecutarComandoSincrono(serial, "shell am start -a android.media.action.IMAGE_CAPTURE");
+        ejecutarComandoSincrono(serial, "shell am start -a android.media.action.STILL_IMAGE_CAMERA");
+        return true;
+    } catch (Exception e) {
+        System.err.println("startCamera error: " + e.getMessage());
+        return false;
+    }
+}
+
+
     public String ejecutarComandoSincronoArray(String serial, String... partes) {
         try {
             List<String> fullCmd = new ArrayList<>(List.of("adb", "-s", serial));
@@ -237,6 +320,16 @@ public class ADBService {
     public boolean ejecutarComandoSincronoBoolean(String serial, String comandoShell) {
         String resultado = ejecutarComandoSincrono(serial, comandoShell);
         return resultado != null;
+    }
+
+    // En ADBService añade este método
+    public boolean tieneAuricularConectado(String serial) {
+        String out = ejecutarComandoSincrono(serial,
+                "shell dumpsys audio | grep -E \"mAudioRoutes|Wired\"");
+        return out != null && (out.contains("WIRED_HEADSET") ||
+                out.contains("WIRED_HEADPHONE") ||
+                out.contains("0x4") || // WIRED_HEADSET
+                out.contains("0x8")); // WIRED_HEADPHONE
     }
 
     public Map<String, String> obtenerSpecsHardware(String serial) {

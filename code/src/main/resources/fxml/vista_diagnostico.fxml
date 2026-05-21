@@ -103,6 +103,22 @@
                             </VBox>
                         </graphic>
                     </Button>
+                    <Button onAction="#addBrowserTest" styleClass="btn-hw,btn-modern">
+                      <graphic>
+                         <VBox alignment="CENTER" spacing="5">
+                            <FontIcon iconLiteral="fas-globe" iconSize="24" iconColor="#89b4fa"/>
+                                <Label text="BROWSER" style="-fx-font-size: 9px;"/>
+                         </VBox>
+                     </graphic>
+                    </Button>
+                    <Button onAction="#addFMRadioTest" styleClass="btn-hw,btn-modern">
+                       <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                             <FontIcon iconLiteral="fas-broadcast-tower" iconSize="24" iconColor="#f5c2e7"/>
+                             <Label text="FM RADIO" style="-fx-font-size: 9px;"/>
+                           </VBox>
+                      </graphic>
+                </Button>
 
                 </HBox>
             </ScrollPane>
@@ -175,14 +191,25 @@
                         </VBox>
                     </graphic>
                 </Button>
+                <!-- NUEVO BOTÓN: PRUEBA DE CÁMARA -->
+                <Button onAction="#addCameraTest" styleClass="btn-hw,btn-modern">
+                 <graphic>
+                    <VBox alignment="CENTER" spacing="5">
+            <!-- Ícono de cámara (Font Awesome Solid) -->
+                     <FontIcon iconLiteral="fas-camera" iconSize="24" iconColor="#00b894"/>
+                      <Label text="CAMERA" style="-fx-font-size: 9px;"/>
+                    </VBox>
+                 </graphic>
+                </Button>
+
                 <Button onAction="#calibrarDispositivo" styleClass="btn-hw,btn-modern">
-    <graphic>
-        <VBox alignment="CENTER" spacing="5">
-            <FontIcon iconLiteral="fas-sliders-h" iconSize="24" iconColor="#89dceb"/>
-            <Label text="CALIBRAR" style="-fx-font-size: 9px;"/>
-        </VBox>
-    </graphic>
-</Button>
+                 <graphic>
+                     <VBox alignment="CENTER" spacing="5">
+                         <FontIcon iconLiteral="fas-sliders-h" iconSize="24" iconColor="#89dceb"/>
+                         <Label text="CALIBRAR" style="-fx-font-size: 9px;"/>
+                     </VBox>
+                </graphic>
+                </Button>
                                 <Button onAction="#calibrarTecladoManual" styleClass="btn-hw,btn-modern">
                                     <graphic>
                                         <VBox alignment="CENTER" spacing="5">
@@ -191,6 +218,15 @@
                                         </VBox>
                                     </graphic>
                                 </Button>
+                                <Button onAction="#addCallTimerTest" styleClass="btn-hw,btn-modern">
+                                   <graphic>
+                                      <VBox alignment="CENTER" spacing="5">
+                                           <FontIcon iconLiteral="fas-clock" iconSize="24" iconColor="#f9e2af"/>
+                                             <Label text="CALL TIMER" style="-fx-font-size: 9px;"/>
+                                    </VBox>
+                                    </graphic>
+                                </Button>
+
                     </HBox>
                 </ScrollPane>
 

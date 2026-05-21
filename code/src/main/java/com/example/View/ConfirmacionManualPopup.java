@@ -1,6 +1,7 @@
 package com.example.View;
 
 import java.util.concurrent.CountDownLatch;
+import java.io.InputStream;
 
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -20,6 +21,22 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
 public class ConfirmacionManualPopup {
+
+    static {
+        cargarFuentePoppins("/fonts/Poppins-Regular.ttf");
+        cargarFuentePoppins("/fonts/Poppins-Medium.ttf");
+        cargarFuentePoppins("/fonts/Poppins-SemiBold.ttf");
+        cargarFuentePoppins("/fonts/Poppins-Bold.ttf");
+    }
+
+    private static void cargarFuentePoppins(String resourcePath) {
+        try (InputStream is = ConfirmacionManualPopup.class.getResourceAsStream(resourcePath)) {
+            if (is != null) {
+                Font.loadFont(is, 12);
+            }
+        } catch (Exception ignored) {
+        }
+    }
 
     /**
      * Se llama desde el hilo de ejecución.
@@ -120,10 +137,12 @@ public class ConfirmacionManualPopup {
                 txtInfo.setPrefRowCount(14);
                 txtInfo.setPrefWidth(520);
                 txtInfo.setStyle(
-                        "-fx-background-color: #f8f8f8;" +
-                                "-fx-text-fill: #1a1a2e;" +
-                                "-fx-font-family: monospace;" +
-                                "-fx-font-size: 11px;" +
+                    "-fx-background-color: #f8f8f8;" +
+                        "-fx-control-inner-background: #f8f8f8;" +
+                        "-fx-text-fill: #111827;" +
+                        "-fx-font-family: 'Poppins';" +
+                        "-fx-font-size: 12px;" +
+                        "-fx-font-weight: bold;" +
                                 "-fx-border-color: #45475a;" +
                                 "-fx-border-radius: 4;" +
                                 "-fx-background-radius: 4;");
