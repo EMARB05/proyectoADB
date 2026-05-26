@@ -54,6 +54,7 @@ public class ContactosConfigPopup {
                         String[] resultadoTelefonoDUT, 
                         String[] resultadoTelefono, 
                         String[] resultadoSerialReceptor, 
+                        String[] resultadoExchange,
                         Stage owner) {
 
                 boolean[] confirmado = { false };
@@ -130,6 +131,15 @@ public class ContactosConfigPopup {
                         }
                 }
 
+                Label lblExchange = new Label("Cuenta Exchange (Opcional):");
+                lblExchange.setTextFill(Color.web("#cdd6f4"));
+
+                TextField txtExchange = new TextField();
+                txtExchange.setPromptText("ejemplo@empresa.com");
+                if (resultadoExchange[0] != null) {
+                        txtExchange.setText(resultadoExchange[0]);
+                }
+
                 // ── Error ─────────────────────────────────────────────────────────
                 Label lblError = new Label("Introduce un número válido (mínimo 9 dígitos).");
                 lblError.setTextFill(Color.web("#f38ba8"));
@@ -169,6 +179,9 @@ public class ContactosConfigPopup {
                                 resultadoSerialReceptor[0] = (seleccionado != null) ? seleccionado.getSerial() : null;
                         }
 
+                        String exchangeText = txtExchange.getText().trim();
+                        resultadoExchange[0] = exchangeText.isEmpty() ? null : exchangeText;
+
                         confirmado[0] = true;
                         popup.close();
                 });
@@ -183,7 +196,7 @@ public class ContactosConfigPopup {
                                 lblTelDUT,txtTelefonoDUT,
                                 lblTel, txtTelefono,
                                 lblReceptor, cmbReceptor, lblSinDispositivos, 
-                                                                             
+                                lblExchange, txtExchange,                                
                                 lblError, new Separator(),
                                 botones);
 

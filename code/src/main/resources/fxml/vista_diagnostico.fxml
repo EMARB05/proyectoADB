@@ -9,6 +9,8 @@
 <?import javafx.scene.layout.FlowPane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
 
 <HBox spacing="20" xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.example.View.DiagnosticoController">
@@ -24,9 +26,22 @@
 
     <!-- Columna derecha: panel de pruebas, con margen izquierdo extra -->
     <VBox spacing="15" HBox.hgrow="ALWAYS" style="-fx-padding: 0 0 0 24;">
+    <HBox spacing="15" alignment="CENTER_LEFT">
         <Label text="PANEL DE CONTROL DE PRUEBAS"
-               style="-fx-text-fill: #89b4fa; -fx-font-weight: bold;"
-               styleClass="card-container"/>
+            style="-fx-text-fill: #89b4fa; -fx-font-weight: bold;"
+            styleClass="card-container"/>
+        
+        <HBox spacing="5" alignment="CENTER_LEFT" 
+            style="-fx-background-color: #313244; -fx-padding: 4; -fx-background-radius: 6;">
+            <fx:define>
+                <ToggleGroup fx:id="grupoIotMode"/>
+            </fx:define>
+            <ToggleButton fx:id="btnIotCompleta" text="IOT Completa" toggleGroup="$grupoIotMode" selected="true"
+                        style="-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold; -fx-cursor: hand;"/>
+            <ToggleButton fx:id="btnIotExpress" text="IOT express" toggleGroup="$grupoIotMode"
+                        style="-fx-background-color: transparent; -fx-text-fill: #cdd6f4; -fx-cursor: hand;"/>
+        </HBox>
+    </HBox>
 
     <VBox spacing="8"
         prefWidth="530" maxWidth="530" 

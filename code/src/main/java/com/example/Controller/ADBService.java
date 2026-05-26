@@ -226,7 +226,7 @@ public class ADBService {
             // TESTING
 
             List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
-            System.out.println(salida);
+            // System.out.println(salida);
 
             // Retornamos la primera línea de la respuesta (ej: "1") o vacío si no hay nada
             if (salida != null && !salida.isEmpty()) {
@@ -340,7 +340,7 @@ public class ADBService {
 
             // Batería — un solo dumpsys para todo
             String batteryDump = ejecutarComandoSincrono(serial, "shell dumpsys battery");
-            System.out.println("[BATTERY DUMP] " + batteryDump); // ← para ver qué llega
+            
 
             String nivelCarga = "N/A";
             String estadoCarga = "N/A";
