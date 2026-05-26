@@ -38,6 +38,20 @@ public class LlamadasD17 extends AdbCallSupport {
         return crearBloquesFmRadioD17();
     }
 
+    public static List<BloquePrueba> crearBloquesHotDial(String modelo) {
+        return crearBloquesHotDial(modelo, null);
+    }
+
+    public static List<BloquePrueba> crearBloquesHotDial(String modelo, String numeroHotDial) {
+        String modeloNormalizado = modelo == null ? "" : modelo.trim().toUpperCase();
+
+        if (modeloNormalizado.contains("D17")) {
+            return crearBloquesHotDialD17(numeroHotDial);
+        }
+
+        return crearBloquesHotDialD17(numeroHotDial);
+    }
+
     private static List<BloquePrueba> crearBloquesCallTimerD17() {
         return List.of(
                 new BloquePrueba("SOFT.046.001", "Enable call timer",
@@ -120,6 +134,101 @@ public class LlamadasD17 extends AdbCallSupport {
                 "__FM_LLAMADA_ENTRANTE__"));
     }
 
+            private static List<BloquePrueba> crearBloquesHotDialD17(String numeroHotDial) {
+            String numero = (numeroHotDial == null || numeroHotDial.isBlank()) ? "123456789" : numeroHotDial.trim();
+
+            return List.of(
+                new BloquePrueba("SOFT.045.001", "Enable hot dial function",
+                    Entradas.secuencia(
+                        "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                        "sleep 2",
+                        Entradas.abajo(),
+                        Entradas.abajo(),
+                        Entradas.abajo(),
+                        Entradas.abajo(),
+                        Entradas.abajo(),
+                        Entradas.ok(),
+                        Entradas.unSegundo(),
+                        Entradas.ok()),
+                    false, false),
+
+                new BloquePrueba("SOFT.045.002", "Add a hotdial number",
+                    Entradas.secuencia(
+                        "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                        "sleep 2",
+                        Entradas.abajo(),
+                        Entradas.ok(),
+                        Entradas.unSegundo(),
+                        "input text '" + numero + "'",
+                        Entradas.abajo(),
+                        Entradas.derecha(),
+                        Entradas.unSegundo(),
+                        Entradas.ok()),
+                    false, false),
+
+                new BloquePrueba("SOFT.045.003", "Check if hot dial service works properly",
+                    "__HOT_DIAL_CHECK_SERVICE__", true, false),
+
+                new BloquePrueba("SOFT.045.004", "Edit hot dial contact",
+                    Entradas.secuencia(
+                        "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                        "sleep 2",
+                        Entradas.ok(),
+                        "input text '34'",
+                        Entradas.abajo(),
+                        Entradas.abajo(),
+                        Entradas.derecha(),
+                        Entradas.ok()),
+                    true, false),
+
+                new BloquePrueba("SOFT.045.005", "Pick up handset and check if DUT calls to hot dial number",
+                    "", true, false),
+
+                new BloquePrueba("SOFT.045.006", "Press speaker button and check if DUT calls to hot dial number",
+                    "", true, false),
+
+                new BloquePrueba("SOFT.045.007", "Try to make a call to other numbers with hot dial enable",
+                    "__HOT_DIAL_CALL_OTHER_NUMBERS__", true, false),
+
+                new BloquePrueba("SOFT.045.008", "Make emergency call with hot dial activate",
+                    "", true, false),
+
+                new BloquePrueba("SOFT.045.009", "Delete hot dial contact",
+                    Entradas.secuencia(
+                        "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                        "sleep 2",
+                        Entradas.ok(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.derecha(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.softder(),
+                        Entradas.abajo(),
+                        Entradas.derecha(),
+                        Entradas.ok()),
+                    true, false),
+
+                new BloquePrueba("SOFT.045.010", "Disable hot dial and make a call to several numbers",
+                    "__HOT_DIAL_DISABLE_AND_CALL_OTHER_NUMBERS__",
+                    true, false));
+            }
     // ─── HOLD / RETRIEVE ─────────────────────────────────────────────────────
     public boolean ejecutarHold(PerfilDialer perfil) {
         try {
@@ -511,4 +620,118 @@ public class LlamadasD17 extends AdbCallSupport {
             return false;
         }
     }
+
+    public boolean verificarHotDial(String numero) {
+        if (numero == null || numero.isBlank())
+            return false;
+        try {
+            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
+
+            long waited = 0L;
+            long interval = 1_000L;
+            long timeout = 15_000L; // 15s
+
+            while (waited < timeout) {
+                if (llamadaActiva(serial)) {
+                    // breve espera para estabilizar el estado
+                    Thread.sleep(800);
+                    colgarLlamadaEnCurso();
+                    return true;
+                }
+                Thread.sleep(interval);
+                waited += interval;
+            }
+
+            // timeout
+            colgarLlamadaEnCurso();
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            colgarLlamadaEnCurso();
+            return false;
+        }
+    }
+
+    /**
+     * Inicia una llamada al número indicado y comprueba si se cuelga sola.
+     * No fuerza el colgado para validar el comportamiento; si no se cuelga en
+     * el tiempo esperado, intentará colgar para limpieza y devolverá false.
+     */
+    public boolean verificarLlamadaAutoHangup(String numero) {
+        if (numero == null || numero.isBlank())
+            return false;
+        try {
+            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
+
+            // Espera a que la llamada entre en estado activo
+            long waited = 0L;
+            long interval = 1_000L;
+            long waitForActiveTimeout = 15_000L;
+            boolean sawActive = false;
+
+            while (waited < waitForActiveTimeout) {
+                if (llamadaActiva(serial)) {
+                    sawActive = true;
+                    break;
+                }
+                Thread.sleep(interval);
+                waited += interval;
+            }
+
+            if (!sawActive) {
+                // No llegó a activarse la llamada
+                return false;
+            }
+
+            // Ahora esperamos a que la llamada se cuelgue sola
+            long waitForAutoHangupTimeout = 20_000L; // 20s
+            waited = 0L;
+            while (waited < waitForAutoHangupTimeout) {
+                if (!llamadaActiva(serial)) {
+                    // Esperamos 1s tras el fin de la llamada y pulsamos OK para cerrar popups
+                    Thread.sleep(2000);
+                    ejecutarShellEnSerial(serial, "input keyevent 23");
+                    return true; // Se colgó sola
+                }
+                Thread.sleep(interval);
+                waited += interval;
+            }
+
+            // No se colgó sola en el tiempo esperado: limpiamos y fallamos
+            colgarLlamadaEnCurso();
+            // Intentamos cerrar cualquier popup residual tras forzar colgado
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            ejecutarShellEnSerial(serial, "input keyevent 23");
+            return false;
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            colgarLlamadaEnCurso();
+            return false;
+        }
+    }
+
+    /**
+     * Lanza una llamada y espera un tiempo fijo sin comprobar el estado.
+     * Se usa para pruebas manuales donde la validación la hace el usuario.
+     */
+    public boolean llamarSinVerificar(String numero, long esperaMs) {
+        if (numero == null || numero.isBlank())
+            return false;
+        try {
+            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
+            if (esperaMs > 0) {
+                Thread.sleep(esperaMs);
+            }
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
 }

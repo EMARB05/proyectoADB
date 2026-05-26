@@ -103,6 +103,14 @@
                             </VBox>
                         </graphic>
                     </Button>
+                    <Button onAction="#addHotDialTest" styleClass="btn-hw,btn-modern">
+                      <graphic>
+                         <VBox alignment="CENTER" spacing="5">
+                             <FontIcon iconLiteral="fas-phone-square" iconSize="24" iconColor="#eba0ac"/>
+                              <Label text="HOT DIAL" style="-fx-font-size: 9px;"/>
+                         </VBox>
+                    </graphic>
+                    </Button>
                     <Button onAction="#addBrowserTest" styleClass="btn-hw,btn-modern">
                       <graphic>
                          <VBox alignment="CENTER" spacing="5">
@@ -118,7 +126,16 @@
                              <Label text="FM RADIO" style="-fx-font-size: 9px;"/>
                            </VBox>
                       </graphic>
-                </Button>
+                    </Button>
+                    <Button onAction="#addMusicTest" styleClass="btn-hw,btn-modern">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                 <FontIcon iconLiteral="fas-music" iconSize="24" iconColor="#94e2d5"/>
+                                  <Label text="MUSIC" style="-fx-font-size: 9px;"/>
+                             </VBox>
+                        </graphic>
+                    </Button>
+
 
                 </HBox>
             </ScrollPane>

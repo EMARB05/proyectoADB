@@ -9,13 +9,19 @@ public class PasoPrueba {
     private final String nombre;
     private final List<String> comandos;
     private final boolean manual;
+    private final boolean restablecerPhoneAppAlFinal;
     private final StringProperty estado;
     private String outputDetalle;
 
     public PasoPrueba(String nombre, List<String> comandos, boolean manual) {
+        this(nombre, comandos, manual, true);
+    }
+
+    public PasoPrueba(String nombre, List<String> comandos, boolean manual, boolean restablecerPhoneAppAlFinal) {
         this.nombre = nombre;
         this.comandos = comandos;
         this.manual = manual;
+        this.restablecerPhoneAppAlFinal = restablecerPhoneAppAlFinal;
         this.estado = new SimpleStringProperty("PENDIENTE");
         this.outputDetalle = "";
     }
@@ -28,6 +34,10 @@ public class PasoPrueba {
     // Getters
     public boolean isManual() {
         return manual;
+    }
+
+    public boolean debeRestablecerPhoneAppAlFinal() {
+        return restablecerPhoneAppAlFinal;
     }
 
     public String getNombre() {
