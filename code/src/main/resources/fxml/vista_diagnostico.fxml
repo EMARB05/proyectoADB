@@ -118,7 +118,6 @@
                             </VBox>
                         </graphic>
                     </Button>
-<<<<<<< HEAD
                     <Button onAction="#addHotDialTest" styleClass="btn-hw,btn-modern">
                       <graphic>
                          <VBox alignment="CENTER" spacing="5">
@@ -152,7 +151,6 @@
                         </graphic>
                     </Button>
 
-=======
                     <Button onAction="#addContactsTest" styleClass="btn-hw,btn-modern">
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">
@@ -161,7 +159,6 @@
                             </VBox>
                         </graphic>
                     </Button>
->>>>>>> da3337aee4a819185fad9a4c2a17def3631036bd
 
                 </HBox>
             </ScrollPane>
@@ -246,21 +243,12 @@
                 </Button>
 
                 <Button onAction="#calibrarDispositivo" styleClass="btn-hw,btn-modern">
-<<<<<<< HEAD
                  <graphic>
                      <VBox alignment="CENTER" spacing="5">
                          <FontIcon iconLiteral="fas-sliders-h" iconSize="24" iconColor="#89dceb"/>
                          <Label text="CALIBRAR" style="-fx-font-size: 9px;"/>
                      </VBox>
                 </graphic>
-=======
-                    <graphic>
-                        <VBox alignment="CENTER" spacing="5">
-                            <FontIcon iconLiteral="fas-sliders-h" iconSize="24" iconColor="#89dceb"/>
-                            <Label text="CALIBRAR" style="-fx-font-size: 9px;"/>
-                        </VBox>
-                    </graphic>
->>>>>>> da3337aee4a819185fad9a4c2a17def3631036bd
                 </Button>
                                 <Button onAction="#calibrarTecladoManual" styleClass="btn-hw,btn-modern">
                                     <graphic>
