@@ -224,3 +224,63 @@
 .scroll-pane .viewport {
     -fx-background-color: transparent;
 }
+/* El contenedor principal (VBox) */
+.root-popup {
+    -fx-background-color: #1e1e2e;
+    -fx-border-color: #45475a;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+
+/* Campos de texto (TextField) */
+.text-field {
+    -fx-background-color: #313244;
+    -fx-text-fill: #cdd6f4;
+    -fx-prompt-text-fill: #6c7086;
+    -fx-border-color: #45475a;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-font-size: 13px;
+}
+
+/* ComboBox principal y su lista desplegable */
+.combo-box {
+    -fx-background-color: #313244;
+}
+.combo-box .list-view {
+    -fx-background-color: #313244;
+    -fx-border-color: #45475a;
+    -fx-border-width: 1px;
+}
+.combo-box .list-cell {
+    -fx-background-color: #313244;
+    -fx-text-fill: #cdd6f4;
+}
+.combo-box .list-cell:hover {
+    -fx-background-color: #45475a;
+}
+
+/* Botón Continuar (Estilo verde) */
+.btn-continuar {
+    -fx-background-color: transparent;
+    -fx-border-color: #a6e3a1;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-text-fill: #a6e3a1;
+}
+.btn-continuar:hover {
+    -fx-background-color: rgba(166, 227, 161, 0.1); /* Efecto sutil al pasar el ratón */
+}
+
+/* Botón Cancelar (Estilo rojo) */
+.btn-cancelar {
+    -fx-background-color: transparent;
+    -fx-border-color: #f38ba8;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-text-fill: #f38ba8;
+}
+.btn-cancelar:hover {
+    -fx-background-color: rgba(243, 139, 168, 0.1);
+}

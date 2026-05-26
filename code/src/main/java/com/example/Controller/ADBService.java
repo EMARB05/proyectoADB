@@ -68,7 +68,7 @@ public class ADBService {
     }
 
     // ADBService — nuevo método que devuelve el resultado completo
-    public EjecucionADB ejecutarYObtener(String serial, List<String> comandos) {
+    public EjecucionADB ejecutarYObtener(String serial, List<String> comandos, boolean sinOutput) {
         for (String comandoShell : comandos) {
             try {
                 List<String> fullCmd = new ArrayList<>(List.of("adb", "-s", serial));
@@ -81,15 +81,30 @@ public class ADBService {
                     else
                         fullCmd.add(m.group(3));
                 }
+
                 EjecucionADB r = ejecutarADBConCodigo(fullCmd.toArray(new String[0]));
                 String output = r.outputJunto().toLowerCase();
 
                 if (output.contains("error") || output.contains("not found") || output.contains("permission denied")) {
                     continue;
                 }
-                if (r.exito()) {
-                    return r;
+
+                if (sinOutput) {
+                    // En comandos táctiles, si el código es exitoso (0), ya nos sirve (aunque el
+                    // output esté vacío).
+                    if (r.exito()) {
+                        return r;
+                    }
+                } else {
+                    if (output.isBlank()) {
+                        continue;
+                    }
+
+                    if (r.exito()) {
+                        return r;
+                    }
                 }
+
             } catch (IOException e) {
                 // prueba el siguiente
             }
@@ -97,8 +112,12 @@ public class ADBService {
         return new EjecucionADB(-1, List.of()); // ninguno funcionó
     }
 
+    public EjecucionADB ejecutarYObtener(String serial, List<String> comandos) {
+        return ejecutarYObtener(serial, comandos, false);
+    }
+
     public boolean ejecutarYVerificar(String serial, List<String> comandos) {
-        return ejecutarYObtener(serial, comandos).exito();
+        return ejecutarYObtener(serial, comandos, false).exito();
     }
 
     public boolean ejecutarYVerificar(String serial, String comandoShell) {
@@ -207,6 +226,7 @@ public class ADBService {
             // TESTING
 
             List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
+            // System.out.println(salida);
 
             // Retornamos la primera línea de la respuesta (ej: "1") o vacío si no hay nada
             if (salida != null && !salida.isEmpty()) {
@@ -413,7 +433,7 @@ public boolean startCamera(String serial) {
 
             // Batería — un solo dumpsys para todo
             String batteryDump = ejecutarComandoSincrono(serial, "shell dumpsys battery");
-            System.out.println("[BATTERY DUMP] " + batteryDump); // ← para ver qué llega
+            
 
             String nivelCarga = "N/A";
             String estadoCarga = "N/A";
