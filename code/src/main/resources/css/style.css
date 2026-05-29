@@ -1,14 +1,7 @@
-/* Definir la fuente */
-@font-face {
-    font-family: 'Poppins';
-    src: url('../fonts/Poppins-Regular.ttf');
-}
-
-@font-face {
-    font-family: 'Poppins';
-    src: url('../fonts/Poppins-Bold.ttf');
-    font-weight: bold;
-}
+/* Definir la fuente
+   (Reglas @font-face comentadas porque el parser CSS de JavaFX puede
+    generar warnings/errores con estas reglas; carga las fuentes desde
+    código con Font.loadFont(...) si necesitas fuentes embebidas.) */
 
 /* Aplicarla globalmente */
 .root {

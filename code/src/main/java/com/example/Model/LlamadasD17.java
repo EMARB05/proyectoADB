@@ -64,7 +64,8 @@ public class LlamadasD17 extends AdbCallSupport {
                         "__MO_CALL_DURATION_CHECK__"),
 
                 new BloquePrueba("SOFT.046.004", "Configure call timer total duration",
-                        "shell input keyevent 20 && input keyevent 20 && input keyevent 23 && sleep 1 && sleep 1 && input keyevent 67 && sleep 1 && input text 2 && sleep 1 && input keyevent 20 && input keyevent 22 && input keyevent 23"),
+                    "shell input keyevent 20 && input keyevent 20 && input keyevent 23 && sleep 1 && sleep 1 && input keyevent 67 && sleep 1 && input text 2 && sleep 1 && input keyevent 20 && input keyevent 22 && input keyevent 23",
+                    false, true),
 
                 new BloquePrueba("SOFT.046.005",
                         "Check if during a call DUT warns when the call timer limit is reached",
@@ -328,7 +329,7 @@ public class LlamadasD17 extends AdbCallSupport {
                 return false;
             despertarDispositivo(receptorSerial);
             Thread.sleep(500);
-            ejecutarShellEnSerial(receptorSerial, "input keyevent KEYCODE_CALL");
+            ejecutarAccionHilo(receptorSerial, "input keyevent KEYCODE_CALL");
             Thread.sleep(2_000);
 
             // 5. softizq → abajo 2x → ok para fusionar
@@ -374,7 +375,7 @@ public class LlamadasD17 extends AdbCallSupport {
                 if (sono) {
                     despertarDispositivo(receptorSerial);
                     Thread.sleep(500);
-                    ejecutarShellEnSerial(receptorSerial, "input keyevent KEYCODE_CALL");
+                    ejecutarAccionHilo(receptorSerial, "input keyevent KEYCODE_CALL");
                     Thread.sleep(1_000);
                 }
             } else {
@@ -508,7 +509,7 @@ public class LlamadasD17 extends AdbCallSupport {
         if (numero == null || numero.isBlank())
             return false;
         try {
-            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
+            ejecutarAccionHilo(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
             Thread.sleep(CALL_DURATION_MS);
             boolean ok = confirmacion != null && Boolean.TRUE.equals(confirmacion.get());
             colgarLlamadaEnCurso();
@@ -524,7 +525,7 @@ public class LlamadasD17 extends AdbCallSupport {
         if (numero == null || numero.isBlank())
             return false;
         try {
-            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
+            ejecutarAccionHilo(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
             Thread.sleep(CALL_WARNING_MS);
             boolean ok = confirmacion != null && Boolean.TRUE.equals(confirmacion.get());
             colgarLlamadaEnCurso();
@@ -540,7 +541,7 @@ public class LlamadasD17 extends AdbCallSupport {
         if (numero == null || numero.isBlank())
             return false;
         try {
-            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
+            ejecutarAccionHilo(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
 
             long waited = 0L;
             long interval = 2_000L;
@@ -562,17 +563,17 @@ public class LlamadasD17 extends AdbCallSupport {
     }
 
     public void restablecerPhoneApp() {
-        ejecutarShellEnSerial(serial, "pm clear com.android.phone");
+        ejecutarAccionHilo(serial, "pm clear com.android.phone");
     }
 
     public void colgarLlamadaEnCurso() {
         System.out.println("[CALL TIMER] Estado inicial llamadaActiva=" + llamadaActiva(serial));
         for (int intento = 1; intento <= 4; intento++) {
             System.out.println("[CALL TIMER] Intento " + intento + " de colgar");
-            ejecutarShellEnSerial(serial, "input keyevent KEYCODE_ENDCALL");
-            ejecutarShellEnSerial(serial, "input keyevent 6");
-            ejecutarShellEnSerial(serial, "input keyevent 79");
-            ejecutarShellEnSerial(serial, "input keyevent 26");
+            ejecutarAccionHilo(serial, "input keyevent KEYCODE_ENDCALL");
+            ejecutarAccionHilo(serial, "input keyevent 6");
+            ejecutarAccionHilo(serial, "input keyevent 79");
+            ejecutarAccionHilo(serial, "input keyevent 26");
 
             try {
                 Thread.sleep(700);
@@ -625,7 +626,7 @@ public class LlamadasD17 extends AdbCallSupport {
         if (numero == null || numero.isBlank())
             return false;
         try {
-            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
+            ejecutarAccionHilo(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
 
             long waited = 0L;
             long interval = 1_000L;
@@ -661,7 +662,7 @@ public class LlamadasD17 extends AdbCallSupport {
         if (numero == null || numero.isBlank())
             return false;
         try {
-            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
+            ejecutarAccionHilo(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
 
             // Espera a que la llamada entre en estado activo
             long waited = 0L;
@@ -690,7 +691,7 @@ public class LlamadasD17 extends AdbCallSupport {
                 if (!llamadaActiva(serial)) {
                     // Esperamos 1s tras el fin de la llamada y pulsamos OK para cerrar popups
                     Thread.sleep(2000);
-                    ejecutarShellEnSerial(serial, "input keyevent 23");
+                    ejecutarAccionHilo(serial, "input keyevent 23");
                     return true; // Se colgó sola
                 }
                 Thread.sleep(interval);
@@ -705,7 +706,7 @@ public class LlamadasD17 extends AdbCallSupport {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            ejecutarShellEnSerial(serial, "input keyevent 23");
+            ejecutarAccionHilo(serial, "input keyevent 23");
             return false;
 
         } catch (InterruptedException e) {
@@ -723,7 +724,7 @@ public class LlamadasD17 extends AdbCallSupport {
         if (numero == null || numero.isBlank())
             return false;
         try {
-            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
+            ejecutarAccionHilo(serial, "am start -a android.intent.action.CALL -d tel:" + numero);
             if (esperaMs > 0) {
                 Thread.sleep(esperaMs);
             }

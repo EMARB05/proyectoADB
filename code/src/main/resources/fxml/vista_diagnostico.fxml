@@ -231,6 +231,14 @@
                         </VBox>
                     </graphic>
                 </Button>
+                <Button onAction="#addBluetoothTest" styleClass="btn-hw,btn-modern">
+                    <graphic>
+                        <VBox alignment="CENTER" spacing="5">
+                             <FontIcon iconLiteral="fab-bluetooth" iconSize="24" iconColor="#2979FF"/>
+                             <Label text="Bluetooth" style="-fx-font-size: 9px;"/>
+                        </VBox>
+                    </graphic>
+                </Button>
                 <!-- NUEVO BOTÓN: PRUEBA DE CÁMARA -->
                 <Button onAction="#addCameraTest" styleClass="btn-hw,btn-modern">
                  <graphic>

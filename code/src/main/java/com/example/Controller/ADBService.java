@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -30,36 +31,9 @@ import com.example.Model.Soc;
 public class ADBService {
     private String rutaRemotaActual;
 
-    // Motor privado que captura exit code + output
-    // Solo lo usan los métodos de diganóstico que necesitan saber si el comando
-    // realmente funcionó
+    // Motor centralizado para todas las ejecuciones ADB del proyecto.
     private EjecucionADB ejecutarADBConCodigo(String... comando) throws IOException {
-        String adbDir = System.getProperty("aea.adb.path");
-        if (adbDir != null && comando.length > 0 && comando[0].equals("adb"))
-            comando[0] = adbDir + File.separator + "adb.exe";
-
-        ProcessBuilder pb = new ProcessBuilder(comando);
-        pb.redirectErrorStream(true);
-        Process proceso = pb.start();
-
-        List<String> lineas = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(proceso.getInputStream()))) {
-            String linea;
-            while ((linea = reader.readLine()) != null)
-                lineas.add(linea);
-        }
-
-        int exitCode;
-        try {
-            exitCode = proceso.waitFor();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            exitCode = -1;
-        } finally {
-            proceso.destroy();
-        }
-
-        return new EjecucionADB(exitCode, lineas);
+        return AdbExecutor.ejecutar(comando);
     }
 
     // ejecutarADB ahora delega
@@ -177,26 +151,55 @@ public class ADBService {
      * Se usa así: adbService.ejecutarAccionHilo(serial, "shell settings put...");
      */
     public String ejecutarAccionHilo(String serial, String comandoShell) {
-        new Thread(() -> {
-            try {
-                String[] partes = comandoShell.split(" ");
-                List<String> fullCmd = new ArrayList<>();
-                fullCmd.add("adb");
-                fullCmd.add("-s");
-                fullCmd.add(serial);
+        List<String> fullCmd = new ArrayList<>();
+        fullCmd.add("adb");
+        fullCmd.add("-s");
+        fullCmd.add(serial);
 
-                for (String p : partes) {
-                    fullCmd.add(p);
-                }
+        Matcher m = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)").matcher(comandoShell);
+        while (m.find()) {
+            if (m.group(1) != null)
+                fullCmd.add(m.group(1));
+            else if (m.group(2) != null)
+                fullCmd.add(m.group(2));
+            else
+                fullCmd.add(m.group(3));
+        }
 
-                // Llamamos al motor
-                ejecutarADB(fullCmd.toArray(new String[0]));
-
-            } catch (IOException e) {
-                System.err.println("Error en hilo ADB: " + e.getMessage());
-            }
-        }).start();
+        AdbExecutor.ejecutarAsync(fullCmd.toArray(new String[0]))
+                .exceptionally(e -> {
+                    System.err.println("Error en hilo ADB: " + e.getMessage());
+                    return new EjecucionADB(-1, List.of());
+                });
         return comandoShell;
+    }
+
+    /**
+     * Devuelve un CompletableFuture con el resultado (output concatenado) de
+     * ejecutar el comando ADB. No bloquea la UI.
+     */
+    public CompletableFuture<String> ejecutarComandoAsync(String serial, String comandoShell) {
+        List<String> fullCmd = new ArrayList<>();
+        fullCmd.add("adb");
+        fullCmd.add("-s");
+        fullCmd.add(serial);
+
+        Matcher m = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)").matcher(comandoShell);
+        while (m.find()) {
+            if (m.group(1) != null)
+                fullCmd.add(m.group(1));
+            else if (m.group(2) != null)
+                fullCmd.add(m.group(2));
+            else
+                fullCmd.add(m.group(3));
+        }
+
+        return AdbExecutor.ejecutarAsync(fullCmd.toArray(new String[0]))
+                .thenApply(EjecucionADB::outputJunto)
+                .exceptionally(e -> {
+                    System.err.println("Error ejecutarComandoAsync: " + e.getMessage());
+                    return "";
+                });
     }
 
     /**
@@ -205,15 +208,11 @@ public class ADBService {
      */
     public String ejecutarComandoSincrono(String serial, String comandoShell) {
         try {
-            // String[] partes = comandoShell.split(" ");
             List<String> fullCmd = new ArrayList<>();
             fullCmd.add("adb");
             fullCmd.add("-s");
             fullCmd.add(serial);
-            // for (String p : partes)
-            // fullCmd.add(p);
 
-            // TESTING
             Matcher m = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)").matcher(comandoShell);
             while (m.find()) {
                 if (m.group(1) != null)
@@ -223,12 +222,9 @@ public class ADBService {
                 else
                     fullCmd.add(m.group(3));
             }
-            // TESTING
 
             List<String> salida = ejecutarADB(fullCmd.toArray(new String[0]));
-            // System.out.println(salida);
 
-            // Retornamos la primera línea de la respuesta (ej: "1") o vacío si no hay nada
             if (salida != null && !salida.isEmpty()) {
                 return String.join("\n", salida).trim();
             }
@@ -884,28 +880,19 @@ public boolean startCamera(String serial) {
     public void ejecutarComandoDirectoSync(String... args) throws Exception {
         List<String> fullCmd = new ArrayList<>();
         fullCmd.add("adb");
-        for (String arg : args)
-            fullCmd.add(arg);
+        fullCmd.addAll(List.of(args));
 
-        System.out.println("[SYNC] Ejecutando: " + String.join(" ", fullCmd)); // ← log
+        System.out.println("[SYNC] Ejecutando: " + String.join(" ", fullCmd));
+        EjecucionADB resultado = ejecutarADBConCodigo(fullCmd.toArray(new String[0]));
 
-        ProcessBuilder pb = new ProcessBuilder(fullCmd);
-        pb.redirectErrorStream(true);
-
-        Process proceso = pb.start();
-        try (var reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(proceso.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println("[ADB] " + line);
-            }
+        for (String line : resultado.lineas()) {
+            System.out.println("[ADB] " + line);
         }
 
-        int exitCode = proceso.waitFor();
-        System.out.println("[SYNC] Exit code: " + exitCode); // ← log
+        System.out.println("[SYNC] Exit code: " + resultado.exitCode());
 
-        if (exitCode != 0) {
-            throw new Exception("ADB falló con código: " + exitCode);
+        if (!resultado.exito()) {
+            throw new Exception("ADB falló con código: " + resultado.exitCode());
         }
     }
 

@@ -1,8 +1,11 @@
 package com.example.Model;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import com.example.Controller.AdbExecutor;
+import com.example.Controller.ADBService;
 
 public abstract class AdbCallSupport {
 
@@ -13,27 +16,9 @@ public abstract class AdbCallSupport {
 
     protected String ejecutarShellEnSerial(String serial, String shellCmd) {
         try {
-            String adb = "adb";
-            String adbDir = System.getProperty("aea.adb.path");
-            if (adbDir != null && !adbDir.isBlank()) {
-                adb = adbDir + java.io.File.separator + "adb.exe";
-            }
-
-            ProcessBuilder pb = new ProcessBuilder(adb, "-s", serial, "shell", shellCmd);
-            pb.redirectErrorStream(true);
-            Process proceso = pb.start();
-
-            StringBuilder salida = new StringBuilder();
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(proceso.getInputStream()))) {
-                String line;
-                while ((line = br.readLine()) != null) {
-                    salida.append(line).append("\n");
-                }
-            }
-
-            proceso.waitFor(10, TimeUnit.SECONDS);
-            return salida.toString().trim();
-        } catch (Exception e) {
+            ADBService.EjecucionADB resultado = AdbExecutor.ejecutar("adb", "-s", serial, "shell", shellCmd);
+            return resultado.outputJunto();
+        } catch (IOException e) {
             System.out.println("[ADB] Error en " + serial + ": " + e.getMessage());
             return "";
         }
@@ -87,5 +72,20 @@ public abstract class AdbCallSupport {
     protected void despertarDispositivo(String serial) {
         ejecutarShellEnSerial(serial, "input keyevent KEYCODE_WAKEUP");
         ejecutarShellEnSerial(serial, "wm dismiss-keyguard");
+    }
+
+    /**
+     * Wrapper para ejecutar acciones ADB en segundo plano desde clases que
+     * extienden AdbCallSupport.
+     */
+    protected void ejecutarAccionHilo(String serial, String comandoShell) {
+        new ADBService().ejecutarAccionHilo(serial, comandoShell);
+    }
+
+    /**
+     * Wrapper async que devuelve el output como CompletableFuture<String>.
+     */
+    protected CompletableFuture<String> ejecutarComandoAsync(String serial, String comandoShell) {
+        return new ADBService().ejecutarComandoAsync(serial, comandoShell);
     }
 }

@@ -53,6 +53,7 @@ public class AjustesRapidosController {
     private StackPane rootPane;
 
     private ObservableList<String> masterData = FXCollections.observableArrayList();
+    private volatile boolean cargandoEstadoInicial = false;
 
     @FXML
     public void initialize() {
@@ -60,6 +61,9 @@ public class AjustesRapidosController {
         sliderBrillo.setMin(0);
         sliderBrillo.setMax(255);
         sliderBrillo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (serial == null || cargandoEstadoInicial) {
+                return;
+            }
             int valor = newVal.intValue();
             adbService.ejecutarAccionHilo(serial, "shell settings put system screen_brightness " + valor);
         });
@@ -70,6 +74,9 @@ public class AjustesRapidosController {
         sliderVolumen.setBlockIncrement(1);
 
         sliderVolumen.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (serial == null || cargandoEstadoInicial) {
+                return;
+            }
             int actual = newVal.intValue();
 
             // Solo actuamos si el valor ha cambiado de unidad (evita ráfagas)
@@ -101,6 +108,7 @@ public class AjustesRapidosController {
             try {
                 String serialActivo = adbService.getSerialActivo(androidId);
                 this.serial = serialActivo;
+                cargandoEstadoInicial = true;
                 System.out.println("[AJUSTES] Serial activo resuelto: " + serial);
                 Platform.runLater(() -> {
                     sincronizarEstadoInicial();
@@ -109,8 +117,9 @@ public class AjustesRapidosController {
             } catch (IOException e) {
                 // Fallback: usa lo que llega si falla la resolución
                 this.serial = androidId;
+                cargandoEstadoInicial = true;
                 System.out.println("[AJUSTES] Fallback serial: " + serial);
-                Platform.runLater(() -> sincronizarEstadoInicial());
+                Platform.runLater(this::sincronizarEstadoInicial);
             }
         }).start();
     }
@@ -150,8 +159,11 @@ public class AjustesRapidosController {
                     } catch (NumberFormatException e) {
                         System.err.println("Error al parsear valores numéricos");
                     }
+
+                    cargandoEstadoInicial = false;
                 });
             } catch (Exception e) {
+                cargandoEstadoInicial = false;
                 e.printStackTrace();
             }
         }).start();
