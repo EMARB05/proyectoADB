@@ -1224,14 +1224,13 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                             } else {
                                 ok = ejecutarLlamadaEntrante(paso);
                             }
+                        } else if (nombrePaso.contains("Make several calls using the bluetooth headsets")) {
+                            ok = ejecutarBluetoothLlamadasSalientes(serial, paso, owner);
+                            outputDetalle = ok
+                                    ? "Llamadas salientes ejecutadas usando número introducido"
+                                    : "No se pudieron completar las llamadas salientes Bluetooth";
                         } else {
                             String infoManual = null;
-                            if (nombrePaso.contains("Make several calls using the bluetooth headsets")) {
-                                infoManual = "1. Asegura que el headset Bluetooth esté emparejado y conectado.\n"
-                                        + "2. Realiza varias llamadas usando el headset Bluetooth.\n"
-                                        + "3. Confirma que puedes iniciar y finalizar las llamadas correctamente.";
-                            }
-
                             ok = infoManual == null
                                     ? ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner)
                                     : ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner, infoManual);
@@ -1839,7 +1838,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                     "SOFT.031.004",
                     "Make a video (5 seconds)",
                     List.of(
-                        "shell sh -c \"am start -a android.media.action.VIDEO_CAPTURE && sleep 2 && input keyevent KEYCODE_CAMERA && sleep 5 && input keyevent KEYCODE_CAMERA && sleep 2 && input keyevent KEYCODE_BACK && sleep 1\"")),
+                        "shell am start -a android.media.action.VIDEO_CAPTURE && sleep 2 && input keyevent 27 && sleep 2 && input keyevent KEYCODE_DPAD_CENTER && sleep 5 && input keyevent KEYCODE_BACK && sleep 1")),
 
                 // SOFT.031.005: Verificar calidad de video (MANUAL)
                 new BloquePrueba(
@@ -2233,7 +2232,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                             "--bind title:s:'" + titulo + "' " +
                             "--bind artist:s:'" + artista + "' " +
                             "--bind album:s:'" + album + "' " +
-                            "--bind mime_type:s:audio/wav " +
+                            "--bind mime_type:s:audio/mpeg " +
                             "--bind is_music:i:1");
 
             String query = ejecutarShellEnSerial(serial,
@@ -5577,4 +5576,30 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             return false;
         }
     }
+
+private boolean ejecutarBluetoothLlamadasSalientes(String serial, PasoPrueba paso, Stage owner) {
+    String numero = solicitarNumeroLlamada(
+            owner,
+            "SOFT.023.008 — Bluetooth",
+            "Ingresa el número de prueba para llamar directamente desde el headset Bluetooth.");
+
+    if (numero == null || numero.isBlank()) {
+        actualizarEstadoPaso(paso, "Cancelado por el usuario");
+        return false;
+    }
+
+    String numeroLimpio = numero.replaceAll("\\s+", "").trim();
+    LlamadasD17 llamadas = new LlamadasD17(serial);
+
+    actualizarEstadoPaso(paso, "Llamando a " + numeroLimpio + "...");
+    boolean lanzada = llamadas.llamarSinVerificar(numeroLimpio, 4_000L);
+    if (!lanzada) {
+        return false;
+    }
+
+    return ConfirmacionManualPopup.mostrarYEsperar(
+            "SOFT.023.008 — Bluetooth",
+            owner,
+            "Confirma si la llamada se inició directamente al número indicado y si pudiste gestionarla desde el headset Bluetooth.");
+}
 }

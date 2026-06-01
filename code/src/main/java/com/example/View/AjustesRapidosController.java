@@ -53,7 +53,6 @@ public class AjustesRapidosController {
     private StackPane rootPane;
 
     private ObservableList<String> masterData = FXCollections.observableArrayList();
-    private volatile boolean cargandoEstadoInicial = false;
 
     @FXML
     public void initialize() {
@@ -61,9 +60,6 @@ public class AjustesRapidosController {
         sliderBrillo.setMin(0);
         sliderBrillo.setMax(255);
         sliderBrillo.valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (serial == null || cargandoEstadoInicial) {
-                return;
-            }
             int valor = newVal.intValue();
             adbService.ejecutarAccionHilo(serial, "shell settings put system screen_brightness " + valor);
         });
@@ -74,9 +70,6 @@ public class AjustesRapidosController {
         sliderVolumen.setBlockIncrement(1);
 
         sliderVolumen.valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (serial == null || cargandoEstadoInicial) {
-                return;
-            }
             int actual = newVal.intValue();
 
             // Solo actuamos si el valor ha cambiado de unidad (evita ráfagas)
@@ -108,7 +101,6 @@ public class AjustesRapidosController {
             try {
                 String serialActivo = adbService.getSerialActivo(androidId);
                 this.serial = serialActivo;
-                cargandoEstadoInicial = true;
                 System.out.println("[AJUSTES] Serial activo resuelto: " + serial);
                 Platform.runLater(() -> {
                     sincronizarEstadoInicial();
@@ -117,9 +109,9 @@ public class AjustesRapidosController {
             } catch (IOException e) {
                 // Fallback: usa lo que llega si falla la resolución
                 this.serial = androidId;
-                cargandoEstadoInicial = true;
+
                 System.out.println("[AJUSTES] Fallback serial: " + serial);
-                Platform.runLater(this::sincronizarEstadoInicial);
+                Platform.runLater(() -> sincronizarEstadoInicial());
             }
         }).start();
     }
@@ -142,28 +134,24 @@ public class AjustesRapidosController {
                         "shell settings get system volume_music_speaker");
 
                 Platform.runLater(() -> {
+                    try {
+                        if (!brilloStatus.isEmpty() && !"null".equals(brilloStatus.trim())) {
+                            sliderBrillo.setValue(Double.parseDouble(brilloStatus.trim()));
+                        }
+                        double vol = Double.parseDouble(volStatus.trim());
+                        ultimoValorEntero = vol; // ← primero ultimoValorEntero
+                        sliderVolumen.setValue(vol); // ← luego setValue (listener lee ultimoValorEntero)
+                    } catch (NumberFormatException e) {
+                        System.err.println("Error al parsear valores numéricos");
+                    }
                     btnBluetooth.setSelected("1".equals(btStatus.trim()));
                     btnModoAvion.setSelected("1".equals(avionStatus.trim()));
                     btnGPS.setSelected("3".equals(gpsStatus.trim()));
                     actualizarBoton(btnBluetooth.isSelected(), btnBluetooth);
                     actualizarBoton(btnModoAvion.isSelected(), btnModoAvion);
                     actualizarBoton(btnGPS.isSelected(), btnGPS);
-
-                    // Sincronizar Sliders
-                    try {
-                        if (!brilloStatus.isEmpty() && !"null".equals(brilloStatus)) {
-                            sliderBrillo.setValue(Double.parseDouble(brilloStatus.trim()));
-                        }
-                        sliderVolumen.setValue(Double.parseDouble(volStatus));
-                        ultimoValorEntero = Double.parseDouble(volStatus); // Importante para que no salte el listener
-                    } catch (NumberFormatException e) {
-                        System.err.println("Error al parsear valores numéricos");
-                    }
-
-                    cargandoEstadoInicial = false;
                 });
             } catch (Exception e) {
-                cargandoEstadoInicial = false;
                 e.printStackTrace();
             }
         }).start();
