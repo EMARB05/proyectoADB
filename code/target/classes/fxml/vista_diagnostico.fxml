@@ -47,7 +47,7 @@
         prefWidth="530" maxWidth="530" 
         style="-fx-background-color: #313244; -fx-padding: 10; -fx-background-radius: 8;">
         
-        <Label text="Conectividad &amp; Red"
+        <Label text="Pruebas de Software"
             style="-fx-text-fill: #cdd6f4; -fx-font-size: 11px;"/>
         
         <HBox alignment="CENTER" spacing="10" maxWidth="Infinity">
@@ -118,7 +118,7 @@
                             </VBox>
                         </graphic>
                     </Button>
-                    <Button onAction="#addHotDialTest" styleClass="btn-hw,btn-modern">
+                    <Button fx:id="btnHotDial" onAction="#addHotDialTest" styleClass="btn-hw,btn-modern">
                       <graphic>
                          <VBox alignment="CENTER" spacing="5">
                              <FontIcon iconLiteral="fas-phone-square" iconSize="24" iconColor="#eba0ac"/>
@@ -159,7 +159,22 @@
                             </VBox>
                         </graphic>
                     </Button>
-
+                    <Button onAction="#addCalendarTest" styleClass="btn-hw,btn-modern">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                <FontIcon iconLiteral="far-calendar-alt" iconSize="24" iconColor="#21d188"/>
+                                <Label text="Calendar" style="-fx-font-size: 9px;"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
+                    <Button onAction="#addMessagingTest" styleClass="btn-hw,btn-modern">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                <FontIcon iconLiteral="fas-envelope" iconSize="24" iconColor="#be0095"/>
+                                <Label text="Messages" style="-fx-font-size: 9px;"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
                 </HBox>
             </ScrollPane>
 
@@ -258,7 +273,7 @@
                                         </VBox>
                                     </graphic>
                                 </Button>
-                                <Button onAction="#addCallTimerTest" styleClass="btn-hw,btn-modern">
+                                <Button fx:id="btnCallTimer" onAction="#addCallTimerTest" styleClass="btn-hw,btn-modern">
                                    <graphic>
                                       <VBox alignment="CENTER" spacing="5">
                                            <FontIcon iconLiteral="fas-clock" iconSize="24" iconColor="#f9e2af"/>

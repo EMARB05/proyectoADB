@@ -2,13 +2,14 @@ package com.example.View;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.channels.Pipe.SourceChannel;
+import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,10 +59,10 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-import org.apache.commons.collections4.functors.IfClosure;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 
 public class DiagnosticoController extends com.example.Model.AdbCallSupport implements DispositivoAware {
@@ -77,6 +78,10 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private ToggleButton btnIotCompleta;
     @FXML
     private ToggleButton btnIotExpress;
+    @FXML
+    private Button btnHotDial;
+    @FXML
+    private Button btnCallTimer;
 
     @FXML
     private ScrollPane scrollCategorias;
@@ -101,11 +106,10 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private static final int WIFI_TIMEOUT_MS = 3 * 60 * 1000;
     private static final int WIFI_POLL_INTERVAL_MS = 3_000;
 
-    // ─── Variables para la configuración del bloque Contactos
+    // ─── Variables de configuración para usar contactos
     private String contactoTestNombre = "Test_ADB";
     private String contactoTestTelefonoDUT = "";
-    private String contactoTestTelefono = "";
-    private String contactoTestEmail = "test@adb.com";
+    private String contactoTestTelefono = "";;
     private String contactoExchangeCuenta = null;
     private String contactoSerialReceptor = null;
 
@@ -160,6 +164,23 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private static final String CONTACT_IMPORT_VCARD = "__IMPORT_VCARD__";
     private static final String CONTACT_EXPORT_VCARD = "__EXPORT_VCARD__";
     private static final String CONTACT_MEMORY_STATUS = "__MEMORY_STATUS__";
+
+    private static final String CALENDAR_CREATE = "__CALENDAR_CREATE__";
+    private static final String CALENDAR_EDIT = "__CALENDAR_EDIT__";
+    private static final String CALENDAR_DELETE = "__CALENDAR_DELETE__";
+
+    private static final String MSG_SEND_SMS_NUMBER = "__SEND_SMS_NUMBER__";
+    private static final String MSG_SEND_SMS_CONTACT = "__SEND_SMS_CONTACT__";
+    private static final String MSG_RECEIVE_SMS = "__RECEIVE_SMS__";
+    private static final String MSG_SEND_MMS_NUMBER = "__SEND_MMS_NUMBER__";
+    private static final String MSG_SEND_MMS_CONTACT = "__SEND_MMS_CONTACT__";
+    private static final String MSG_RECEIVE_MMS = "__RECEIVE_MMS__";
+    private static final String MSG_DELETE_ONE = "__MSG_DELETE_ONE__";
+    private static final String MSG_DELETE_ALL = "__MSG_DELETE_ALL__";
+    private static final String MSG_SEND_SMS_SPECIAL = "__SEND_SMS_SPECIAL__";
+    private static final String MSG_SEND_SMS_LONG = "__SEND_SMS_LONG__";
+    private static final String MSG_SEND_SMS_NOOPT = "__SEND_SMS_NOOPT__";
+    private static final String MSG_MMS_NO_DATA = "__MMS_NO_DATA__";
 
     // ─── Datos extra para los pasos de llamada avanzados ─────────────────────
     // Se rellenan cuando el usuario configura el paso en el popup.
@@ -227,10 +248,22 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     btnIotCompleta
                             .setStyle("-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold;");
                     btnIotExpress.setStyle("-fx-background-color: transparent; -fx-text-fill: #cdd6f4;");
+
+                    btnHotDial.setVisible(true);
+                    btnHotDial.setManaged(true);
+
+                    btnCallTimer.setVisible(true);
+                    btnCallTimer.setManaged(true);
                 } else {
                     btnIotExpress
                             .setStyle("-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e; -fx-font-weight: bold;");
                     btnIotCompleta.setStyle("-fx-background-color: transparent; -fx-text-fill: #cdd6f4;");
+
+                    btnHotDial.setVisible(false);
+                    btnHotDial.setManaged(false);
+
+                    btnCallTimer.setVisible(false);
+                    btnCallTimer.setManaged(false);
                 }
             }
         });
@@ -735,14 +768,14 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                 Button btn = crearBoton("➕  Añadir al script", "#94e2d5");
                 btn.setOnAction(e -> {
-                        llamadaEntranteSerial = null;
-                        llamadaEntranteNumero = null;
-                        // Mostrar diálogo de configuración ahora para que el usuario introduzca número
-                        Stage ownerStage = (Stage) btnEjecutar.getScene().getWindow();
-                        if (configurarLlamadaEntranteParaFm(ownerStage)) {
-                            pasos.add(new PasoPrueba("Llamada Entrante", CMD_LLAMADA_ENTRANTE));
-                            popup.close();
-                        }
+                    llamadaEntranteSerial = null;
+                    llamadaEntranteNumero = null;
+                    // Mostrar diálogo de configuración ahora para que el usuario introduzca número
+                    Stage ownerStage = (Stage) btnEjecutar.getScene().getWindow();
+                    if (configurarLlamadaEntranteParaFm(ownerStage)) {
+                        pasos.add(new PasoPrueba("Llamada Entrante", CMD_LLAMADA_ENTRANTE));
+                        popup.close();
+                    }
                 });
                 panel.getChildren().addAll(info, btn);
             }
@@ -928,11 +961,27 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 String outputDetalle = "";
                 boolean esWifi = paso.getNombre().toLowerCase().contains("wifi") &&
                         paso.getNombre().toLowerCase().contains("levantar");
-                // Para pasos que requieren auricular
+                Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+
+                if (paso.getNombre() != null && paso.getNombre().startsWith("SOFT.029")) {
+                    boolean cuentaOk = comprobarYLoguearCuentaGoogle(serial, adb,
+                            "shell am start -a android.intent.action.MAIN -c android.intent.category.APP_CALENDAR");
+
+                    if (!cuentaOk) {
+                        continue;
+                    }
+                    adb.ejecutarComandoSincrono(serial,
+                            "shell pm grant com.google.android.calendar android.permission.READ_CALENDAR");
+                    adb.ejecutarComandoSincrono(serial,
+                            "shell pm grant com.google.android.calendar android.permission.WRITE_CALENDAR");
+                    adb.ejecutarComandoSincrono(serial,
+                            "shell pm grant com.android.calendar android.permission.READ_CALENDAR");
+                    adb.ejecutarComandoSincrono(serial,
+                            "shell pm grant com.android.calendar android.permission.WRITE_CALENDAR");
+                }
+
                 if (!ref.isManual() && ref.getComandos().size() > 1 &&
                         ref.getComandos().get(0).contains("mAudioRoutes")) {
-                    
-                        
 
                     if (!adb.tieneAuricularConectado(serial)) {
 
@@ -948,7 +997,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                         continue;
                     }
-                    
 
                     System.out.println("[FM] ✔ Auricular detectado — continuando prueba");
                 }
@@ -972,14 +1020,15 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                 } else if ("__HOT_DIAL_CALL_OTHER_NUMBERS__".equals(ref.getComando())) {
                     LlamadasD17 llamadas = new LlamadasD17(serial);
-                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
 
-                    String num1 = solicitarNumeroLlamada(owner, "Hot Dial - Other numbers", "Introduce el primer número a llamar:");
+                    String num1 = solicitarNumeroLlamada(owner, "Hot Dial - Other numbers",
+                            "Introduce el primer número a llamar:");
                     if (num1 == null || num1.isBlank()) {
                         actualizarEstadoPaso(paso, "Cancelado por el usuario");
                         ok = false;
                     } else {
-                        String num2 = solicitarNumeroLlamada(owner, "Hot Dial - Other numbers", "Introduce el segundo número a llamar:");
+                        String num2 = solicitarNumeroLlamada(owner, "Hot Dial - Other numbers",
+                                "Introduce el segundo número a llamar:");
                         if (num2 == null || num2.isBlank()) {
                             actualizarEstadoPaso(paso, "Cancelado por el usuario");
                             ok = false;
@@ -1000,7 +1049,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                 } else if ("__HOT_DIAL_DISABLE_AND_CALL_OTHER_NUMBERS__".equals(ref.getComando())) {
                     LlamadasD17 llamadas = new LlamadasD17(serial);
-                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
                     try {
                         ejecutarShellEnSerial(serial, "am start -a android.telecom.action.SHOW_CALL_SETTINGS");
                         Thread.sleep(2_000L);
@@ -1009,12 +1057,14 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                         ejecutarShellEnSerial(serial, "input keyevent 23");
                         Thread.sleep(600L);
 
-                        String num1 = solicitarNumeroLlamada(owner, "Hot Dial - Disable and call", "Introduce el primer número a llamar:");
+                        String num1 = solicitarNumeroLlamada(owner, "Hot Dial - Disable and call",
+                                "Introduce el primer número a llamar:");
                         if (num1 == null || num1.isBlank()) {
                             actualizarEstadoPaso(paso, "Cancelado por el usuario");
                             ok = false;
                         } else {
-                            String num2 = solicitarNumeroLlamada(owner, "Hot Dial - Disable and call", "Introduce el segundo número a llamar:");
+                            String num2 = solicitarNumeroLlamada(owner, "Hot Dial - Disable and call",
+                                    "Introduce el segundo número a llamar:");
                             if (num2 == null || num2.isBlank()) {
                                 actualizarEstadoPaso(paso, "Cancelado por el usuario");
                                 ok = false;
@@ -1032,7 +1082,8 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                                 }
 
                                 ok = res1 && res2;
-                                outputDetalle = ok ? "Two calls launched, waited 5 seconds and hung up" : "No se pudieron completar las dos llamadas";
+                                outputDetalle = ok ? "Two calls launched, waited 5 seconds and hung up"
+                                        : "No se pudieron completar las dos llamadas";
                                 if (ok) {
                                     ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
                                 }
@@ -1049,13 +1100,15 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     if (!ref.getComando().isBlank()) {
                         if ("__MUSIC_OPEN_INTERNAL__".equals(ref.getComando())) {
                             // Try preview (small popup) via ACTION_VIEW and autoplay only
-                                if (musicaUriInterna == null && !copiarAudioMusica(serial, "/sdcard/Music/testInternal.wav")) {
+                            if (musicaUriInterna == null
+                                    && !copiarAudioMusica(serial, "/sdcard/Music/testInternal.wav")) {
                                 accionOk = false;
                             } else {
                                 String uri = resolverUriMusicaInternaPara(serial);
                                 String pkg = resolverPaqueteMusicaPreferido(serial);
                                 String startCmd = pkg != null
-                                        ? "am start -W -a android.intent.action.VIEW -d '" + uri + "' -t audio/wav -p " + pkg
+                                        ? "am start -W -a android.intent.action.VIEW -d '" + uri + "' -t audio/wav -p "
+                                                + pkg
                                         : null;
                                 if (startCmd == null) {
                                     accionOk = false;
@@ -1063,7 +1116,8 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                                 }
                                 String outStart = ejecutarShellEnSerial(serial, startCmd);
                                 System.out.println("[MUSIC] ACTION_VIEW startCmd=" + startCmd + "\n[out]=" + outStart);
-                                boolean launched = outStart != null && !outStart.toLowerCase().contains("error") && !outStart.toLowerCase().contains("unable");
+                                boolean launched = outStart != null && !outStart.toLowerCase().contains("error")
+                                        && !outStart.toLowerCase().contains("unable");
                                 if (launched) {
                                     try {
                                         Thread.sleep(800);
@@ -1081,7 +1135,8 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                                             Thread.sleep(65000); // wait ~65s for 60s audio to finish
                                             if (finalPkg != null && !finalPkg.isBlank()) {
                                                 ejecutarShellEnSerial(serial, "am force-stop " + finalPkg);
-                                                System.out.println("[MUSIC] Closed preview app " + finalPkg + " after playback");
+                                                System.out.println(
+                                                        "[MUSIC] Closed preview app " + finalPkg + " after playback");
                                             } else {
                                                 ejecutarShellEnSerial(serial, "input keyevent KEYCODE_BACK");
                                                 System.out.println("[MUSIC] Sent BACK to close preview after playback");
@@ -1095,13 +1150,15 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                             }
                         } else if ("__MUSIC_OPEN_EXTERNAL__".equals(ref.getComando())) {
                             // Try preview (small popup) via ACTION_VIEW and autoplay only
-                                if (musicaUriExterna == null && !copiarAudioMusica(serial, "/storage/self/primary/Music/testExternal.wav")) {
+                            if (musicaUriExterna == null
+                                    && !copiarAudioMusica(serial, "/storage/self/primary/Music/testExternal.wav")) {
                                 accionOk = false;
                             } else {
                                 String uri = resolverUriMusicaExternaPara(serial);
                                 String pkg = resolverPaqueteMusicaPreferido(serial);
                                 String startCmd = pkg != null
-                                        ? "am start -W -a android.intent.action.VIEW -d '" + uri + "' -t audio/wav -p " + pkg
+                                        ? "am start -W -a android.intent.action.VIEW -d '" + uri + "' -t audio/wav -p "
+                                                + pkg
                                         : null;
                                 if (startCmd == null) {
                                     accionOk = false;
@@ -1109,7 +1166,8 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                                 }
                                 String outStart = ejecutarShellEnSerial(serial, startCmd);
                                 System.out.println("[MUSIC] ACTION_VIEW startCmd=" + startCmd + "\n[out]=" + outStart);
-                                boolean launched = outStart != null && !outStart.toLowerCase().contains("error") && !outStart.toLowerCase().contains("unable");
+                                boolean launched = outStart != null && !outStart.toLowerCase().contains("error")
+                                        && !outStart.toLowerCase().contains("unable");
                                 if (launched) {
                                     try {
                                         Thread.sleep(800);
@@ -1132,7 +1190,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                         ok = false;
                         outputDetalle = "No se pudo abrir el audio en la app de música";
                     } else {
-                        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
                         ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
                     }
 
@@ -1174,16 +1231,17 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                 } else if (CMD_RED_ACTIVA.equals(paso.getComando())) {
                     ok = ejecutarTestRedActiva(serial, paso);
+
                 } else if (CMD_TRANSFERENCIA.equals(paso.getComando())) {
                     ok = ejecutarTransferencia(serial, paso);
 
                 } else if (CMD_CONFERENCIA.equals(paso.getComando())) {
                     ok = ejecutarConferencia(serial, paso);
+
                 } else if (CMD_TRANSFERENCIA_CIEGA.equals(paso.getComando())) {
                     ok = ejecutarTransferenciaCiega(serial, paso);
-                }
 
-                else if (TOUCH_PINCH.equals(paso.getComando())) {
+                } else if (TOUCH_PINCH.equals(paso.getComando())) {
                     ok = ejecutarPinch(serial, adb);
 
                 } else if (TOUCH_SPREAD.equals(paso.getComando())) {
@@ -1201,7 +1259,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
                     String valor = ConfirmacionManualPopup.mostrarYEsperarConValor(ref.getNombre(), owner);
                     ok = !valor.isEmpty();
                     outputDetalle = ok ? valor : "";
@@ -1218,7 +1275,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                             System.err.println("[MTP] Error abriendo explorador: " + e.getMessage());
                         }
                     }
-                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
                     String info = esUSB ? null : "";
                     ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner, info);
 
@@ -1243,11 +1299,11 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                 } else if (INFO_LOGCAT_BRAND.equals(ref.getComando())) {
                     String logcat = adb.ejecutarComandoSincrono(serial, "shell logcat -d -t 100");
-                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
                     ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner, logcat);
 
                 } else if (DISPLAY_BRIGHTNESS_CHANGE.equals(ref.getComando())) {
                     ok = cambiarYVerificarBrillo(serial, adb);
+
                 } else if (DISPLAY_BRIGHTNESS_CHECK.equals(ref.getComando())) {
                     String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_brightness");
                     ok = comprobarBrilloPorDefecto(serial, adb);
@@ -1266,6 +1322,7 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     }
                 } else if (DISPLAY_WALLPAPER.equals(ref.getComando())) {
                     ok = cambiarWallpaper(serial, adb);
+
                 } else if (DISPLAY_TIMEOUT_CHECK.equals(ref.getComando())) {
                     String valor = adb.ejecutarComandoSincrono(serial, "shell settings get system screen_off_timeout");
                     ok = comprobarTimeoutPorDefecto(serial, adb);
@@ -1294,31 +1351,38 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     }
                 } else if (DISPLAY_TIMEOUT_CHANGE.equals(ref.getComando())) {
                     ok = cambiarYVerificarTimeout(serial, adb);
+
                 } else if (DISPLAY_FONT_SIZE.equals(ref.getComando())) {
                     ok = cambiarYRestaurarFuente(serial, adb);
+
                 } else if ("__FM_BACKGROUND__".equals(paso.getComando())) {
                     ok = ejecutarFMBackground(serial, paso);
+
                 } else if (DISPLAY_DISPLAY_SIZE.equals(ref.getComando())) {
                     ok = cambiarYRestaurarDisplaySize(serial, adb);
+
                 } else if (DISPLAY_SCREENSAVER.equals(ref.getComando())) {
                     ok = comprobarScreensaver(serial, adb);
                     adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_WAKEUP");
+
                 } else if ("__FM_D17_EARPHONE_SEQUENCE__".equals(paso.getComando())) {
                     ok = ejecutarFmRadioD17(serial, paso, true, true,
                             "FM D17: comprobando auriculares y secuencia...");
+
                 } else if ("__FM_D17_RIGHT_OK__".equals(paso.getComando())) {
                     ok = ejecutarFmRadioD17RightOk(serial, paso);
+
                 } else if ("__FM_D17_AUTOSEARCH_NO_EARPHONE__".equals(paso.getComando())) {
                     ok = ejecutarFmRadioD17(serial, paso, false, false,
                             "FM D17: autosearch sin auriculares...");
-                } else if ("__FM_LLAMADA_ENTRANTE__".equals(paso.getComando())) {
-                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-                    ok = ejecutarFmConLlamadaEntrante(serial, paso, owner);
-                }
 
-                else if (paso.getComando().contains("__CAMERA_PACKAGE__")) {
+                } else if ("__FM_LLAMADA_ENTRANTE__".equals(paso.getComando())) {
+                    ok = ejecutarFmConLlamadaEntrante(serial, paso, owner);
+
+                } else if (paso.getComando().contains("__CAMERA_PACKAGE__")) {
                     // Intentar arrancar cámara de forma robusta usando ADBService.startCamera
-                    // Si el comando original contiene pasos extra (p. ej. "&& sleep 2"), los ejecutamos después.
+                    // Si el comando original contiene pasos extra (p. ej. "&& sleep 2"), los
+                    // ejecutamos después.
                     String[] parts = paso.getComando().split("&&");
                     boolean started = adb.startCamera(serial);
                     ok = started;
@@ -1342,7 +1406,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                     System.out.println("[CAMERA] startCamera result: " + outputDetalle);
                 } else if ("__MANUAL_PHOTO_QUALITY_CHECK__".equals(paso.getComando())) {
-                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
                     String mensaje = """
                             Verifique la calidad de la última foto tomada:
 
@@ -1356,8 +1419,8 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                             Haga clic en 'OK' si la calidad es aceptable, o 'Cancelar' si no lo es.
                             """;
                     ok = ConfirmacionManualPopup.mostrarYEsperar("Verificación de Calidad de Foto", owner, mensaje);
+
                 } else if ("__MANUAL_VIDEO_QUALITY_CHECK__".equals(paso.getComando())) {
-                    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
                     String mensaje = """
                             Verifique la calidad del último video grabado:
 
@@ -1372,9 +1435,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                             Haga clic en 'OK' si la calidad es aceptable, o 'Cancelar' si no lo es.
                             """;
                     ok = ConfirmacionManualPopup.mostrarYEsperar("Verificación de Calidad de Video", owner, mensaje);
-                
-
-                
 
                 } else if (CONTACT_CREATE_SIM.equals(ref.getComando())) {
                     ok = crearContactoSIM(serial, adb);
@@ -1402,10 +1462,13 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                 } else if (CONTACT_COPY_SIM_PHONE.equals(ref.getComando())) {
                     ok = copiarSimAlTelefono(serial, adb);
+
                 } else if (CONTACT_COPY_PHONE_SIM.equals(ref.getComando())) {
                     ok = copiarTelefonoAlSim(serial, adb);
+
                 } else if (CONTACT_IMPORT_VCARD.equals(ref.getComando())) {
                     ok = importarVCard(serial, adb);
+
                 } else if (CONTACT_EXPORT_VCARD.equals(ref.getComando())) {
                     ok = exportarVCard(serial, adb);
 
@@ -1413,6 +1476,57 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     StringBuilder reporte = new StringBuilder();
                     ok = comprobarMemoriaContactos(serial, adb, reporte);
                     outputDetalle = reporte.toString();
+
+                } else if (CALENDAR_CREATE.equals(ref.getComando())) {
+                    ok = crearEventoCalendario(serial, adb);
+
+                } else if (CALENDAR_EDIT.equals(ref.getComando())) {
+                    ok = editarEventoCalendario(serial, adb);
+
+                } else if (CALENDAR_DELETE.equals(ref.getComando())) {
+                    ok = borrarEventoCalendario(serial, adb);
+
+                } else if (MSG_SEND_SMS_NUMBER.equals(ref.getComando())) {
+                    ok = enviarSMSNumero(serial, adb);
+
+                } else if (MSG_SEND_SMS_CONTACT.equals(ref.getComando())) {
+                    ok = enviarSMSContacto(serial, adb);
+
+                } else if (MSG_RECEIVE_SMS.equals(ref.getComando())) {
+                    ok = recibirSMS(serial, adb);
+
+                } else if (MSG_SEND_MMS_NUMBER.equals(ref.getComando())) {
+                    ok = enviarMMSNumero(serial, adb);
+
+                } else if (MSG_SEND_MMS_CONTACT.equals(ref.getComando())) {
+                    ok = enviarMMSContacto(serial, adb);
+
+                } else if (MSG_RECEIVE_MMS.equals(ref.getComando())) {
+                    ok = recibirMMS(serial, adb);
+
+                } else if (MSG_DELETE_ONE.equals(ref.getComando())) {
+                    ok = borrarUnaConversacion(serial, adb);
+
+                } else if (MSG_DELETE_ALL.equals(ref.getComando())) {
+                    ok = borrarTodasConversaciones(serial, adb);
+
+                } else if (MSG_SEND_SMS_SPECIAL.equals(ref.getComando())) {
+                    enviarSMSCaracteresEspeciales(serial, adb);
+                    ok = ConfirmacionManualPopup.mostrarYEsperar(
+                            "SOFT.015.014 Send SMS with special characters  —  Comprueba los carácteres especiales enviados",
+                            owner);
+
+                } else if (MSG_SEND_SMS_LONG.equals(ref.getComando())) {
+                    enviarSMSLargo(serial, adb);
+                    ok = ConfirmacionManualPopup.mostrarYEsperar(
+                            "SOFT.015.015 Send SMS with more than 160 characters  —  Comprueba que el dispositivo informe de que el mensaje se enviará en 2 SMS",
+                            owner);
+
+                } else if (MSG_SEND_SMS_NOOPT.equals(ref.getComando())) {
+                    ok = enviarSMSSinOptimizacion(serial, adb);
+
+                } else if (MSG_MMS_NO_DATA.equals(ref.getComando())) {
+                    ok = enviarMMSSinDatos(serial, adb);
 
                 } else {
                     ADBService.EjecucionADB r = adb.ejecutarYObtener(serial, ref.getComandos(), ref.isSinOutput());
@@ -1465,62 +1579,75 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
             });
         }).start();
     }
-   @FXML
-private void addCallTimerTest() {
-    String serial = obtenerSerialADBActual();
-    String modelo = "D17";
-    if (serial != null) {
-        try {
-            modelo = ejecutarShellEnSerial(serial, "getprop ro.product.model").trim();
-        } catch (Exception ignored) {
+
+    @FXML
+    private void addCallTimerTest() {
+        String serial = obtenerSerialADBActual();
+        String modelo = "D17";
+        if (serial != null) {
+            try {
+                modelo = ejecutarShellEnSerial(serial, "getprop ro.product.model").trim();
+            } catch (Exception ignored) {
+            }
         }
+
+        List<BloquePrueba> bloqueCallTimer = LlamadasD17.crearBloquesCallTimer(modelo);
+
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueCallTimer.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueCallTimer;
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar(
+                "SOFT.046 — Call Timer",
+                bloquesAFiltrar,
+                owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
     }
 
-    List<BloquePrueba> bloqueCallTimer = LlamadasD17.crearBloquesCallTimer(modelo);
-
-    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-    SelectorPruebasPopup.mostrar(
-        "SOFT.046 — Call Timer",
-        bloqueCallTimer,
-        owner,
-        seleccionadas -> seleccionadas.stream()
-            .map(BloquePrueba::toPasoPrueba)
-            .forEach(pasos::add));
-}
-
-@FXML
-private void addHotDialTest() {
-    String serial = obtenerSerialADBActual();
-    String modelo = "D17";
-    if (serial != null) {
-        try {
-            modelo = ejecutarShellEnSerial(serial, "getprop ro.product.model").trim();
-        } catch (Exception ignored) {
+    @FXML
+    private void addHotDialTest() {
+        String serial = obtenerSerialADBActual();
+        String modelo = "D17";
+        if (serial != null) {
+            try {
+                modelo = ejecutarShellEnSerial(serial, "getprop ro.product.model").trim();
+            } catch (Exception ignored) {
+            }
         }
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        String numeroHotDial = solicitarNumeroLlamada(
+                owner,
+                "Hot Dial",
+                "Introduce el número que se guardará en hot dial.\nEse mismo número se reutilizará en la prueba de verificación.");
+
+        if (numeroHotDial == null || numeroHotDial.isBlank()) {
+            return;
+        }
+
+        hotDialNumero = numeroHotDial.trim();
+
+        List<BloquePrueba> bloqueHotDial = LlamadasD17.crearBloquesHotDial(modelo, hotDialNumero);
+
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueHotDial.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueHotDial;
+
+        SelectorPruebasPopup.mostrar(
+                "SOFT.045 — Hot Dial Function",
+                bloquesAFiltrar,
+                owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
     }
-
-    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-    String numeroHotDial = solicitarNumeroLlamada(
-            owner,
-            "Hot Dial",
-            "Introduce el número que se guardará en hot dial.\nEse mismo número se reutilizará en la prueba de verificación.");
-
-    if (numeroHotDial == null || numeroHotDial.isBlank()) {
-        return;
-    }
-
-    hotDialNumero = numeroHotDial.trim();
-    List<BloquePrueba> bloqueHotDial = LlamadasD17.crearBloquesHotDial(modelo, hotDialNumero);
-
-    SelectorPruebasPopup.mostrar(
-        "SOFT.045 — Hot Dial Function",
-        bloqueHotDial,
-        owner,
-        seleccionadas -> seleccionadas.stream()
-            .map(BloquePrueba::toPasoPrueba)
-            .forEach(pasos::add));
-}
-
 
     private boolean ejecutarEmergencia(String serial, PasoPrueba paso) {
         try {
@@ -1560,38 +1687,37 @@ private void addHotDialTest() {
         List<BloquePrueba> bloqueCamera = List.of(
                 // SOFT.031.001: Abrir app de cámara
                 new BloquePrueba(
-                        "SOFT.031.001",
+                        true, "SOFT.031.001",
                         "Open camera app",
                         List.of(
                                 // Nota: El package/activity puede variar por OEM.
                                 // Usamos el genérico de AOSP; si falla, ajusta para tu dispositivo.
-                                // Abrir cámara, esperar 3s y cerrar (KEYCODE_BACK) para seguir con la siguiente prueba
+                                // Abrir cámara, esperar 3s y cerrar (KEYCODE_BACK) para seguir con la siguiente
+                                // prueba
                                 "shell am start -a android.media.action.IMAGE_CAPTURE && sleep 3 && input keyevent KEYCODE_BACK && sleep 2")),
 
                 // SOFT.031.002: Tomar foto (autocontenida: abre cámara, toma foto, cierra)
                 new BloquePrueba(
-                    "SOFT.031.002",
-                    "Make a photo",
-                    List.of(
-                        // Abre cámara, espera a que cargue, dispara con VOLUME_UP,
-                        // confirma con una tecla estándar y espera a que guarde.
-                        "shell am start -a android.media.action.IMAGE_CAPTURE && sleep 2 && input keyevent 27 && sleep 2 && input keyevent KEYCODE_DPAD_CENTER && sleep 4"
-                    ) ),
+                        true, "SOFT.031.002",
+                        "Make a photo",
+                        List.of(
+                                // Abre cámara, espera a que cargue, dispara con VOLUME_UP,
+                                // confirma con una tecla estándar y espera a que guarde.
+                                "shell am start -a android.media.action.IMAGE_CAPTURE && sleep 2 && input keyevent 27 && sleep 2 && input keyevent KEYCODE_DPAD_CENTER && sleep 4")),
 
                 // SOFT.031.003: Verificar calidad de foto (MANUAL)
                 new BloquePrueba(
-                        "SOFT.031.003",
+                        true, "SOFT.031.003",
                         "Check image quality",
                         List.of("__MANUAL_PHOTO_QUALITY_CHECK__"), // Marcador especial
                         true),
 
                 // SOFT.031.004: Grabar video automático 5s
                 new BloquePrueba(
-                    "SOFT.031.004",
-                    "Make a video (5 seconds)",
-                    List.of(
-                        "shell am start -a android.media.action.VIDEO_CAPTURE && sleep 2 && input keyevent KEYCODE_CAMERA && sleep 5 && input keyevent KEYCODE_CAMERA && sleep 2 && input keyevent KEYCODE_BACK && sleep 1"
-                    )),
+                        "SOFT.031.004",
+                        "Make a video (5 seconds)",
+                        List.of(
+                                "shell am start -a android.media.action.VIDEO_CAPTURE && sleep 2 && input keyevent KEYCODE_CAMERA && sleep 5 && input keyevent KEYCODE_CAMERA && sleep 2 && input keyevent KEYCODE_BACK && sleep 1")),
 
                 // SOFT.031.005: Verificar calidad de video (MANUAL)
                 new BloquePrueba(
@@ -1602,31 +1728,34 @@ private void addHotDialTest() {
 
                 // SOFT.031.006: Foto con temporizador (APERTURA MANUAL)
                 new BloquePrueba(
-                    "SOFT.031.006",
-                    "Open camera for self-timer (manual verification)",
-                    List.of(
-                        "shell am start -a android.media.action.IMAGE_CAPTURE && sleep 2"
-                    ),
-                    true),
+                        "SOFT.031.006",
+                        "Open camera for self-timer (manual verification)",
+                        List.of(
+                                "shell am start -a android.media.action.IMAGE_CAPTURE && sleep 2"),
+                        true),
 
                 // SOFT.031.007: Activar/desactivar flash y verificar
                 new BloquePrueba(
                         "SOFT.031.007",
                         "Activate/deactivate the flash and check if it works",
-                    List.of("shell am start -a android.media.action.IMAGE_CAPTURE && sleep 2"),
+                        List.of("shell am start -a android.media.action.IMAGE_CAPTURE && sleep 2"),
                         true));
 
-        // Reutiliza tu SelectorPruebasPopup existente (idéntico a addFMRadioTest())
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueCamera.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueCamera;
+
         Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+
         SelectorPruebasPopup.mostrar(
                 "SOFT.031 — Cámara",
-                bloqueCamera,
+                bloquesAFiltrar,
                 owner,
-                seleccionadas -> {
-                    pasos.addAll(seleccionadas.stream()
-                            .map(BloquePrueba::toPasoPrueba)
-                            .toList());
-                });
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
     }
 
     private boolean ejecutarHoldRetrieve(String serial, PasoPrueba paso) {
@@ -1828,42 +1957,50 @@ private void addHotDialTest() {
     }
 
     @FXML
-private void addMusicTest() {
-    List<BloquePrueba> bloqueMusica = List.of(
-        new BloquePrueba("SOFT.019.001", "Copy music file to internal storage",
-                "__MUSIC_COPY_INTERNAL__"),
-        
-        new BloquePrueba("SOFT.019.002", "Play music from internal storage",
-            "__MUSIC_OPEN_INTERNAL__", true),
-        
-        new BloquePrueba("SOFT.019.003", "Check music info (Artist, Album, Song)",
-            "__MUSIC_OPEN_INTERNAL__", true),
-        
-        new BloquePrueba("SOFT.019.004", "Copy music file to external storage (SD)",
-                "__MUSIC_COPY_EXTERNAL__"),
-        
-        new BloquePrueba("SOFT.019.005", "Play music from external storage",
-            "__MUSIC_OPEN_EXTERNAL__", true),
-        
-        new BloquePrueba("SOFT.019.006", "Check music info from external storage",
-            "__MUSIC_OPEN_EXTERNAL__", true),
-        
-        new BloquePrueba("SOFT.019.007", "While playing music, receive a call. Check if music resumes after call ends",
-            "__MUSIC_LLAMADA_ENTRANTE__"),
-        
-        new BloquePrueba("SOFT.019.008", "While playing music, make a call. Check if music resumes after call ends",
-            "__MUSIC_LLAMADA_SALIENTE__")
-    );
+    private void addMusicTest() {
+        List<BloquePrueba> bloqueMusica = List.of(
+                new BloquePrueba("SOFT.019.001", "Copy music file to internal storage",
+                        "__MUSIC_COPY_INTERNAL__"),
 
-    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-    SelectorPruebasPopup.mostrar(
-        "SOFT.019 — Music Player",
-        bloqueMusica,
-        owner,
-        seleccionadas -> seleccionadas.stream()
-            .map(BloquePrueba::toPasoPrueba)
-            .forEach(pasos::add));
-}
+                new BloquePrueba("SOFT.019.002", "Play music from internal storage",
+                        "__MUSIC_OPEN_INTERNAL__", true),
+
+                new BloquePrueba("SOFT.019.003", "Check music info (Artist, Album, Song)",
+                        "__MUSIC_OPEN_INTERNAL__", true),
+
+                new BloquePrueba("SOFT.019.004", "Copy music file to external storage (SD)",
+                        "__MUSIC_COPY_EXTERNAL__"),
+
+                new BloquePrueba("SOFT.019.005", "Play music from external storage",
+                        "__MUSIC_OPEN_EXTERNAL__", true),
+
+                new BloquePrueba("SOFT.019.006", "Check music info from external storage",
+                        "__MUSIC_OPEN_EXTERNAL__", true),
+
+                new BloquePrueba("SOFT.019.007",
+                        "While playing music, receive a call. Check if music resumes after call ends",
+                        "__MUSIC_LLAMADA_ENTRANTE__"),
+
+                new BloquePrueba("SOFT.019.008",
+                        "While playing music, make a call. Check if music resumes after call ends",
+                        "__MUSIC_LLAMADA_SALIENTE__"));
+
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueMusica.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueMusica;
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+
+        SelectorPruebasPopup.mostrar(
+                "SOFT.019 — Music Player",
+                bloquesAFiltrar,
+                owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
+    }
 
     private String obtenerRutaAudioMusicaLocal() {
         try {
@@ -1905,7 +2042,8 @@ private void addMusicTest() {
                 return false;
             }
             String destino = destinoRemoto;
-            // Si el destino solicitado es la ruta "external" intentamos resolver una SD física
+            // Si el destino solicitado es la ruta "external" intentamos resolver una SD
+            // física
             if (destinoRemoto.contains("storage/self/primary") || destinoRemoto.toLowerCase().contains("external")) {
                 String nombre = new File(destinoRemoto).getName();
                 String sd = detectarRutaSdExterna(serial, nombre);
@@ -1936,7 +2074,7 @@ private void addMusicTest() {
             if (exit != 0) {
                 System.out.println("[MUSIC] push exited non-zero, failing copy to " + destino);
                 // If external destination failed, try fallback to /sdcard/Music/<file>
-                if (destino.contains("storage/self/primary") ) {
+                if (destino.contains("storage/self/primary")) {
                     String base = new File(destino).getName();
                     String alt = "/sdcard/Music/" + base;
                     System.out.println("[MUSIC] Intentando fallback a " + alt);
@@ -1945,8 +2083,10 @@ private void addMusicTest() {
                     String err2 = new String(push2.getErrorStream().readAllBytes());
                     int exit2 = push2.waitFor();
                     System.out.println("[MUSIC] push fallback " + alt + " exit=" + exit2);
-                    if (!out2.isBlank()) System.out.println("[MUSIC] push fallback stdout:\n" + out2);
-                    if (!err2.isBlank()) System.out.println("[MUSIC] push fallback stderr:\n" + err2);
+                    if (!out2.isBlank())
+                        System.out.println("[MUSIC] push fallback stdout:\n" + out2);
+                    if (!err2.isBlank())
+                        System.out.println("[MUSIC] push fallback stderr:\n" + err2);
                     if (exit2 != 0) {
                         return false;
                     }
@@ -1973,7 +2113,6 @@ private void addMusicTest() {
             String mediaUri = registrarAudioEnMediaStore(serial, destino,
                     MUSIC_TITLE, MUSIC_ARTIST, MUSIC_ALBUM);
 
-
             System.out.println("[MUSIC] registered mediaUri=" + mediaUri + " (destino=" + destino + ")");
 
             if (destino.contains("/sdcard/Music/")) {
@@ -1989,7 +2128,8 @@ private void addMusicTest() {
         }
     }
 
-    private String registrarAudioEnMediaStore(String serial, String rutaRemota, String titulo, String artista, String album) {
+    private String registrarAudioEnMediaStore(String serial, String rutaRemota, String titulo, String artista,
+            String album) {
         try {
             String fileUri = "file://" + rutaRemota;
             ejecutarShellEnSerial(serial,
@@ -2022,18 +2162,11 @@ private void addMusicTest() {
         }
     }
 
-    private String resolverUriMusicaInterna() {
-        return musicaUriInterna != null ? musicaUriInterna : "file:///sdcard/Music/testInternal.wav";
-    }
-
-    private String resolverUriMusicaExterna() {
-        return musicaUriExterna != null ? musicaUriExterna : "file:///storage/self/primary/Music/testExternal.wav";
-    }
-
     private String obtenerContentUriParaRuta(String serial, String rutaRemota) {
         try {
             String query = ejecutarShellEnSerial(serial,
-                    "content query --uri content://media/external/audio/media --where \"_data='" + rutaRemota + "'\" --projection _id --sort \"date_added DESC\"");
+                    "content query --uri content://media/external/audio/media --where \"_data='" + rutaRemota
+                            + "'\" --projection _id --sort \"date_added DESC\"");
             if (query != null) {
                 java.util.regex.Matcher m = java.util.regex.Pattern.compile("_id=(\\d+)").matcher(query);
                 if (m.find()) {
@@ -2065,7 +2198,8 @@ private void addMusicTest() {
     private String resolverUriMusicaExternaPara(String serial) {
         if (musicaUriExterna != null && musicaUriExterna.startsWith("content://"))
             return musicaUriExterna;
-        String posible = musicaUriExterna != null ? musicaUriExterna : "file:///storage/self/primary/Music/testExternal.wav";
+        String posible = musicaUriExterna != null ? musicaUriExterna
+                : "file:///storage/self/primary/Music/testExternal.wav";
         if (posible.startsWith("file://")) {
             String ruta = posible.substring("file://".length());
             String content = obtenerContentUriParaRuta(serial, ruta);
@@ -2085,7 +2219,8 @@ private void addMusicTest() {
 
     private String resolverLauncherDePaquete(String serial, String pkg) {
         String out = ejecutarShellEnSerial(serial,
-                "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER " + pkg);
+                "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "
+                        + pkg);
         if (out == null) {
             return null;
         }
@@ -2095,23 +2230,6 @@ private void addMusicTest() {
                 return l;
             }
         }
-        return null;
-    }
-
-    private String resolverComponenteAudio(String serial, String uriAudio) {
-        String out = ejecutarShellEnSerial(serial,
-                "cmd package resolve-activity --brief -a android.intent.action.VIEW -d '" + uriAudio + "' -t audio/wav");
-        if (out == null) {
-            return null;
-        }
-
-        for (String linea : out.split("\\R")) {
-            String l = linea.trim();
-            if (l.contains("/") && !l.contains("ResolverActivity")) {
-                return l;
-            }
-        }
-
         return null;
     }
 
@@ -2129,7 +2247,8 @@ private void addMusicTest() {
                     continue;
                 // candidate path
                 String candidate = "/storage/" + entry + "/Music/" + nombreArchivo;
-                String prueba = ejecutarShellEnSerial(serial, "mkdir -p /storage/" + entry + "/Music && ls /storage/" + entry + "/Music");
+                String prueba = ejecutarShellEnSerial(serial,
+                        "mkdir -p /storage/" + entry + "/Music && ls /storage/" + entry + "/Music");
                 if (prueba != null && !prueba.toLowerCase().contains("permission denied")) {
                     return candidate;
                 }
@@ -2218,116 +2337,6 @@ private void addMusicTest() {
         return false;
     }
 
-    private boolean abrirAudioEnAppMusica(String serial, String uriAudio) {
-        String mime = "audio/wav";
-        String query = MUSIC_TITLE;
-
-        String fabricante = ejecutarShellEnSerial(serial, "getprop ro.product.manufacturer");
-        String fabricanteLc = fabricante == null ? "" : fabricante.toLowerCase();
-
-        List<String> paquetesPreferidos = new ArrayList<>();
-        if (fabricanteLc.contains("xiaomi") || fabricanteLc.contains("redmi") || fabricanteLc.contains("poco")) {
-            paquetesPreferidos.add("com.miui.player");
-            paquetesPreferidos.add("com.miui.mediaviewer");
-        } else if (fabricanteLc.contains("samsung")) {
-            paquetesPreferidos.add("com.sec.android.app.music");
-        }
-
-        String[] candidatos = {
-                "com.android.music",
-                "com.google.android.apps.youtube.music",
-                "com.sec.android.app.music",
-                "com.miui.player",
-                "com.oppo.music",
-                "com.vivo.music",
-                "com.transsion.music"
-        };
-
-        for (String pkg : candidatos) {
-            if (!paquetesPreferidos.contains(pkg)) {
-                paquetesPreferidos.add(pkg);
-            }
-        }
-
-        for (String pkg : paquetesPreferidos) {
-            String check = ejecutarShellEnSerial(serial, "pm list packages " + pkg);
-            if (check == null || !check.contains(pkg)) {
-                continue;
-            }
-
-            if (fabricanteLc.contains("xiaomi") || fabricanteLc.contains("redmi") || fabricanteLc.contains("poco")) {
-                String[] xiaomiFullUi = {"com.miui.player/com.miui.player.ui.MusicBrowserActivity"};
-                for (String comp : xiaomiFullUi) {
-                    String out = ejecutarShellEnSerial(serial,
-                            "am start -W -n " + comp +
-                                    " -a android.media.action.MEDIA_PLAY_FROM_SEARCH" +
-                                    " --es query \"" + query + "\"" +
-                                    " --es title \"" + MUSIC_TITLE + "\"" +
-                                    " --es artist \"" + MUSIC_ARTIST + "\"" +
-                                    " --es album \"" + MUSIC_ALBUM + "\"" +
-                                    " -p com.miui.player");
-                    if (out != null && !out.toLowerCase().contains("error") && !out.toLowerCase().contains("unable")) {
-                        ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MEDIA_PLAY");
-                        return true;
-                    }
-                }
-            }
-
-            String mediaSearch = ejecutarShellEnSerial(serial,
-                    "am start -W -a android.media.action.MEDIA_PLAY_FROM_SEARCH" +
-                            " --es query \"" + query + "\"" +
-                            " --es title \"" + MUSIC_TITLE + "\"" +
-                            " --es artist \"" + MUSIC_ARTIST + "\"" +
-                            " --es album \"" + MUSIC_ALBUM + "\"" +
-                            " -p " + pkg);
-            if (mediaSearch != null && !mediaSearch.toLowerCase().contains("error") && !mediaSearch.toLowerCase().contains("unable")) {
-                ejecutarShellEnSerial(serial, "input keyevent KEYCODE_MEDIA_PLAY");
-                return true;
-            }
-
-            String launcher = resolverLauncherDePaquete(serial, pkg);
-            if (launcher != null) {
-                ejecutarShellEnSerial(serial, "am start -W -n " + launcher);
-                try {
-                    Thread.sleep(800);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-
-            String out = ejecutarShellEnSerial(serial,
-                    "am start -W -a android.intent.action.VIEW -d " + uriAudio + " -t " + mime + " -p " + pkg);
-            if (out != null && !out.toLowerCase().contains("error") && !out.toLowerCase().contains("unable")) {
-                return true;
-            }
-        }
-
-        String resolved = ejecutarShellEnSerial(serial,
-                "cmd package resolve-activity --brief -a android.intent.action.VIEW -d " + uriAudio + " -t " + mime);
-
-        String componente = null;
-        if (resolved != null) {
-            for (String linea : resolved.split("\\R")) {
-                String l = linea.trim();
-                if (l.contains("/") && !l.contains("ResolverActivity")) {
-                    componente = l;
-                }
-            }
-        }
-
-        if (componente != null && !componente.isBlank()) {
-            String out = ejecutarShellEnSerial(serial,
-                    "am start -W -n " + componente + " -a android.intent.action.VIEW -d " + uriAudio + " -t " + mime);
-            if (out != null && !out.toLowerCase().contains("error")) {
-                return true;
-            }
-        }
-
-        String out = ejecutarShellEnSerial(serial,
-                "am start -W -a android.intent.action.VIEW -d " + uriAudio + " -t " + mime);
-        return out != null && !out.toLowerCase().contains("error");
-    }
-
     private boolean ejecutarMusicConLlamadaEntrante(String serial, PasoPrueba paso) {
         String destinoRemoto = "/sdcard/Music/testInternal.wav";
         if (!copiarAudioMusica(serial, destinoRemoto)) {
@@ -2412,19 +2421,19 @@ private void addMusicTest() {
 
             Thread.sleep(1_500);
 
-                String numeroPrueba = solicitarNumeroLlamada(
+            String numeroPrueba = solicitarNumeroLlamada(
                     owner,
                     "Prueba de audio",
                     "Ingresa un número de prueba para interrumpir la reproducción de música.");
 
-                if (numeroPrueba == null || numeroPrueba.isBlank()) {
+            if (numeroPrueba == null || numeroPrueba.isBlank()) {
                 actualizarEstadoPaso(paso, "Cancelado por el usuario");
                 return false;
-                }
+            }
 
-                actualizarEstadoPaso(paso, "Iniciando llamada de prueba...");
-                ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numeroPrueba.trim());
-                Thread.sleep(4_000);
+            actualizarEstadoPaso(paso, "Iniciando llamada de prueba...");
+            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:" + numeroPrueba.trim());
+            Thread.sleep(4_000);
 
             ejecutarShellEnSerial(serial, "input keyevent KEYCODE_ENDCALL");
 
@@ -2586,8 +2595,8 @@ private void addMusicTest() {
 
         try {
             actualizarEstadoPaso(paso, "Llamando a " + numeroLimpio + "...");
-            boolean ok = llamadas.ejecutarCallTimerDurationCheck(numeroLimpio, () ->
-                    ConfirmacionManualPopup.mostrarYEsperar(
+            boolean ok = llamadas.ejecutarCallTimerDurationCheck(numeroLimpio,
+                    () -> ConfirmacionManualPopup.mostrarYEsperar(
                             "Verificación de notificación de llamada",
                             owner,
                             "La llamada se mantuvo 36 segundos.\nConfirma si la notificación fue mostrada durante la llamada."));
@@ -2597,10 +2606,6 @@ private void addMusicTest() {
             llamadas.colgarLlamadaEnCurso();
             return false;
         }
-    }
-
-    private void colgarLlamadaEnCurso(String serial) {
-        new LlamadasD17(serial).colgarLlamadaEnCurso();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -3326,6 +3331,8 @@ private void addMusicTest() {
     }
 
     private boolean cambiarWallpaper(String serial, ADBService adb) {
+        File apkFile = null;
+        String rutaImagen = "/data/local/tmp/wallpaper_test.jpg";
         try {
             // Crear imagen y subirla
             BufferedImage img = new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB);
@@ -3337,16 +3344,15 @@ private void addMusicTest() {
             File tempFile = File.createTempFile("wallpaper_test", ".jpg");
             ImageIO.write(img, "jpg", tempFile);
 
-            String rutaImagen = "/data/local/tmp/wallpaper_test.jpg";
             new ProcessBuilder("adb", "-s", serial, "push",
                     tempFile.getAbsolutePath(), rutaImagen)
                     .start().waitFor();
             tempFile.delete();
 
             // Instalar APK
-            File apkFile = new File(getClass().getClassLoader()
-                    .getResource("apk/WallpaperSetter.apk").toURI());
-            new ProcessBuilder("adb", "-s", serial, "install", "-r",
+            desactivarPlayProtect(serial, adb);
+            apkFile = obtenerApkDeResources("WallpaperSetter.apk");
+            new ProcessBuilder("adb", "-s", serial, "install", "-r", "-g", "-t",
                     apkFile.getAbsolutePath()).start().waitFor();
             Thread.sleep(2000);
 
@@ -3361,20 +3367,27 @@ private void addMusicTest() {
 
             // Verificar via logcat
             String logcat = adb.ejecutarComandoSincrono(serial,
-                    "shell logcat -d -t 50 -s WallpaperSetter");
+                    "shell logcat -d WallpaperSetter:D *:S");
             boolean ok = logcat != null
                     && logcat.contains("Wallpaper establecido correctamente");
-
-            // Limpiar
-            new ProcessBuilder("adb", "-s", serial, "uninstall",
-                    "com.example.wallpapersetter").start().waitFor();
-            adb.ejecutarComandoSincrono(serial, "shell rm " + rutaImagen);
 
             return ok;
 
         } catch (Exception e) {
             e.printStackTrace();
             return false;
+        } finally {
+            try {
+                new ProcessBuilder("adb", "-s", serial, "uninstall",
+                        "com.example.wallpapersetter").start().waitFor();
+
+            } catch (Exception e) {
+                System.err.println("Error al desinstalar WallpaperSetter: " + e.getMessage());
+            }
+            adb.ejecutarComandoSincrono(serial, "shell rm " + rutaImagen);
+            if (apkFile != null && apkFile.exists()) {
+                apkFile.delete();
+            }
         }
     }
 
@@ -3604,11 +3617,12 @@ private void addMusicTest() {
                 .map(b -> {
                     if (!tieneExchange && b.getDescripcion().toLowerCase().contains("exchange")) {
                         return new BloquePrueba(b.isIotExpress(), b.getId(), b.getDescripcion(), b.getComandos(), true,
-                                b.isSinOuput(),b.isRestablecerPhoneAppAlFinal()) {
+                                b.isSinOuput(), b.isRestablecerPhoneAppAlFinal()) {
                             @Override
                             public PasoPrueba toPasoPrueba() {
                                 return new PasoPrueba(this.isIotExpress(), this.getId() + " - " + this.getDescripcion(),
-                                        this.getComandos(), true, this.isSinOuput(), this.isRestablecerPhoneAppAlFinal());
+                                        this.getComandos(), true, this.isSinOuput(),
+                                        this.isRestablecerPhoneAppAlFinal());
                             }
                         };
                     }
@@ -3625,7 +3639,7 @@ private void addMusicTest() {
                         .forEach(pasos::add));
     }
 
-    public String parsearListaContactos(String rawOutput) {
+    private String parsearListaContactos(String rawOutput) {
         if (rawOutput == null || rawOutput.trim().isEmpty() || rawOutput.contains("usage:")
                 || rawOutput.toLowerCase().contains("no result")) {
             if (rawOutput != null && rawOutput.contains("display_name")) {
@@ -4162,6 +4176,7 @@ private void addMusicTest() {
         String telefonoTest = "600112233";
         String rutaVCard = "/sdcard/Download/import_test.vcf";
         String paqueteAPK = "com.example.vcardagent";
+        File apkFile = null;
 
         try {
             // Limpiar rutas
@@ -4171,22 +4186,35 @@ private void addMusicTest() {
             adb.ejecutarComandoSincrono(serial, "shell rm " + rutaVCard);
 
             // Crear archivo VCard
-            String vcardContenido = "BEGIN:VCARD\nVERSION:3.0\nFN:" + nombreTest + "\nTEL;TYPE=CELL:" + telefonoTest
-                    + "\nEND:VCARD\n";
+            String vcardContenido = "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:" + nombreTest + "\r\nTEL;TYPE=CELL:"
+                    + telefonoTest
+                    + "\r\nEND:VCARD\r\n";
             File tempFile = File.createTempFile("import_test", ".vcf");
-            java.nio.file.Files.writeString(tempFile.toPath(), vcardContenido);
+            Files.writeString(tempFile.toPath(), vcardContenido);
 
             new ProcessBuilder("adb", "-s", serial, "push", tempFile.getAbsolutePath(), rutaVCard).start()
                     .waitFor();
             tempFile.delete(); // Limpiar el archivo temporal
 
             // Extraer e Instalar la apk
-            File apkFile = new File(getClass().getClassLoader().getResource("apk/VCardAgent.apk").toURI());
-            new ProcessBuilder("adb", "-s", serial, "install", "-r", apkFile.getAbsolutePath()).start().waitFor();
+            desactivarPlayProtect(serial, adb);
+            apkFile = obtenerApkDeResources("VCardAgent.apk");
+            new ProcessBuilder("adb", "-s", serial, "install", "-r", "-g", "-t", apkFile.getAbsolutePath()).start()
+                    .waitFor();
             Thread.sleep(2000);
 
-            // Permisos
+            // Permisos tradicionales
             adb.ejecutarComandoSincrono(serial, "shell pm grant " + paqueteAPK + " android.permission.WRITE_CONTACTS");
+            adb.ejecutarComandoSincrono(serial, "shell pm grant " + paqueteAPK + " android.permission.READ_CONTACTS");
+            adb.ejecutarComandoSincrono(serial,
+                    "shell pm grant " + paqueteAPK + " android.permission.READ_EXTERNAL_STORAGE");
+            adb.ejecutarComandoSincrono(serial,
+                    "shell pm grant " + paqueteAPK + " android.permission.WRITE_EXTERNAL_STORAGE");
+
+            // Administración de archivos (Solución robusta para saltar Scoped Storage en
+            // Android moderno)
+            adb.ejecutarComandoSincrono(serial, "shell appops set " + paqueteAPK + " MANAGE_EXTERNAL_STORAGE allow");
+            Thread.sleep(500);
 
             // Limpiar el logcat
             adb.ejecutarComandoSincrono(serial, "shell logcat -c");
@@ -4194,43 +4222,61 @@ private void addMusicTest() {
             // Broadcast importacion
             adb.ejecutarComandoSincrono(serial, "shell am broadcast -a com.example.vcardagent.ACTION_IMPORT_VCARD " +
                     "-n " + paqueteAPK + "/.VCardReceiver");
-            Thread.sleep(4000);
+            Thread.sleep(7000);
 
             // Verificaciones
-            String logcat = adb.ejecutarComandoSincrono(serial, "shell logcat -d -t 50 -s VCARD_AGENT");
+            String logcat = adb.ejecutarComandoSincrono(serial, "shell logcat -d VCARD_AGENT:D *:S");
+
             boolean apkDiceOk = logcat != null && logcat.contains("Importación verídica completada");
 
             String queryBaseDatos = adb.ejecutarComandoSincrono(serial,
                     "shell content query --uri content://com.android.contacts/data/phones --projection display_name " +
                             "--where \"display_name='" + nombreTest + "'\"");
-            boolean contactoExisteEnAgenda = queryBaseDatos != null && queryBaseDatos.contains(nombreTest);
 
-            new ProcessBuilder("adb", "-s", serial, "uninstall", paqueteAPK).start().waitFor();
+            boolean contactoExisteEnAgenda = queryBaseDatos != null && queryBaseDatos.contains(nombreTest);
 
             return apkDiceOk && contactoExisteEnAgenda;
 
         } catch (Exception e) {
             e.printStackTrace();
             return false;
-        }
+        } finally {
+            try {
+                new ProcessBuilder("adb", "-s", serial, "uninstall", paqueteAPK).start().waitFor();
+            } catch (Exception e) {
+                System.err.println("No se pudo desinstalar " + paqueteAPK + ": " + e.getMessage());
+            }
 
+            if (apkFile != null && apkFile.exists()) {
+                apkFile.delete();
+            }
+
+        }
     }
 
     private boolean exportarVCard(String serial, ADBService adb) {
         String rutaVCard = "/sdcard/Download/contactos_backup_test.vcf";
         String paqueteAPK = "com.example.vcardagent";
+        File apkFile = null;
 
         try {
-            // Limpiar
+            // Limpiar archivo de pruebas anterior si existiese
             adb.ejecutarComandoSincrono(serial, "shell rm " + rutaVCard);
 
-            // Extraer e Instalar la APK
-            File apkFile = new File(getClass().getClassLoader().getResource("apk/VCardAgent.apk").toURI());
-            new ProcessBuilder("adb", "-s", serial, "install", "-r", apkFile.getAbsolutePath()).start().waitFor();
+            // Extraer e Instalar la APK de forma segura (Inmune a rutas virtuales del .jar)
+            desactivarPlayProtect(serial, adb);
+            apkFile = obtenerApkDeResources("VCardAgent.apk");
+            new ProcessBuilder("adb", "-s", serial, "install", "-r", "-g", "-t", apkFile.getAbsolutePath()).start()
+                    .waitFor();
             Thread.sleep(2000);
 
             // Conceder permisos a la apk
             adb.ejecutarComandoSincrono(serial, "shell pm grant " + paqueteAPK + " android.permission.READ_CONTACTS");
+            adb.ejecutarComandoSincrono(serial, "shell pm grant " + paqueteAPK + " android.permission.WRITE_CONTACTS");
+            adb.ejecutarComandoSincrono(serial,
+                    "shell pm grant " + paqueteAPK + " android.permission.WRITE_EXTERNAL_STORAGE");
+            adb.ejecutarComandoSincrono(serial,
+                    "shell pm grant " + paqueteAPK + " android.permission.READ_EXTERNAL_STORAGE");
 
             // Limpiar logcat
             adb.ejecutarComandoSincrono(serial, "shell logcat -c");
@@ -4241,7 +4287,7 @@ private void addMusicTest() {
             Thread.sleep(4000);
 
             // Verificar si la apk terminó con éxito
-            String logcat = adb.ejecutarComandoSincrono(serial, "shell logcat -d -t 50 -s VCARD_AGENT");
+            String logcat = adb.ejecutarComandoSincrono(serial, "shell logcat -d VCARD_AGENT:D *:S");
             boolean apkOk = logcat != null && logcat.contains("Exportación exitosa");
 
             boolean archivoExiste = false;
@@ -4259,20 +4305,29 @@ private void addMusicTest() {
                 }
             }
 
-            new ProcessBuilder("adb", "-s", serial, "uninstall", paqueteAPK).start().waitFor();
-
             return apkOk && archivoExiste;
 
         } catch (Exception e) {
             e.printStackTrace();
             return false;
+        } finally {
+            try {
+                new ProcessBuilder("adb", "-s", serial, "uninstall", paqueteAPK).start().waitFor();
+            } catch (Exception e) {
+                System.err.println("Error al desinstalar " + paqueteAPK + ": " + e.getMessage());
+            }
+
+            if (apkFile != null && apkFile.exists()) {
+                apkFile.delete();
+            }
         }
     }
 
     // MEMORIA
-
     private boolean comprobarMemoriaContactos(String serial, ADBService adb, StringBuilder outputReporte) {
         String paqueteAPK = "com.example.simreceiver";
+        File apkFile = null;
+
         try {
             // sección teléfono
             String resPhone = adb.ejecutarComandoSincrono(serial,
@@ -4336,9 +4391,11 @@ private void addMusicTest() {
             int maxSim = 0;
             boolean apkEjecutadaConExito = false;
 
-            // Extraer e Instalar la APK
-            File apkFile = new File(getClass().getClassLoader().getResource("apk/SimHelper.apk").toURI());
-            new ProcessBuilder("adb", "-s", serial, "install", "-r", apkFile.getAbsolutePath()).start().waitFor();
+            // Extraer e Instalar la APK de forma segura (Inmune a rutas virtuales del .jar)
+            desactivarPlayProtect(serial, adb);
+            apkFile = obtenerApkDeResources("SimHelper.apk");
+            new ProcessBuilder("adb", "-s", serial, "install", "-r", "-g", "-t", apkFile.getAbsolutePath()).start()
+                    .waitFor();
             Thread.sleep(2000);
 
             // Conceder permisos necesarios
@@ -4376,9 +4433,6 @@ private void addMusicTest() {
                 }
             }
 
-            // Desinstalar al final del flujo una vez leído el buffer
-            new ProcessBuilder("adb", "-s", serial, "uninstall", paqueteAPK).start().waitFor();
-
             // Reporte final con textos limpios y sin tildes conflictivas para el PDF
             if (apkEjecutadaConExito) {
                 outputReporte.append(
@@ -4393,19 +4447,859 @@ private void addMusicTest() {
         } catch (Exception e) {
             outputReporte.append("ERROR: Fallo critico en prueba de memoria: " + e.getMessage() + "\n");
             return false;
+        } finally {
+            try {
+                new ProcessBuilder("adb", "-s", serial, "uninstall", paqueteAPK).start().waitFor();
+            } catch (Exception e) {
+                System.err.println("Error al desinstalar " + paqueteAPK + ": " + e.getMessage());
+            }
+
+            if (apkFile != null && apkFile.exists()) {
+                apkFile.delete();
+            }
         }
     }
 
-    private String obtenerSerialADBActual() {
-        if (dispositivoActual == null)
-            return null;
+    // PRUEBAS DE CALENDARIO
+    @FXML
+    private void addCalendarTest() {
+        List<BloquePrueba> bloqueCalendar = List.of(
+                new BloquePrueba(true, "SOFT.029.001", "Open calendar app",
+                        "shell am start -a android.intent.action.MAIN -c android.intent.category.APP_CALENDAR"),
+                new BloquePrueba("SOFT.029.002", "Create a new event with a reminder", CALENDAR_CREATE),
+                new BloquePrueba("SOFT.029.003", "Check if DUT shows the reminder", "", true),
+                new BloquePrueba("SOFT.029.004", "Edit a created event", CALENDAR_EDIT),
+                new BloquePrueba("SOFT.029.005", "Delete a created event", CALENDAR_DELETE));
+
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueCalendar.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueCalendar;
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar("SOFT.029 — Calendar", bloquesAFiltrar, owner,
+                seleccionas -> seleccionas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
+    }
+
+    private boolean crearEventoCalendario(String serial, ADBService adb) {
         try {
-            ADBService adb = new ADBService();
-            return adb.getSerialActivo(dispositivoActual.getAndroid_id());
-        } catch (IOException e) {
-            // Fallback al serial guardado en BD
-            return dispositivoActual.getSerialNumber();
+            // Abrir la app de calendario para asegurar que el provider esté activo
+            adb.ejecutarComandoSincrono(serial,
+                    "shell am start -a android.intent.action.MAIN -c android.intent.category.APP_CALENDAR");
+            Thread.sleep(1000);
+
+            // Obtener el ID del calendario actual
+
+            String calIdStr = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://com.android.calendar/calendars --projection _id:account_name:account_type");
+
+            String calId = "";
+            if (calIdStr != null && !calIdStr.isBlank() && !calIdStr.toLowerCase().contains("usage")) {
+                for (String linea : calIdStr.split("\n")) {
+                    if (linea.contains("_id=")) {
+                        int index = linea.indexOf("_id=");
+                        String sub = linea.substring(index + 4).trim();
+                        String[] partes = sub.split("[\\s,]+");
+                        if (partes.length > 0 && partes[0].matches("\\d+")) {
+                            calId = partes[0];
+                            break;
+                        }
+                    }
+                }
+            }
+            // Extraer el nombre de la cuenta de Google loggeada
+            String googleAccountName = "";
+
+            if (calIdStr != null && calIdStr.contains("account_name=")) {
+                for (String linea : calIdStr.split("\n")) {
+                    if (linea.contains("account_type=com.google") && linea.contains("account_name=")) {
+                        int idx = linea.indexOf("account_name=");
+                        String sub = linea.substring(idx + 13).trim();
+                        String[] partes = sub.split("[\\s,]+");
+                        if (partes.length > 0) {
+                            googleAccountName = partes[0];
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (calId.isEmpty() || (calIdStr != null && calIdStr.contains("account_type=com.google"))) {
+                calId = "3";
+            }
+
+            // Configurar tiempos
+            long ahora = System.currentTimeMillis();
+            long unDiaEnMilis = 24L * 60 * 60 * 1000;
+            long inicio = ahora + unDiaEnMilis;
+            long fin = inicio + (60 * 60 * 1000);
+
+            String comandoInsert = "shell \"content insert --uri 'content://com.android.calendar/events?caller_is_syncadapter=true&account_name="
+                    + googleAccountName + "&account_type=com.google' "
+                    +
+                    "--bind calendar_id:i:" + calId + " " +
+                    "--bind title:s:'Test_ADB_Event' " +
+                    "--bind description:s:'Evento_de_prueba_ADB' " +
+                    "--bind dtstart:l:" + inicio + " " +
+                    "--bind dtend:l:" + fin + " " +
+                    "--bind hasAlarm:i:1 " +
+                    "--bind eventTimezone:s:'Europe/Madrid'\"";
+
+            adb.ejecutarComandoSincrono(serial, comandoInsert);
+
+            // Buscar el ID del evento recién creado
+            String listaEventos = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://com.android.calendar/events --projection _id:title");
+
+            String eventoId = "";
+            if (listaEventos != null && !listaEventos.isBlank() && !listaEventos.toLowerCase().contains("usage")) {
+                for (String linea : listaEventos.split("\n")) {
+                    if (linea.contains("title=Test_ADB_Event") && linea.contains("_id=")) {
+                        int index = linea.indexOf("_id=");
+                        String sub = linea.substring(index + 4).trim();
+                        String[] partes = sub.split("[\\s,]+");
+                        if (partes.length > 0 && partes[0].matches("\\d+")) {
+                            eventoId = partes[0];
+                        }
+                    }
+                }
+            }
+
+            if (eventoId.isEmpty()) {
+                return false;
+            }
+
+            // Insertar el recordatorio
+            String r = adb.ejecutarComandoSincrono(serial,
+                    "shell content insert --uri content://com.android.calendar/reminders " +
+                            "--bind event_id:i:" + eventoId + " " +
+                            "--bind minutes:i:0 " +
+                            "--bind method:i:1");
+
+            boolean exito = r != null && !r.toLowerCase().contains("error") && !r.toLowerCase().contains("usage");
+            return exito;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
         }
+    }
+
+    private boolean editarEventoCalendario(String serial, ADBService adb) {
+        try {
+            // Abrir la app para que el provider este activo
+            adb.ejecutarComandoSincrono(serial,
+                    "shell am start -a android.intent.action.MAIN -c android.intent.category.APP_CALENDAR");
+            Thread.sleep(1000);
+
+            // Buscar si el evento existe
+            String listaEventos = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://com.android.calendar/events --projection _id:title");
+
+            boolean existe = listaEventos != null && listaEventos.contains("title=Test_ADB_Event");
+
+            // Si no existe, lo creamos dinámicamente
+            if (!existe) {
+                boolean creado = crearEventoCalendario(serial, adb);
+                if (!creado)
+                    return false;
+
+                listaEventos = adb.ejecutarComandoSincrono(serial,
+                        "shell content query --uri content://com.android.calendar/events --projection _id:title");
+            }
+
+            // Extraer el ID del evento objetivo
+            String targetId = "";
+            if (listaEventos != null && !listaEventos.isBlank() && !listaEventos.toLowerCase().contains("usage")) {
+                for (String linea : listaEventos.split("\n")) {
+                    if (linea.contains("title=Test_ADB_Event") && linea.contains("_id=")) {
+                        int index = linea.indexOf("_id=");
+                        String sub = linea.substring(index + 4).trim();
+                        String[] partes = sub.split("[\\s,]+");
+                        if (partes.length > 0 && partes[0].matches("\\d+")) {
+                            targetId = partes[0];
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (targetId.isEmpty()) {
+                return false;
+            }
+
+            String comandoUpdate = "shell \"content update --uri content://com.android.calendar/events "
+                    +
+                    "--bind title:s:'Test_ADB_Event_Edited' " +
+                    "--bind description:s:'Evento_editado_ADB' " +
+                    "--where _id=" + targetId + "\"";
+
+            String r = adb.ejecutarComandoSincrono(serial, comandoUpdate);
+
+            boolean exito = r != null && !r.toLowerCase().contains("error") && !r.toLowerCase().contains("usage");
+
+            return exito;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean borrarEventoCalendario(String serial, ADBService adb) {
+        try {
+            // Abrir la app para que provider este activo
+            adb.ejecutarComandoSincrono(serial,
+                    "shell am start -a android.intent.action.MAIN -c android.intent.category.APP_CALENDAR");
+            Thread.sleep(1000);
+
+            // Buscar si existe el evento original o el editado
+            String listaEventos = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://com.android.calendar/events --projection _id:title");
+
+            boolean existe = listaEventos != null && (listaEventos.contains("title=Test_ADB_Event")
+                    || listaEventos.contains("title=Test_ADB_Event_Edited"));
+
+            // Si no hay nada que borrar, recreamos el entorno para que la prueba tenga
+            if (!existe) {
+                boolean creado = crearEventoCalendario(serial, adb);
+                if (!creado)
+                    return false;
+
+                listaEventos = adb.ejecutarComandoSincrono(serial,
+                        "shell content query --uri content://com.android.calendar/events --projection _id:title");
+            }
+
+            // Iterar y borrar los eventos que coincidan
+            if (listaEventos != null && !listaEventos.isBlank() && !listaEventos.toLowerCase().contains("usage")) {
+                for (String linea : listaEventos.split("\n")) {
+                    if ((linea.contains("title=Test_ADB_Event") || linea.contains("title=Test_ADB_Event_Edited"))
+                            && linea.contains("_id=")) {
+                        int index = linea.indexOf("_id=");
+                        String sub = linea.substring(index + 4).trim();
+                        String[] partes = sub.split("[\\s,]+");
+                        if (partes.length > 0 && partes[0].matches("\\d+")) {
+                            String idABorrar = partes[0];
+
+                            String comandoDelete = "shell \"content delete --uri content://com.android.calendar/events --where _id="
+                                    + idABorrar + "\"";
+                            adb.ejecutarComandoSincrono(serial, comandoDelete);
+                        }
+                    }
+                }
+            }
+            // Verificar que ya no existen en la base de datos
+            String verificacion = adb.ejecutarComandoSincrono(serial,
+                    "shell \"content query --uri content://com.android.calendar/events --projection title --where deleted=0\"");
+
+            boolean exito = verificacion == null || (!verificacion.contains("title=Test_ADB_Event")
+                    && !verificacion.contains("title=Test_ADB_Event_Edited"));
+
+            return exito;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // PRUEBAS DE MENSAJES
+    @FXML
+    private void addMessagingTest() {
+        ADBService adb = new ADBService();
+        String serial;
+        try {
+            serial = adb.getSerialActivo(dispositivoActual.getAndroid_id());
+        } catch (IOException e) {
+            serial = dispositivoActual.getSerialNumber();
+        }
+
+        // Obtener otros dispositivos
+        List<String> otrosSeriales = new ArrayList<>();
+        try {
+            Map<String, String> todos = adb.obtenerDispositivosConectados();
+            for (Map.Entry<String, String> entry : todos.entrySet()) {
+                if (!entry.getValue().equals(serial)) {
+                    otrosSeriales.add(entry.getValue());
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("[MESSAGING] No se pudieron obtener otros dispositivos");
+        }
+
+        String[] telefono = { contactoTestTelefono };
+        String[] telefonoDUT = { contactoTestTelefonoDUT };
+        String[] serialReceptor = { contactoSerialReceptor != null ? contactoSerialReceptor : "" };
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+
+        boolean confirmado = MensajesConfigPopup.mostrar(otrosSeriales, telefono, telefonoDUT, serialReceptor, owner);
+
+        if (!confirmado) {
+            return;
+        }
+
+        contactoTestTelefono = telefono[0];
+        contactoTestTelefonoDUT = telefonoDUT[0];
+        contactoSerialReceptor = (serialReceptor[0] != null && !serialReceptor[0].isEmpty()) ? serialReceptor[0] : null;
+
+        mostrarSelectorMensajes();
+    }
+
+    private void mostrarSelectorMensajes() {
+        List<BloquePrueba> bloqueMensajes = List.of(
+                new BloquePrueba(true, "SOFT.015.001", "Send a SMS to a phone number", MSG_SEND_SMS_NUMBER),
+                new BloquePrueba("SOFT.015.002", "Send a SMS to a phone contact", MSG_SEND_SMS_CONTACT),
+                new BloquePrueba("SOFT.015.003", "Send a SMS to a exchange contact", "", true),
+                new BloquePrueba("SOFT.015.004", "Receive a new SMS from other phone",
+                        contactoSerialReceptor != null ? MSG_RECEIVE_SMS : "",
+                        contactoSerialReceptor != null ? false : true),
+                new BloquePrueba("SOFT.015.005", "Send a SMS using a quick text", "", true),
+                new BloquePrueba("SOFT.015.006", "Send a MMS to a phone number", MSG_SEND_MMS_NUMBER),
+                new BloquePrueba("SOFT.015.007", "Send a MMS to a phone contact", MSG_SEND_MMS_CONTACT),
+                new BloquePrueba("SOFT.015.008", "Receive a new MMS from other phone",
+                        contactoSerialReceptor != null ? MSG_RECEIVE_MMS : "",
+                        contactoSerialReceptor != null ? false : true),
+                new BloquePrueba(true, "SOFT.015.009", "Delete one conversation", MSG_DELETE_ONE),
+                new BloquePrueba("SOFT.015.010", "Delete all conversations", MSG_DELETE_ALL),
+                new BloquePrueba("SOFT.015.011", "Check number of Messaging Center SMSC", List.of(
+                        "shell content query --uri content://telephony/carriers --projection mmsc --where \"current=1\"",
+                        "shell getprop gsm.sim.operator.alpha")),
+                // shell am start -n
+                // com.google.android.apps.messaging/.ui.appsettings.PerSubscriptionSettingsActivity
+
+                new BloquePrueba("SOFT.015.012", "Check if SMS Validity Period is available",
+                        "shell am start -a android.settings.WIRELESS_SETTINGS", true),
+                new BloquePrueba("SOFT.015.013",
+                        "Check id SMS optimization option is available. By default need to be active (use only 7 bit)",
+                        "shell content query --uri content://sms --projection _id"),
+                new BloquePrueba("SOFT.015.014",
+                        "With SMS optimization enable, check if you cand send a special character\nSend SMS with special characters (ÁÉÍÓÚáéíóú)\nExpected:\nDuT must use 7-bit encoding and send all characters ly (e.g. AÉIOUaéiou)",
+                        MSG_SEND_SMS_SPECIAL),
+                new BloquePrueba("SOFT.015.015",
+                        "With SMS optimization enable, compose a SMS with more than 160 characters and check if device advise you that will be send more than 1 SMS",
+                        MSG_SEND_SMS_LONG),
+                new BloquePrueba("SOFT.015.016",
+                        "With SMS optimization disable, check if you can send a special character", MSG_SEND_SMS_NOOPT),
+                new BloquePrueba("SOFT.015.017", "Turn off mobile data. Check if DUT sends a MMS properly",
+                        MSG_MMS_NO_DATA));
+
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueMensajes.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueMensajes;
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar("SOFT.015 — Messaging functions", bloquesAFiltrar, owner,
+                seleccionas -> seleccionas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
+    }
+
+    private boolean verificarYCrearContactoPhone(String serial, ADBService adb) {
+        String check = adb.ejecutarComandoSincrono(serial,
+                "shell content query --uri content://com.android.contacts/data " +
+                        "--projection raw_contact_id --where \"mimetype='vnd.android.cursor.item/phone_v2'" +
+                        " AND data1='" + contactoTestTelefono + "'\"");
+        boolean existe = check != null && !check.isBlank() && !check.contains("No result foun");
+        if (!existe) {
+            crearContactoPhone(serial, adb);
+        }
+        return true;
+    }
+
+    private boolean verificarSMSEnviado(String serial, ADBService adb, String numero) {
+        String numeroLimpio = numero.replaceAll("[^0-9]", "");
+        for (int i = 0; i < 4; i++) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ignored) {
+            }
+            String check = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://sms/sent --projection address:body --sort \"date\"");
+            if (check != null && check.contains(numeroLimpio)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void simularClickEnviar(String serial, ADBService adb) {
+        try {
+            // Despertar pantalla
+            adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_WAKEUP");
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException ignored) {
+            }
+
+            // Capturar interfaz
+            adb.ejecutarComandoSincrono(serial, "shell uiautomator dump /data/local/tmp/window_dump.xml");
+            String xml = adb.ejecutarComandoSincrono(serial, "shell cat /data/local/tmp/window_dump.xml");
+
+            if (xml == null || xml.isBlank())
+                return;
+
+            String[] selectores = {
+                    "Compose:Draft:Send",
+                    "com.google.android.apps.messaging:id/send_message_button",
+                    "com.android.messaging:id/send_message_button",
+                    "com.samsung.android.messaging:id/send_button",
+                    "content-desc=\"Enviar\"",
+                    "content-desc=\"Send\""
+            };
+
+            String targetLine = null;
+            for (String selector : selectores) {
+                if (xml.contains(selector)) {
+                    for (String linea : xml.split(">")) {
+                        if (linea.contains(selector) && linea.contains("bounds=")) {
+                            targetLine = linea;
+                            break;
+                        }
+                    }
+                }
+                if (targetLine != null)
+                    break;
+            }
+
+            if (targetLine != null) {
+                int idx = targetLine.indexOf("bounds=\"");
+                if (idx != -1) {
+                    String bounds = targetLine.substring(idx + 8, targetLine.indexOf("\"", idx + 8));
+                    String[] pts = bounds.replaceAll("[\\[\\]]", " ").trim().split("\\s+");
+                    if (pts.length >= 2) {
+                        String[] p1 = pts[0].split(",");
+                        String[] p2 = pts[1].split(",");
+                        int xCentro = (Integer.parseInt(p1[0]) + Integer.parseInt(p2[0])) / 2;
+                        int yCentro = (Integer.parseInt(p1[1]) + Integer.parseInt(p2[1])) / 2;
+
+                        // Click táctil
+                        adb.ejecutarComandoSincrono(serial, "shell input tap " + xCentro + " " + yCentro);
+                        return;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        // Fallback físico
+        adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_ESCAPE");
+        try {
+            Thread.sleep(400);
+        } catch (InterruptedException ignored) {
+        }
+        adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_DPAD_RIGHT");
+        adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_DPAD_CENTER");
+    }
+
+    private void simularClickBotonAdjuntar(String serial, ADBService adb) {
+        try {
+            adb.ejecutarComandoSincrono(serial, "shell uiautomator dump /data/local/tmp/window_dump.xml");
+            String xml = adb.ejecutarComandoSincrono(serial, "shell cat /data/local/tmp/window_dump.xml");
+
+            if (xml == null || xml.isBlank()) {
+                System.out.println("[DEBUG-ADJUNTAR] ERROR: El XML de la pantalla está vacío.");
+                return;
+            }
+
+            String[] selectores = {
+                    "ComposeRowIcon:Gallery",
+                    "com.google.android.apps.messaging:id/attach_media_button",
+                    "com.google.android.apps.messaging:id/attachment_menu_button",
+                    "content-desc=\"Mostrar pantalla para adjuntar archivos multimedia\"", // Basado en tu primer
+                                                                                           // volcado
+                    "content-desc=\"Compartir contenido multimedia\"",
+                    "content-desc=\"Attach\""
+            };
+
+            String targetLine = null;
+            for (String selector : selectores) {
+                if (xml.contains(selector)) {
+                    System.out.println("[DEBUG-ADJUNTAR] Selector encontrado en XML: " + selector);
+                    for (String linea : xml.split(">")) {
+                        if (linea.contains(selector) && linea.contains("bounds=")) {
+                            targetLine = linea;
+                            break;
+                        }
+                    }
+                }
+                if (targetLine != null)
+                    break;
+            }
+
+            if (targetLine != null) {
+                System.out.println("[DEBUG-ADJUNTAR] Línea del nodo: " + targetLine.trim());
+                int idx = targetLine.indexOf("bounds=\"");
+                if (idx != -1) {
+                    String bounds = targetLine.substring(idx + 8, targetLine.indexOf("\"", idx + 8));
+                    String[] pts = bounds.replaceAll("[\\[\\]]", " ").trim().split("\\s+");
+                    String[] p1 = pts[0].split(",");
+                    String[] p2 = pts[1].split(",");
+                    int xCentro = (Integer.parseInt(p1[0]) + Integer.parseInt(p2[0])) / 2;
+                    int yCentro = (Integer.parseInt(p1[1]) + Integer.parseInt(p2[1])) / 2;
+
+                    System.out.println("[DEBUG-ADJUNTAR] Coordenadas calculadas: X=" + xCentro + ", Y=" + yCentro);
+                    adb.ejecutarComandoSincrono(serial, "shell input tap " + xCentro + " " + yCentro);
+                    System.out.println("[DEBUG-ADJUNTAR] Comando tap ejecutado.");
+                }
+            } else {
+                System.out.println("[DEBUG-ADJUNTAR] FAILED: Ningún selector coincidió.");
+                System.out.println("\n--- XML DIAGNÓSTICO DE EMERGENCIA ---");
+                System.out.println(xml.replace("><", ">\n<"));
+                System.out.println("--- FIN XML DIAGNÓSTICO ---\n");
+            }
+        } catch (Exception e) {
+            System.out.println("[DEBUG-ADJUNTAR] EXCEPCIÓN: " + e.getMessage());
+        }
+    }
+
+    private void simularClickPrimeraImagenGaleria(String serial, ADBService adb) {
+        try {
+            adb.ejecutarComandoSincrono(serial, "shell uiautomator dump /data/local/tmp/window_dump.xml");
+            String xml = adb.ejecutarComandoSincrono(serial, "shell cat /data/local/tmp/window_dump.xml");
+            if (xml == null || xml.isBlank())
+                return;
+
+            // Selectores específicos del botón de captura de fotos (no de vídeo)
+            String[] selectoresCamara = {
+                    "com.google.android.apps.messaging:id/camera_button",
+                    "content-desc=\"Cámara\"",
+                    "content-desc=\"Camera\""
+            };
+
+            for (String selector : selectoresCamara) {
+                if (xml.contains(selector)) {
+                    for (String linea : xml.split(">")) {
+                        // FILTRO: Debe contener el selector, las coordenadas, y NO ser el botón de
+                        // vídeo o rcs_video
+                        if (linea.contains(selector) && linea.contains("bounds=") && !linea.contains("video")) {
+
+                            int idx = linea.indexOf("bounds=\"");
+                            if (idx != -1) {
+                                String bounds = linea.substring(idx + 8, linea.indexOf("\"", idx + 8));
+                                String[] pts = bounds.replaceAll("[\\[\\]]", " ").trim().split("\\s+");
+                                String[] p1 = pts[0].split(",");
+                                String[] p2 = pts[1].split(",");
+
+                                int x1 = Integer.parseInt(p1[0]);
+                                int y1 = Integer.parseInt(p1[1]);
+                                int x2 = Integer.parseInt(p2[0]);
+                                int y2 = Integer.parseInt(p2[1]);
+
+                                // Calculamos las proporciones de la cuadrícula
+                                int anchoBoton = x2 - x1;
+
+                                // Calculamos el centro de la primera miniatura (Fila superior)
+                                int xImagenNueva = ((x1 + x2) / 2) + anchoBoton;
+                                int yImagenNueva = y1 + (y2 - y1) / 2;
+
+                                System.out.println(
+                                        "[DEBUG-GALERIA] Cámara localizada. Disparando tap único a la derecha: X="
+                                                + xImagenNueva + " Y=" + yImagenNueva);
+
+                                // Ejecutamos el tap y salimos INMEDIATAMENTE del método completo
+                                adb.ejecutarComandoSincrono(serial,
+                                        "shell input tap " + xImagenNueva + " " + yImagenNueva);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Si los bucles terminan sin hacer return, aplicamos el tiro de emergencia
+            System.out.println("[DEBUG-GALERIA] No se aisló el nodo de forma limpia. Usando cuadrícula estática...");
+            adb.ejecutarComandoSincrono(serial, "shell input tap 240 640");
+
+        } catch (Exception e) {
+            System.out.println("[DEBUG-GALERIA] Error en cálculo: " + e.getMessage());
+            adb.ejecutarComandoSincrono(serial, "shell input tap 240 640");
+        }
+    }
+
+    // MSG ── SMS ──────────────────────────────────────────────────────────────
+
+    private boolean enviarSMSNumero(String serial, ADBService adb) {
+        String r = adb.ejecutarComandoSincrono(serial, "shell am start -a android.intent.action.SENDTO " +
+                "-d sms:" + contactoTestTelefono + " " +
+                "--es sms_body 'Test_SMS_ADB' " +
+                "--ez exit_on_sent true");
+        if (r == null || r.toLowerCase().contains("error")) {
+            return false;
+        }
+
+        try {
+            Thread.sleep(1000);
+        } catch (Exception e) {
+        }
+
+        simularClickEnviar(serial, adb);
+
+        try {
+            Thread.sleep(2000);
+        } catch (Exception e) {
+        }
+
+        return verificarSMSEnviado(serial, adb, contactoTestTelefono);
+    }
+
+    private boolean enviarSMSContacto(String serial, ADBService adb) {
+        verificarYCrearContactoPhone(serial, adb);
+        return enviarSMSNumero(serial, adb);
+    }
+
+    private boolean recibirSMS(String serial, ADBService adb) {
+        if (contactoSerialReceptor == null) {
+            System.out.println("[DEBUG-RECIBIR] ERROR: contactoSerialReceptor es nulo.");
+            return false;
+        }
+
+        // Identificador único por fecha y hora exacta
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String textoMensajeUnico = "Test_SMS_" + timestamp;
+
+        System.out.println("[DEBUG-RECIBIR] DUT: " + serial + " | Emisor Físico: " + contactoSerialReceptor);
+        System.out.println("[DEBUG-RECIBIR] Buscando ID único de esta prueba: " + textoMensajeUnico);
+
+        // El receptor prepara el SMS en su interfaz gráfica
+        adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                "shell am start -a android.intent.action.SENDTO " +
+                        "-d sms:" + contactoTestTelefonoDUT + " " +
+                        "--es sms_body '" + textoMensajeUnico + "' " +
+                        "--ez exit_on_sent true");
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+        }
+
+        // Envío visual
+        simularClickEnviar(contactoSerialReceptor, adb);
+
+        // Bucle de lectura en el DUT
+        for (int i = 0; i < 7; i++) {
+            try {
+                Thread.sleep(1500);
+            } catch (InterruptedException e) {
+            }
+
+            // Consulta cruda a toda la base de datos sin cláusula WHERE
+            String check = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://sms --projection address:body");
+
+            System.out.println("[DEBUG-RECIBIR] Intento " + (i + 1) + " - VOLCADO COMPLETO DE SMS:\n" + check);
+
+            if (check == null || check.contains("not found") || check.contains("Exception")
+                    || check.contains("Error")) {
+                continue;
+            }
+
+            // Validamos si nuestro código único aparece en algún rincón del volcado total
+            if (check.contains(textoMensajeUnico)) {
+                System.out
+                        .println("[DEBUG-RECIBIR] ¡ÉXITO! Mensaje de la conversación actual detectado en el volcado.");
+                return true;
+            }
+        }
+
+        System.out.println("[DEBUG-RECIBIR] FAILED: El mensaje no apareció en la Query.");
+        return false;
+    }
+
+    // MSG ── MMS ──────────────────────────────────────────────────────────────
+
+    private boolean enviarMMSNumero(String serial, ADBService adb) {
+        String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
+        String asuntoUnico = "MMS_" + timestamp;
+        String numeroLimpio = contactoTestTelefono.trim().replaceAll("[^0-9+]", "");
+        String rutaImagen = "/sdcard/Pictures/micro_valid.gif";
+
+        System.out.println("[DEBUG-MMS] Terminal: " + serial);
+        System.out.println("[DEBUG-MMS] Asunto Único: " + asuntoUnico);
+
+        try {
+            // 1. Inyectar imagen GIF real de 1x1px (43 bytes)
+            String gifHex = "47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b";
+            adb.ejecutarComandoSincrono(serial, "shell \"echo '" + gifHex + "' | xxd -r -p > " + rutaImagen + "\"");
+
+            // CORRECCIÓN REFRESCO: Tal cual lo ejecutaste en PowerShell
+            adb.ejecutarComandoSincrono(serial,
+                    "shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://" + rutaImagen);
+            Thread.sleep(2000); // Le damos 2 segundos completos para que aparezca en el carrete
+
+            // 2. Abrir conversación vacía
+            adb.ejecutarComandoSincrono(serial, "shell am start -a android.intent.action.SENDTO -d smsto:"
+                    + numeroLimpio + " com.google.android.apps.messaging");
+            Thread.sleep(4000);
+
+            // 3. Tu método de adjuntar (el que funciona bien)
+            System.out.println("[DEBUG-MMS] Desplegando menú multimedia...");
+            simularClickBotonAdjuntar(serial, adb);
+            Thread.sleep(2500);
+
+            // 4. Seleccionar la primera imagen (Método nuevo ultra-preciso abajo)
+            System.out.println("[DEBUG-MMS] Seleccionando el GIF...");
+            simularClickPrimeraImagenGaleria(serial, adb);
+            Thread.sleep(2500);
+
+            // 5. Escribir texto post-adjuntar
+            System.out.println("[DEBUG-MMS] Introduciendo el asunto del mensaje...");
+            Thread.sleep(500);
+            adb.ejecutarComandoSincrono(serial, "shell input text '" + asuntoUnico + "'");
+            Thread.sleep(1500);
+
+            // 6. Disparar envío
+            System.out.println("[DEBUG-MMS] Pulsando enviar...");
+            simularClickEnviar(serial, adb);
+            Thread.sleep(4000);
+
+            // 7. Verificación en Base de Datos
+            String check = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://mms --projection _id --where \"sub='" + asuntoUnico + "'\"");
+
+            return (check != null && check.contains("Row:"));
+
+        } catch (Exception e) {
+            return false;
+        } finally {
+            // Limpieza
+            adb.ejecutarComandoSincrono(serial, "shell rm -f " + rutaImagen);
+            adb.ejecutarComandoSincrono(serial,
+                    "shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://" + rutaImagen);
+        }
+    }
+
+    private boolean enviarMMSContacto(String serial, ADBService adb) {
+        verificarYCrearContactoPhone(serial, adb);
+        return enviarMMSNumero(serial, adb);
+    }
+
+    private boolean recibirMMS(String serial, ADBService adb) {
+        if (contactoSerialReceptor == null) {
+            return false;
+        }
+
+        adb.ejecutarComandoSincrono(contactoSerialReceptor, "shell am start -a android.intent.action.SENDTO " +
+                "-d mmsto:" + contactoTestTelefonoDUT + " " +
+                "--es subject 'Test_MMS_recv' " +
+                "--es sms_body 'MMS_recibido_ADB'");
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+        }
+        adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                "shell input keyevent KEYCODE_ENTER");
+        try {
+            Thread.sleep(8000);
+        } catch (InterruptedException e) {
+        }
+
+        String check = adb.ejecutarComandoSincrono(serial, "shell content query --uri content://mms/inbox " +
+                "--projection _id --sort \"date DESC\"");
+        return check != null && !check.isBlank() && !check.contains("No result found");
+    }
+
+    // MSG ── Borrar conversaciones ────────────────────────────────────────────
+
+    private boolean borrarUnaConversacion(String serial, ADBService adb) {
+        // Obtener el thread_id más reciente
+        String threadStr = adb.ejecutarComandoSincrono(serial, "shell content query --uri content://sms " +
+                "--projection thread_id --sort \"date DESC\"");
+        if (threadStr == null || threadStr.isBlank()) {
+            return false;
+        }
+
+        String threadId = "";
+        for (String linea : threadStr.split("\n")) {
+            if (linea.contains("thread_id")) {
+                threadId = linea.replaceAll("[^0-9]", "").trim();
+                if (!threadId.isEmpty()) {
+                    break;
+                }
+            }
+        }
+        if (threadId.isEmpty()) {
+            return false;
+        }
+
+        String r = adb.ejecutarComandoSincrono(serial, "shell content delete --uri content://sms " +
+                "--where \"thread_id=" + threadId + "\"");
+        return r != null && !r.toLowerCase().contains("error");
+    }
+
+    private boolean borrarTodasConversaciones(String serial, ADBService adb) {
+        adb.ejecutarComandoSincrono(serial, "shell content delete --uri content://sms");
+
+        // Verificar que se borraron
+        String check = adb.ejecutarComandoSincrono(serial, "shell content query --uri content://sms --projection _id");
+        return check == null || check.contains("No result found") || check.isBlank();
+    }
+
+    // MSG ── SMSC y configuración ─────────────────────────────────────────────
+
+    private boolean enviarSMSCaracteresEspeciales(String serial, ADBService adb) {
+        String r = adb.ejecutarComandoSincrono(serial, "shell am start -a android.intent.action.SENDTO " +
+                "-d sms:" + contactoTestTelefono + " " +
+                "--es sms_body 'ÁÉÍÓÚáéíóú' " +
+                "--ez exit_on_sent true");
+        if (r == null || r.toLowerCase().contains("error")) {
+            return false;
+        }
+
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException ignored) {
+        }
+        adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_ENTER");
+        return verificarSMSEnviado(serial, adb, contactoTestTelefono);
+    }
+
+    private boolean enviarSMSLargo(String serial, ADBService adb) {
+        // 159 caracteres que poder comprobar el popup de los 160
+        String textoLargo = "A".repeat(159);
+        String r = adb.ejecutarComandoSincrono(serial,
+                "shell am start -a android.intent.action.SENDTO " +
+                        "-d sms:" + contactoTestTelefono + " " +
+                        "--es sms_body '" + textoLargo + "' " +
+                        "--ez exit_on_sent true");
+        if (r == null || r.toLowerCase().contains("error")) {
+            return false;
+        }
+
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+        }
+        adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_ENTER");
+        return verificarSMSEnviado(serial, adb, contactoTestTelefono);
+    }
+
+    private boolean enviarSMSSinOptimizacion(String serial, ADBService adb) {
+        // Desactivar optimización
+        adb.ejecutarComandoSincrono(serial, "shell settings put global sms_encoding_type 1");
+        boolean ok = enviarSMSCaracteresEspeciales(serial, adb);
+
+        // Restaurar
+        adb.ejecutarComandoSincrono(serial, "shell settings put global sms_encoding_type 0");
+        return ok;
+    }
+
+    private boolean enviarMMSSinDatos(String serial, ADBService adb) {
+        // Desactivar datos móviles
+        adb.ejecutarComandoSincrono(serial, "shell svc data disable");
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+        }
+
+        boolean ok = enviarMMSNumero(serial, adb);
+
+        // Restaurar datos
+        adb.ejecutarComandoSincrono(serial, "shell svc data enable");
+        return ok;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -4449,6 +5343,18 @@ private void addMusicTest() {
         return lista;
     }
 
+    private String obtenerSerialADBActual() {
+        if (dispositivoActual == null)
+            return null;
+        try {
+            ADBService adb = new ADBService();
+            return adb.getSerialActivo(dispositivoActual.getAndroid_id());
+        } catch (IOException e) {
+            // Fallback al serial guardado en BD
+            return dispositivoActual.getSerialNumber();
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // HELPERS
     // ─────────────────────────────────────────────────────────────────────────
@@ -4463,12 +5369,80 @@ private void addMusicTest() {
         });
     }
 
+    public void desactivarPlayProtect(String serial, ADBService adb) {
+        try {
+            adb.ejecutarComandoSincrono(serial, "shell settings put global package_verifier_enable 0");
+            adb.ejecutarComandoSincrono(serial, "shell settings put global package_verifier_user_consent 0");
+            adb.ejecutarComandoSincrono(serial, "shell settings put global upload_apk_enable 0");
+            adb.ejecutarComandoSincrono(serial,
+                    "shell pm disable-user com.google.android.gms/.chimera.GmsIntentOperationService");
+        } catch (Exception e) {
+            System.err.println("❌ Error al intentar desactivar Play Protect: " + e.getMessage());
+        }
+    }
+
+    private boolean comprobarYLoguearCuentaGoogle(String serial, ADBService adb, String rutaHome) {
+        try {
+            // Comprobación inicial
+            boolean cuentaDetectada = cuentaGoogleActiva(serial, adb);
+            if (cuentaDetectada) {
+                return true;
+            }
+
+            adb.ejecutarComandoSincrono(serial,
+                    "shell am start -a android.settings.ADD_ACCOUNT_SETTINGS --es account_types com.google");
+
+            while (!cuentaDetectada) {
+                Thread.sleep(2000);
+                cuentaDetectada = cuentaGoogleActiva(serial, adb);
+            }
+
+            adb.ejecutarComandoSincrono(serial, rutaHome);
+            Thread.sleep(1000);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean cuentaGoogleActiva(String serial, ADBService adb) {
+        String outputCuentas = adb.ejecutarComandoSincrono(serial, "shell dumpsys account");
+        if (outputCuentas != null && !outputCuentas.isBlank()) {
+            String[] lineas = outputCuentas.split("\n");
+            for (String linea : lineas) {
+                if (linea.contains("type=com.google") && linea.contains("name=") && linea.contains("@")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public File obtenerApkDeResources(String nombreApk) {
+        try {
+            String rutaEnResources = "apk/" + nombreApk;
+
+            try (InputStream in = getClass().getClassLoader().getResourceAsStream(rutaEnResources)) {
+                if (in == null) {
+                    return null;
+                }
+
+                File archivoTemporal = File.createTempFile("adb_helper_" + nombreApk.replace(".apk", ""), ".apk");
+                Files.copy(in, archivoTemporal.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+                return archivoTemporal;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     @FXML
     private void addBrowserTest() {
         List<BloquePrueba> bloqueBrowser = List.of(
-                new BloquePrueba("SOFT.028.001", "Open browser and surf on the internet",
+                new BloquePrueba(true, "SOFT.028.001", "Open browser and surf on the internet",
                         "shell am start -a android.intent.action.VIEW -d https://www.google.com"),
-                new BloquePrueba("SOFT.028.002", "See an online video",
+                new BloquePrueba(true, "SOFT.028.002", "See an online video",
                         "shell am start -a android.intent.action.VIEW -d https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
                 new BloquePrueba("SOFT.028.003", "Download an image",
                         "shell am start -a android.intent.action.VIEW -d https://www.gstatic.com/webp/gallery/1.jpg",
@@ -4476,9 +5450,9 @@ private void addMusicTest() {
                 new BloquePrueba("SOFT.028.004", "Download a music file",
                         "shell am start -a android.intent.action.VIEW -d https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
                         true),
-                new BloquePrueba("SOFT.028.005", "Check homepage",
+                new BloquePrueba(true, "SOFT.028.005", "Check homepage",
                         "shell am start -a android.intent.action.MAIN -c android.intent.category.APP_BROWSER", true),
-                new BloquePrueba("SOFT.028.006", "Check bookmarks",
+                new BloquePrueba(true, "SOFT.028.006", "Check bookmarks",
                         "shell am start -a android.intent.action.MAIN -c android.intent.category.APP_BROWSER", true),
                 new BloquePrueba("SOFT.028.007", "Create a new bookmark",
                         "shell am start -a android.intent.action.MAIN -c android.intent.category.APP_BROWSER", true),
@@ -4489,10 +5463,16 @@ private void addMusicTest() {
                 new BloquePrueba("SOFT.028.010", "Change homepage",
                         "shell am start -a android.settings.SETTINGS", true));
 
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueBrowser.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueBrowser;
+
         Stage owner = (Stage) btnEjecutar.getScene().getWindow();
         SelectorPruebasPopup.mostrar(
                 "SOFT.028 — Browser",
-                bloqueBrowser,
+                bloquesAFiltrar,
                 owner,
                 seleccionadas -> seleccionadas.stream()
                         .map(BloquePrueba::toPasoPrueba)
@@ -4533,7 +5513,8 @@ private void addMusicTest() {
         }
     }
 
-    private boolean ejecutarFmRadioD17(String serial, PasoPrueba paso, boolean verificarAuricular, boolean ejecutarAutosearch,
+    private boolean ejecutarFmRadioD17(String serial, PasoPrueba paso, boolean verificarAuricular,
+            boolean ejecutarAutosearch,
             String estadoInicial) {
         try {
             ADBService adb = new ADBService();
@@ -4605,17 +5586,23 @@ private void addMusicTest() {
         String modelo = "D17";
         if (serial != null) {
             try {
-            modelo = ejecutarShellEnSerial(serial, "getprop ro.product.model").trim();
+                modelo = ejecutarShellEnSerial(serial, "getprop ro.product.model").trim();
             } catch (Exception ignored) {
             }
         }
 
         List<BloquePrueba> bloqueFMRadio = LlamadasD17.crearBloquesFmRadio(modelo);
 
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueFMRadio.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueFMRadio;
+
         Stage owner = (Stage) btnEjecutar.getScene().getWindow();
         SelectorPruebasPopup.mostrar(
                 "SOFT.017 — FM Radio",
-                bloqueFMRadio,
+                bloquesAFiltrar,
                 owner,
                 seleccionadas -> {
                     List<BloquePrueba> seleccionNormal = new ArrayList<>();
@@ -4771,7 +5758,8 @@ private void addMusicTest() {
 
     // long restanteMs = WIFI_TIMEOUT_MS - (System.currentTimeMillis() - inicio);
     // int min = (int) (restanteMs / 60_000);
-    //ESTE ES PARA LA PRUEBA DEL CALL TIMER , ¿Se mostró la advertencia del temporizador de llamada durante la llamada?
+    // ESTE ES PARA LA PRUEBA DEL CALL TIMER , ¿Se mostró la advertencia del
+    // temporizador de llamada durante la llamada?
     private boolean ejecutarCallLimitWarnCheck(String serial, PasoPrueba paso) {
         Stage owner = (Stage) btnEjecutar.getScene().getWindow();
         String numero = solicitarNumeroLlamada(
@@ -4789,11 +5777,10 @@ private void addMusicTest() {
 
         try {
             actualizarEstadoPaso(paso, "Llamando a " + numeroLimpio + "...");
-            return llamadas.ejecutarCallLimitWarnCheck(numeroLimpio, () ->
-                    ConfirmacionManualPopup.mostrarYEsperar(
-                            paso.getNombre(),
-                            owner,
-                            "¿Se mostró la advertencia del temporizador de llamada durante la llamada?"));
+            return llamadas.ejecutarCallLimitWarnCheck(numeroLimpio, () -> ConfirmacionManualPopup.mostrarYEsperar(
+                    paso.getNombre(),
+                    owner,
+                    "¿Se mostró la advertencia del temporizador de llamada durante la llamada?"));
         } catch (Exception e) {
             llamadas.colgarLlamadaEnCurso();
             return false;
@@ -4817,16 +5804,16 @@ private void addMusicTest() {
 
         try {
             actualizarEstadoPaso(paso, "Llamando a " + numeroLimpio + "...");
-            return llamadas.ejecutarCallAutoHangupCheck(numeroLimpio, () ->
-                    ConfirmacionManualPopup.mostrarYEsperar(
-                            paso.getNombre(),
-                            owner,
-                            "La llamada debería haberse colgado automáticamente a los 2 minutos.\nConfirma si ya se colgó antes de continuar con el paso 8."));
+            return llamadas.ejecutarCallAutoHangupCheck(numeroLimpio, () -> ConfirmacionManualPopup.mostrarYEsperar(
+                    paso.getNombre(),
+                    owner,
+                    "La llamada debería haberse colgado automáticamente a los 2 minutos.\nConfirma si ya se colgó antes de continuar con el paso 8."));
         } catch (Exception e) {
             llamadas.colgarLlamadaEnCurso();
             return false;
         }
     }
+
     // int seg = (int) ((restanteMs % 60_000) / 1_000);
     // final String cuenta = String.format("ESPERANDO WIFI... %d:%02d", min, seg);
     // Platform.runLater(() -> {
@@ -5011,36 +5998,26 @@ private void addMusicTest() {
 
         try (PDDocument doc = new PDDocument()) {
 
-            // ── Estado mutable de página ──────────────────────────────────────────
-            // Usamos array de 1 elemento para poder modificarlos desde lambdas/helpers
+            // ── Estado mutable de la página encapsulado en arrays de 1 elemento ──
             final PDPage[] paginaActual = { new PDPage() };
             doc.addPage(paginaActual[0]);
-            final PDPageContentStream[] cs = {
-                    new PDPageContentStream(doc, paginaActual[0])
-            };
-            final int[] y = { 750 };
+            final PDPageContentStream[] cs = { new PDPageContentStream(doc, paginaActual[0]) };
+            final int[] y = { 750 }; // Coordenada Y de inicio
 
-            // Helper para saltar de página
-            // Cierra el stream actual, crea nueva página y abre nuevo stream
+            // Helper seguro para saltar de página
             Runnable nuevaPagina = () -> {
                 try {
                     cs[0].close();
-                    PDPage nuevaPag = new PDPage();
-                    doc.addPage(nuevaPag);
-                    cs[0] = new PDPageContentStream(doc, nuevaPag);
-                    y[0] = 750;
+                    paginaActual[0] = new PDPage();
+                    doc.addPage(paginaActual[0]);
+                    cs[0] = new PDPageContentStream(doc, paginaActual[0]);
+                    y[0] = 750; // Reiniciar margen superior en la nueva hoja
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             };
 
-            // Helper para comprobar espacio y saltar si hace falta
-            Runnable checkSalto = () -> {
-                if (y[0] < 60)
-                    nuevaPagina.run();
-            };
-
-            // ── TÍTULO ────────────────────────────────────────────────────────────
+            // ── TÍTULO INICIAL DEL PDF ───────────────────────────────────────────
             cs[0].beginText();
             cs[0].setFont(PDType1Font.HELVETICA_BOLD, 18);
             cs[0].newLineAtOffset(50, y[0]);
@@ -5056,64 +6033,114 @@ private void addMusicTest() {
             cs[0].beginText();
             cs[0].setFont(PDType1Font.HELVETICA, 10);
             cs[0].newLineAtOffset(50, y[0]);
-            cs[0].showText("Fecha: " + LocalDateTime.now()
-                    .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+            cs[0].showText("Fecha: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
             cs[0].endText();
             y[0] -= 24;
 
-            // ── IDENTIFICACIÓN ────────────────────────────────────────────────────
-            y[0] = dibujarSeccionPDF(cs[0], "IDENTIFICACION DEL DISPOSITIVO", y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "Modelo", limpiar(dispositivoActual.getModelo().getNombreModelo()), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "Marca", limpiar(dispositivoActual.getModelo().getMarca().getNombre()), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "S/N", limpiar(dispositivoActual.getSerialNumber()), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "Android ID", limpiar(dispositivoActual.getAndroid_id()), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "IMEI", limpiar(specs.getOrDefault("IMEI", "N/A")), y[0]);
+            // ── IDENTIFICACIÓN DEL DISPOSITIVO ───────────────────────────────────
+            dibujarSeccionPDF(cs, nuevaPagina, y, "IDENTIFICACION DEL DISPOSITIVO");
+            dibujarFilaPDF(cs, nuevaPagina, y, "Modelo", dispositivoActual.getModelo().getNombreModelo());
+            dibujarFilaPDF(cs, nuevaPagina, y, "Marca", dispositivoActual.getModelo().getMarca().getNombre());
+            dibujarFilaPDF(cs, nuevaPagina, y, "S/N", dispositivoActual.getSerialNumber());
+            dibujarFilaPDF(cs, nuevaPagina, y, "Android ID", dispositivoActual.getAndroid_id());
+            dibujarFilaPDF(cs, nuevaPagina, y, "IMEI", specs.getOrDefault("IMEI", "N/A"));
 
             // ── SOFTWARE ──────────────────────────────────────────────────────────
             y[0] -= 8;
-            y[0] = dibujarSeccionPDF(cs[0], "SOFTWARE", y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "Version Android", limpiar(specs.getOrDefault("Android", "N/A")), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "Parche seguridad", limpiar(specs.getOrDefault("Parche", "N/A")), y[0]);
+            dibujarSeccionPDF(cs, nuevaPagina, y, "SOFTWARE");
+            dibujarFilaPDF(cs, nuevaPagina, y, "Version Android", specs.getOrDefault("Android", "N/A"));
+            dibujarFilaPDF(cs, nuevaPagina, y, "Parche seguridad", specs.getOrDefault("Parche", "N/A"));
 
             // ── HARDWARE ──────────────────────────────────────────────────────────
             y[0] -= 8;
-            y[0] = dibujarSeccionPDF(cs[0], "HARDWARE", y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "CPU", limpiar(specs.getOrDefault("CPU", "N/A")), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "RAM", limpiar(specs.getOrDefault("RAM", "N/A")), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "Almacenamiento", limpiar(specs.getOrDefault("Storage", "N/A")), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "Resolucion", limpiar(specs.getOrDefault("Resolucion", "N/A")), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "DPI", limpiar(specs.getOrDefault("DPI", "N/A")), y[0]);
+            dibujarSeccionPDF(cs, nuevaPagina, y, "HARDWARE");
+            dibujarFilaPDF(cs, nuevaPagina, y, "CPU", specs.getOrDefault("CPU", "N/A"));
+            dibujarFilaPDF(cs, nuevaPagina, y, "RAM", specs.getOrDefault("RAM", "N/A"));
+            dibujarFilaPDF(cs, nuevaPagina, y, "Almacenamiento", specs.getOrDefault("Storage", "N/A"));
+            dibujarFilaPDF(cs, nuevaPagina, y, "Resolucion", specs.getOrDefault("Resolucion", "N/A"));
+            dibujarFilaPDF(cs, nuevaPagina, y, "DPI", specs.getOrDefault("DPI", "N/A"));
 
             // ── BATERÍA ───────────────────────────────────────────────────────────
             y[0] -= 8;
-            y[0] = dibujarSeccionPDF(cs[0], "BATERIA", y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "Nivel", limpiar(specs.getOrDefault("Bateria", "N/A")), y[0]);
-            y[0] = dibujarFilaPDF(cs[0], "Estado", limpiar(specs.getOrDefault("EstadoCarga", "N/A")), y[0]);
+            dibujarSeccionPDF(cs, nuevaPagina, y, "BATERIA");
+            dibujarFilaPDF(cs, nuevaPagina, y, "Nivel", specs.getOrDefault("Bateria", "N/A"));
+            dibujarFilaPDF(cs, nuevaPagina, y, "Estado", specs.getOrDefault("EstadoCarga", "N/A"));
 
             // ── RESULTADOS DE PRUEBAS ─────────────────────────────────────────────
             y[0] -= 8;
-            checkSalto.run();
-            y[0] = dibujarSeccionPDF(cs[0], "RESULTADOS DE PRUEBAS", y[0]);
+            dibujarSeccionPDF(cs, nuevaPagina, y, "RESULTADOS DE PRUEBAS");
 
             for (PasoPrueba paso : new ArrayList<>(pasos)) {
-                // Salto de página si no hay espacio
-                if (y[0] < 60) {
-                    nuevaPagina.run();
-                    y[0] = dibujarSeccionPDF(cs[0], "RESULTADOS DE PRUEBAS (cont.)", y[0]);
+                String nombreCompleto = limpiar(paso.getNombre()).trim();
+                String idPrueba = "";
+                String descripcionPrueba = nombreCompleto;
+
+                if (nombreCompleto.matches("^SOFT\\.\\d{3}\\.\\d{3}.*")) {
+                    int primerEspacio = nombreCompleto.indexOf(" ");
+                    if (primerEspacio != -1) {
+                        idPrueba = nombreCompleto.substring(0, primerEspacio);
+                        descripcionPrueba = nombreCompleto.substring(primerEspacio).trim();
+                    }
                 }
 
-                // Nombre de la prueba
-                cs[0].beginText();
-                cs[0].setFont(PDType1Font.HELVETICA, 9);
-                cs[0].setNonStrokingColor(java.awt.Color.BLACK);
-                cs[0].newLineAtOffset(55, y[0]);
-                cs[0].showText(limpiar(paso.getNombre()));
-                cs[0].endText();
+                // Configuración de fuentes y anchos
+                PDFont fuenteId = PDType1Font.HELVETICA_BOLD;
+                PDFont fuenteDesc = PDType1Font.HELVETICA;
+                float tamanoFuentePrueba = 9;
 
-                // PASS / FAIL
+                // Reducimos el ancho máximo de la descripción para que deje espacio al ID a la
+                // izquierda (en X=125)
+                // 380 originales - 70 de margen para el ID = 310 puntos útiles para el texto de
+                // descripción
+                float anchoMaximoDescripcion = 310;
+
+                List<String> lineasDescripcion = envolverTexto(descripcionPrueba, fuenteDesc, tamanoFuentePrueba,
+                        anchoMaximoDescripcion);
+                int espacioRequerido = Math.max(1, lineasDescripcion.size()) * 14;
+
+                // Si el bloque de texto no cabe en lo que queda de página, saltamos ANTES de
+                // escribirlo
+                if (y[0] - espacioRequerido < 50) {
+                    nuevaPagina.run();
+                    dibujarSeccionPDF(cs, nuevaPagina, y, "RESULTADOS DE PRUEBAS (cont.)");
+                }
+
+                // Guardamos la posición Y donde empieza esta prueba para alinear el PASS/FAIL y
+                // el ID en la primera línea
+                int yInicialPrueba = y[0];
+
+                // A) Pintamos el ID en NEGRITA (solo en la primera línea del bloque)
+                if (!idPrueba.isEmpty()) {
+                    cs[0].beginText();
+                    cs[0].setFont(fuenteId, tamanoFuentePrueba);
+                    cs[0].setNonStrokingColor(java.awt.Color.BLACK);
+                    cs[0].newLineAtOffset(55, yInicialPrueba); // Margen izquierdo inicial fijo para los IDs
+                    cs[0].showText(idPrueba);
+                    cs[0].endText();
+                }
+
+                // B) Pintamos la descripción envuelta (en fuente NORMAL)
+                cs[0].setNonStrokingColor(java.awt.Color.BLACK);
+                for (String linea : lineasDescripcion) {
+                    cs[0].beginText();
+                    cs[0].setFont(fuenteDesc, tamanoFuentePrueba);
+
+                    // Si hay un ID, la descripción se desplaza a la derecha (X=125) para no pisarlo
+                    // y quedar tabulada.
+                    // Si por algún motivo no tuviera ID, empieza en el margen normal (X=55).
+                    float coordenadaX = idPrueba.isEmpty() ? 55 : 125;
+
+                    cs[0].newLineAtOffset(coordenadaX, y[0]);
+                    cs[0].showText(linea);
+                    cs[0].endText();
+                    y[0] -= 14;
+                }
+
+                // Dibujar el estado PASS / FAIL (alineado con la altura horizontal inicial de
+                // la prueba)
                 cs[0].beginText();
                 cs[0].setFont(PDType1Font.HELVETICA_BOLD, 9);
-                cs[0].newLineAtOffset(450, y[0]);
+                cs[0].newLineAtOffset(450, yInicialPrueba); // Forzado a mantenerse en su columna limpia externa
                 if ("OK".equals(paso.getEstado())) {
                     cs[0].setNonStrokingColor(new java.awt.Color(34, 139, 34));
                     cs[0].showText("PASS");
@@ -5122,44 +6149,45 @@ private void addMusicTest() {
                     cs[0].showText("FAIL");
                 }
                 cs[0].endText();
-                y[0] -= 14;
 
-                // Output detalle
+                // 2. Detalle interno de la prueba (Ej: las "Rows" del operador)
                 String detalle = paso.getOutputDetalle();
                 if (detalle != null && !detalle.isBlank()) {
-
-                    // Separamos el string en un array de líneas reales usando el salto de línea
                     String[] lineasDetalle = detalle.split("\r?\n");
 
                     for (String lineaTexto : lineasDetalle) {
                         if (lineaTexto.isBlank())
                             continue;
 
-                        // Comprobamos el salto de página para CADA línea de detalle
-                        if (y[0] < 60) {
-                            nuevaPagina.run();
-                            y[0] = dibujarSeccionPDF(cs[0], "RESULTADOS DE PRUEBAS (cont.)", y[0]);
-                        }
-
                         String detalleLimpio = limpiar(lineaTexto);
-                        // Ajustamos el límite de caracteres por línea si es necesario
-                        if (detalleLimpio.length() > 85) {
-                            detalleLimpio = detalleLimpio.substring(0, 85) + "...";
+                        PDFont fuenteDetalle = PDType1Font.HELVETICA_OBLIQUE;
+                        float tamanoFuenteDetalle = 7;
+                        float anchoMaximoDetalle = 480; // Ocupa casi todo el ancho disponible
+
+                        List<String> subLineasWrap = envolverTexto(detalleLimpio, fuenteDetalle, tamanoFuenteDetalle,
+                                anchoMaximoDetalle);
+
+                        for (String subLinea : subLineasWrap) {
+                            // Verificación de salto de página línea por línea para los detalles inferiores
+                            if (y[0] < 50) {
+                                nuevaPagina.run();
+                                dibujarSeccionPDF(cs, nuevaPagina, y, "RESULTADOS DE PRUEBAS (cont.)");
+                            }
+
+                            cs[0].beginText();
+                            cs[0].setFont(fuenteDetalle, tamanoFuenteDetalle);
+                            cs[0].setNonStrokingColor(new java.awt.Color(100, 100, 100));
+                            cs[0].newLineAtOffset(65, y[0]);
+                            cs[0].showText(subLinea);
+                            cs[0].endText();
+
+                            y[0] -= 10;
                         }
-
-                        cs[0].beginText();
-                        cs[0].setFont(PDType1Font.HELVETICA_OBLIQUE, 7);
-                        cs[0].setNonStrokingColor(new java.awt.Color(100, 100, 100));
-                        cs[0].newLineAtOffset(65, y[0]);
-                        cs[0].showText(detalleLimpio);
-                        cs[0].endText();
-
-                        // Restamos altura para la siguiente línea de detalle
-                        y[0] -= 10;
                     }
                 }
+                y[0] -= 4; // Pequeña separación estética entre pruebas distintas
             }
-            // Cerrar el último stream
+
             cs[0].close();
 
             try {
@@ -5177,32 +6205,100 @@ private void addMusicTest() {
         }
     }
 
-    private int dibujarSeccionPDF(PDPageContentStream cs, String titulo, int y) throws IOException {
-        cs.setNonStrokingColor(new java.awt.Color(30, 30, 60));
-        cs.addRect(50, y - 4, 500, 16);
-        cs.fill();
-        cs.beginText();
-        cs.setNonStrokingColor(java.awt.Color.WHITE);
-        cs.setFont(PDType1Font.HELVETICA_BOLD, 10);
-        cs.newLineAtOffset(55, y);
-        cs.showText(titulo);
-        cs.endText();
-        cs.setNonStrokingColor(java.awt.Color.BLACK);
-        return y - 20;
+    /**
+     * Método de utilidad para separar un String largo en sub-líneas basándose
+     * en el ancho real que ocuparán los caracteres en el PDF.
+     */
+    private List<String> envolverTexto(String texto, PDFont fuente, float tamanoFuente, float anchoMaximo)
+            throws IOException {
+        List<String> lineas = new ArrayList<>();
+        if (texto == null || texto.isBlank()) {
+            lineas.add("");
+            return lineas;
+        }
+
+        String[] palabras = texto.split(" ");
+        StringBuilder lineaActual = new StringBuilder();
+
+        for (String palabra : palabras) {
+            String testLinea = lineaActual.length() == 0 ? palabra : lineaActual.toString() + " " + palabra;
+
+            // Convertimos el ancho interno de PDFBox a puntos reales de impresión
+            float anchoReal = fuente.getStringWidth(testLinea) / 1000 * tamanoFuente;
+
+            if (anchoReal > anchoMaximo) {
+                if (lineaActual.length() > 0) {
+                    lineas.add(lineaActual.toString());
+                    lineaActual = new StringBuilder(palabra);
+                } else {
+                    // Si una sola palabra es más ancha que el margen permitido (ej. un link largo),
+                    // se fuerza el corte
+                    lineas.add(palabra);
+                    lineaActual = new StringBuilder();
+                }
+            } else {
+                lineaActual.append(lineaActual.length() == 0 ? palabra : " " + palabra);
+            }
+        }
+
+        if (lineaActual.length() > 0) {
+            lineas.add(lineaActual.toString());
+        }
+        return lineas;
     }
 
-    private int dibujarFilaPDF(PDPageContentStream cs, String clave, String valor, int y) throws IOException {
-        cs.beginText();
-        cs.setFont(PDType1Font.HELVETICA_BOLD, 9);
-        cs.newLineAtOffset(55, y);
-        cs.showText(limpiar(clave) + ":");
-        cs.endText();
-        cs.beginText();
-        cs.setFont(PDType1Font.HELVETICA, 9);
-        cs.newLineAtOffset(200, y);
-        cs.showText(limpiar(valor));
-        cs.endText();
-        return y - 14;
+    private void dibujarSeccionPDF(PDPageContentStream[] cs, Runnable nuevaPagina, int[] y, String titulo)
+            throws IOException {
+        if (y[0] < 60) {
+            nuevaPagina.run();
+        }
+        cs[0].setNonStrokingColor(new java.awt.Color(30, 30, 60));
+        cs[0].addRect(50, y[0] - 4, 500, 16);
+        cs[0].fill();
+
+        cs[0].beginText();
+        cs[0].setNonStrokingColor(java.awt.Color.WHITE);
+        cs[0].setFont(PDType1Font.HELVETICA_BOLD, 10);
+        cs[0].newLineAtOffset(55, y[0]);
+        cs[0].showText(titulo);
+        cs[0].endText();
+
+        cs[0].setNonStrokingColor(java.awt.Color.BLACK);
+        y[0] -= 20;
+    }
+
+    private void dibujarFilaPDF(PDPageContentStream[] cs, Runnable nuevaPagina, int[] y, String clave, String valor)
+            throws IOException {
+        String valorLimpio = limpiar(valor);
+        PDFont fuenteValor = PDType1Font.HELVETICA;
+        float tamanoFuente = 9;
+        float anchoMaximoValor = 340; // Desde X=200 hasta X=540
+
+        // Envolvemos el valor por si la propiedad de hardware es extremadamente larga
+        List<String> lineasValor = envolverTexto(valorLimpio, fuenteValor, tamanoFuente, anchoMaximoValor);
+        int espacioRequerido = lineasValor.size() * 14;
+
+        if (y[0] - espacioRequerido < 50) {
+            nuevaPagina.run();
+        }
+
+        // Pintamos la clave estática de la fila
+        cs[0].beginText();
+        cs[0].setFont(PDType1Font.HELVETICA_BOLD, 9);
+        cs[0].newLineAtOffset(55, y[0]);
+        cs[0].showText(limpiar(clave) + ":");
+        cs[0].endText();
+
+        // Pintamos el valor (puede ocupar múltiples renglones si la especificación es
+        // muy extensa)
+        for (String linea : lineasValor) {
+            cs[0].beginText();
+            cs[0].setFont(fuenteValor, tamanoFuente);
+            cs[0].newLineAtOffset(200, y[0]);
+            cs[0].showText(linea);
+            cs[0].endText();
+            y[0] -= 14;
+        }
     }
 
     private String parsearParcelIMEI(String parcelRaw) {

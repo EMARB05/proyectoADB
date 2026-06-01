@@ -83,152 +83,153 @@ public class LlamadasD17 extends AdbCallSupport {
 
     private static List<BloquePrueba> crearBloquesFmRadioD17() {
         return List.of(
-            new BloquePrueba("SOFT.017.001", "Auto search of radio stations with earphone connected",
-                "__FM_D17_EARPHONE_SEQUENCE__"),
+                new BloquePrueba(true, "SOFT.017.001", "Auto search of radio stations with earphone connected",
+                        "__FM_D17_EARPHONE_SEQUENCE__"),
 
-            new BloquePrueba("SOFT.017.002", "Check sound quality of the stations found",
-                "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
+                new BloquePrueba(true, "SOFT.017.002", "Check sound quality of the stations found",
+                        "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
 
-            new BloquePrueba("SOFT.017.003", "Change audio output between earphone/speaker",
-                "__FM_D17_EARPHONE_SEQUENCE__"),
+                new BloquePrueba("SOFT.017.003", "Change audio output between earphone/speaker",
+                        "__FM_D17_EARPHONE_SEQUENCE__"),
 
-            new BloquePrueba("SOFT.017.004", "Search any radio station manually",
-                "__FM_D17_RIGHT_OK__"),
+                new BloquePrueba("SOFT.017.004", "Search any radio station manually",
+                        "__FM_D17_RIGHT_OK__"),
 
-            new BloquePrueba("SOFT.017.005", "Auto search of radio stations without earphone connected",
-                "__FM_D17_AUTOSEARCH_NO_EARPHONE__"),
+                new BloquePrueba("SOFT.017.005", "Auto search of radio stations without earphone connected",
+                        "__FM_D17_AUTOSEARCH_NO_EARPHONE__"),
 
-        new BloquePrueba("SOFT.017.006", "Check sound quality of the stations found without earphone connected",
-            "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
+                new BloquePrueba("SOFT.017.006", "Check sound quality of the stations found without earphone connected",
+                        "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
 
-        new BloquePrueba("SOFT.017.007", "Check if RDS information is shown (name of radio station...)",
-            "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
+                new BloquePrueba("SOFT.017.007", "Check if RDS information is shown (name of radio station...)",
+                        "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
 
-        new BloquePrueba("SOFT.017.008", "Add a radio station to favourite",
-            "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
+                new BloquePrueba("SOFT.017.008", "Add a radio station to favourite",
+                        "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
 
-        new BloquePrueba("SOFT.017.009", "Change name of favourite radio station",
-            "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
+                new BloquePrueba("SOFT.017.009", "Change name of favourite radio station",
+                        "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
 
-        new BloquePrueba("SOFT.017.010", "Remove favourite radio station",
-            "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
+                new BloquePrueba("SOFT.017.010", "Remove favourite radio station",
+                        "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
 
-        new BloquePrueba("SOFT.017.011",
-            "Check if after a new auto search favourite stations saved are removed",
-            "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
+                new BloquePrueba("SOFT.017.011",
+                        "Check if after a new auto search favourite stations saved are removed",
+                        "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
 
-        new BloquePrueba("SOFT.017.012", "Start a radio recording and save it",
-            "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
+                new BloquePrueba("SOFT.017.012", "Start a radio recording and save it",
+                        "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
 
-        new BloquePrueba("SOFT.017.013", "Listen the radio recording",
-            "shell am start -a android.intent.action.VIEW -d /sdcard/Music/ -t audio/*", true),
+                new BloquePrueba("SOFT.017.013", "Listen the radio recording",
+                        "shell am start -a android.intent.action.VIEW -d /sdcard/Music/ -t audio/*", true),
 
-        new BloquePrueba("SOFT.017.014", "Delete the radio recording",
-            "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
+                new BloquePrueba("SOFT.017.014", "Delete the radio recording",
+                        "shell am start -n com.android.fmradio/com.android.fmradio.LancoFmMainActivity", true),
 
-            new BloquePrueba("SOFT.017.015", "Check if it's possible to listen radio FM in background",
-                "__FM_BACKGROUND__"),
+                new BloquePrueba("SOFT.017.015", "Check if it's possible to listen radio FM in background",
+                        "__FM_BACKGROUND__"),
 
-            new BloquePrueba("SOFT.017.016",
-                "While radio FM playing, receive a call. Check if after call ends radio FM continues playing",
-                "__FM_LLAMADA_ENTRANTE__"));
+                new BloquePrueba("SOFT.017.016",
+                        "While radio FM playing, receive a call. Check if after call ends radio FM continues playing",
+                        "__FM_LLAMADA_ENTRANTE__"));
     }
 
-            private static List<BloquePrueba> crearBloquesHotDialD17(String numeroHotDial) {
-            String numero = (numeroHotDial == null || numeroHotDial.isBlank()) ? "123456789" : numeroHotDial.trim();
+    private static List<BloquePrueba> crearBloquesHotDialD17(String numeroHotDial) {
+        String numero = (numeroHotDial == null || numeroHotDial.isBlank()) ? "123456789" : numeroHotDial.trim();
 
-            return List.of(
+        return List.of(
                 new BloquePrueba("SOFT.045.001", "Enable hot dial function",
-                    Entradas.secuencia(
-                        "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
-                        "sleep 2",
-                        Entradas.abajo(),
-                        Entradas.abajo(),
-                        Entradas.abajo(),
-                        Entradas.abajo(),
-                        Entradas.abajo(),
-                        Entradas.ok(),
-                        Entradas.unSegundo(),
-                        Entradas.ok()),
-                    false, false),
+                        Entradas.secuencia(
+                                "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                                "sleep 2",
+                                Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.ok(),
+                                Entradas.unSegundo(),
+                                Entradas.ok()),
+                        false, false),
 
                 new BloquePrueba("SOFT.045.002", "Add a hotdial number",
-                    Entradas.secuencia(
-                        "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
-                        "sleep 2",
-                        Entradas.abajo(),
-                        Entradas.ok(),
-                        Entradas.unSegundo(),
-                        "input text '" + numero + "'",
-                        Entradas.abajo(),
-                        Entradas.derecha(),
-                        Entradas.unSegundo(),
-                        Entradas.ok()),
-                    false, false),
+                        Entradas.secuencia(
+                                "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                                "sleep 2",
+                                Entradas.abajo(),
+                                Entradas.ok(),
+                                Entradas.unSegundo(),
+                                "input text '" + numero + "'",
+                                Entradas.abajo(),
+                                Entradas.derecha(),
+                                Entradas.unSegundo(),
+                                Entradas.ok()),
+                        false, false),
 
                 new BloquePrueba("SOFT.045.003", "Check if hot dial service works properly",
-                    "__HOT_DIAL_CHECK_SERVICE__", true, false),
+                        "__HOT_DIAL_CHECK_SERVICE__", true, false),
 
                 new BloquePrueba("SOFT.045.004", "Edit hot dial contact",
-                    Entradas.secuencia(
-                        "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
-                        "sleep 2",
-                        Entradas.ok(),
-                        "input text '34'",
-                        Entradas.abajo(),
-                        Entradas.abajo(),
-                        Entradas.derecha(),
-                        Entradas.ok()),
-                    true, false),
+                        Entradas.secuencia(
+                                "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                                "sleep 2",
+                                Entradas.ok(),
+                                "input text '34'",
+                                Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.derecha(),
+                                Entradas.ok()),
+                        true, false),
 
                 new BloquePrueba("SOFT.045.005", "Pick up handset and check if DUT calls to hot dial number",
-                    "", true, false),
+                        "", true, false),
 
                 new BloquePrueba("SOFT.045.006", "Press speaker button and check if DUT calls to hot dial number",
-                    "", true, false),
+                        "", true, false),
 
                 new BloquePrueba("SOFT.045.007", "Try to make a call to other numbers with hot dial enable",
-                    "__HOT_DIAL_CALL_OTHER_NUMBERS__", true, false),
+                        "__HOT_DIAL_CALL_OTHER_NUMBERS__", true, false),
 
                 new BloquePrueba("SOFT.045.008", "Make emergency call with hot dial activate",
-                    "", true, false),
+                        "", true, false),
 
                 new BloquePrueba("SOFT.045.009", "Delete hot dial contact",
-                    Entradas.secuencia(
-                        "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
-                        "sleep 2",
-                        Entradas.ok(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.derecha(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.softder(),
-                        Entradas.abajo(),
-                        Entradas.derecha(),
-                        Entradas.ok()),
-                    true, false),
+                        Entradas.secuencia(
+                                "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                                "sleep 2",
+                                Entradas.ok(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.derecha(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.softder(),
+                                Entradas.abajo(),
+                                Entradas.derecha(),
+                                Entradas.ok()),
+                        true, false),
 
                 new BloquePrueba("SOFT.045.010", "Disable hot dial and make a call to several numbers",
-                    "__HOT_DIAL_DISABLE_AND_CALL_OTHER_NUMBERS__",
-                    true, false));
-            }
+                        "__HOT_DIAL_DISABLE_AND_CALL_OTHER_NUMBERS__",
+                        true, false));
+    }
+
     // ─── HOLD / RETRIEVE ─────────────────────────────────────────────────────
     public boolean ejecutarHold(PerfilDialer perfil) {
         try {
