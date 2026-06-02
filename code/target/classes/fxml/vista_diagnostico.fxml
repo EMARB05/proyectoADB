@@ -27,7 +27,7 @@
     <!-- Columna derecha: panel de pruebas, con margen izquierdo extra -->
     <VBox spacing="15" HBox.hgrow="ALWAYS" style="-fx-padding: 0 0 0 24;">
     <HBox spacing="15" alignment="CENTER_LEFT">
-        <Label text="PANEL DE CONTROL DE PRUEBAS"
+        <Label fx:id="tituloPanel" text="PANEL DE CONTROL DE PRUEBAS"
             style="-fx-text-fill: #89b4fa; -fx-font-weight: bold;"
             styleClass="card-container"/>
         
@@ -154,7 +154,7 @@
                     <Button onAction="#addContactsTest" styleClass="btn-hw,btn-modern">
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">
-                                <FontIcon iconLiteral="fas-users" iconSize="24" iconColor="#f04d02"/>
+                                <FontIcon iconLiteral="fas-users" iconSize="24" iconColor="#e9753f"/>
                                 <Label text="Contacts" style="-fx-font-size: 9px;"/>
                             </VBox>
                         </graphic>
@@ -170,7 +170,7 @@
                     <Button onAction="#addMessagingTest" styleClass="btn-hw,btn-modern">
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">
-                                <FontIcon iconLiteral="fas-envelope" iconSize="24" iconColor="#be0095"/>
+                                <FontIcon iconLiteral="fas-envelope" iconSize="24" iconColor="#b65ca2"/>
                                 <Label text="Messages" style="-fx-font-size: 9px;"/>
                             </VBox>
                         </graphic>

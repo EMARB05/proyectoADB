@@ -73,6 +73,8 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private FichaTecnicaController fichaTecnicaController;
 
     @FXML
+    private Label tituloPanel;
+    @FXML
     private ToggleGroup grupoIotMode;
     @FXML
     private ToggleButton btnIotCompleta;
@@ -181,6 +183,7 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private static final String MSG_SEND_SMS_LONG = "__SEND_SMS_LONG__";
     private static final String MSG_SEND_SMS_NOOPT = "__SEND_SMS_NOOPT__";
     private static final String MSG_MMS_NO_DATA = "__MMS_NO_DATA__";
+    private static final String MSG_CHECK_MESSAGING_CENTER = "__CHECK_MESSAGING_CENTER__";
 
     // ─── Datos extra para los pasos de llamada avanzados ─────────────────────
     // Se rellenan cuando el usuario configura el paso en el popup.
@@ -249,6 +252,16 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                             .setStyle("-fx-background-color: #89b4fa; -fx-text-fill: #1e1e2e; -fx-font-weight: bold;");
                     btnIotExpress.setStyle("-fx-background-color: transparent; -fx-text-fill: #cdd6f4;");
 
+                    tituloPanel.setStyle("-fx-text-fill: #89b4fa; -fx-font-weight: bold;");
+                    btnEjecutar.setStyle(
+                            "-fx-font-family: \"Poppins\"; " +
+                                    "-fx-background-color: #89b4fa; " +
+                                    "-fx-text-fill: #11111b; " +
+                                    "-fx-background-radius: 5; " +
+                                    "-fx-font-weight: bold; " +
+                                    "-fx-padding: 10; " +
+                                    "-fx-cursor: hand;");
+
                     btnHotDial.setVisible(true);
                     btnHotDial.setManaged(true);
 
@@ -258,6 +271,16 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     btnIotExpress
                             .setStyle("-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e; -fx-font-weight: bold;");
                     btnIotCompleta.setStyle("-fx-background-color: transparent; -fx-text-fill: #cdd6f4;");
+
+                    tituloPanel.setStyle("-fx-text-fill: #a6e3a1; -fx-font-weight: bold;");
+                    btnEjecutar.setStyle(
+                            "-fx-font-family: \"Poppins\"; " +
+                                    "-fx-background-color: #a6e3a1; " +
+                                    "-fx-text-fill: #11111b; " +
+                                    "-fx-background-radius: 5; " +
+                                    "-fx-font-weight: bold; " +
+                                    "-fx-padding: 10; " +
+                                    "-fx-cursor: hand;");
 
                     btnHotDial.setVisible(false);
                     btnHotDial.setManaged(false);
@@ -1505,6 +1528,18 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     ok = recibirMMS(serial, adb);
 
                 } else if (MSG_DELETE_ONE.equals(ref.getComando())) {
+                    adb.ejecutarComandoSincrono(serial,
+                            "shell am start -a android.intent.action.MAIN -c android.intent.category.HOME");
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                    }
+                    adb.ejecutarComandoSincrono(serial,
+                            "shell am start -n com.google.android.apps.messaging/.ui.ConversationListActivity");
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                    }
                     ok = borrarUnaConversacion(serial, adb);
 
                 } else if (MSG_DELETE_ALL.equals(ref.getComando())) {
@@ -1527,6 +1562,14 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                 } else if (MSG_MMS_NO_DATA.equals(ref.getComando())) {
                     ok = enviarMMSSinDatos(serial, adb);
+
+                } else if (MSG_CHECK_MESSAGING_CENTER.equals(ref.getComando())) {
+                    adb.ejecutarComandoSincrono(serialActivo,
+                            "shell am start -n com.google.android.apps.messaging/.ui.appsettings.PerSubscriptionSettingsActivity");
+
+                    String valor = ConfirmacionManualPopup.mostrarYEsperarConValor(ref.getNombre(), owner);
+                    ok = !valor.isEmpty();
+                    outputDetalle = ok ? valor : "";
 
                 } else {
                     ADBService.EjecucionADB r = adb.ejecutarYObtener(serial, ref.getComandos(), ref.isSinOutput());
@@ -4764,17 +4807,16 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                         contactoSerialReceptor != null ? false : true),
                 new BloquePrueba(true, "SOFT.015.009", "Delete one conversation", MSG_DELETE_ONE),
                 new BloquePrueba("SOFT.015.010", "Delete all conversations", MSG_DELETE_ALL),
-                new BloquePrueba("SOFT.015.011", "Check number of Messaging Center SMSC", List.of(
-                        "shell content query --uri content://telephony/carriers --projection mmsc --where \"current=1\"",
-                        "shell getprop gsm.sim.operator.alpha")),
+                new BloquePrueba("SOFT.015.011", "Check number of Messaging Center SMSC", MSG_CHECK_MESSAGING_CENTER),
                 // shell am start -n
                 // com.google.android.apps.messaging/.ui.appsettings.PerSubscriptionSettingsActivity
 
                 new BloquePrueba("SOFT.015.012", "Check if SMS Validity Period is available",
-                        "shell am start -a android.settings.WIRELESS_SETTINGS", true),
+                        "shell am start -n com.google.android.apps.messaging/com.google.android.apps.messaging.ui.appsettings.ApplicationSettingsActivity",
+                        true),
                 new BloquePrueba("SOFT.015.013",
                         "Check id SMS optimization option is available. By default need to be active (use only 7 bit)",
-                        "shell content query --uri content://sms --projection _id"),
+                        "shell am start -n com.google.android.apps.messaging/com.google.android.apps.messaging.ui.appsettings.ApplicationSettingsActivity"),
                 new BloquePrueba("SOFT.015.014",
                         "With SMS optimization enable, check if you cand send a special character\nSend SMS with special characters (ÁÉÍÓÚáéíóú)\nExpected:\nDuT must use 7-bit encoding and send all characters ly (e.g. AÉIOUaéiou)",
                         MSG_SEND_SMS_SPECIAL),
@@ -4829,20 +4871,10 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
     private void simularClickEnviar(String serial, ADBService adb) {
         try {
-            // Despertar pantalla
             adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_WAKEUP");
-            try {
-                Thread.sleep(200);
-            } catch (InterruptedException ignored) {
-            }
+            Thread.sleep(200);
 
-            // Capturar interfaz
-            adb.ejecutarComandoSincrono(serial, "shell uiautomator dump /data/local/tmp/window_dump.xml");
-            String xml = adb.ejecutarComandoSincrono(serial, "shell cat /data/local/tmp/window_dump.xml");
-
-            if (xml == null || xml.isBlank())
-                return;
-
+            // Pasamos la lista de selectores al método de soporte uno por uno
             String[] selectores = {
                     "Compose:Draft:Send",
                     "com.google.android.apps.messaging:id/send_message_button",
@@ -4852,41 +4884,17 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     "content-desc=\"Send\""
             };
 
-            String targetLine = null;
             for (String selector : selectores) {
-                if (xml.contains(selector)) {
-                    for (String linea : xml.split(">")) {
-                        if (linea.contains(selector) && linea.contains("bounds=")) {
-                            targetLine = linea;
-                            break;
-                        }
-                    }
-                }
-                if (targetLine != null)
-                    break;
-            }
-
-            if (targetLine != null) {
-                int idx = targetLine.indexOf("bounds=\"");
-                if (idx != -1) {
-                    String bounds = targetLine.substring(idx + 8, targetLine.indexOf("\"", idx + 8));
-                    String[] pts = bounds.replaceAll("[\\[\\]]", " ").trim().split("\\s+");
-                    if (pts.length >= 2) {
-                        String[] p1 = pts[0].split(",");
-                        String[] p2 = pts[1].split(",");
-                        int xCentro = (Integer.parseInt(p1[0]) + Integer.parseInt(p2[0])) / 2;
-                        int yCentro = (Integer.parseInt(p1[1]) + Integer.parseInt(p2[1])) / 2;
-
-                        // Click táctil
-                        adb.ejecutarComandoSincrono(serial, "shell input tap " + xCentro + " " + yCentro);
-                        return;
-                    }
+                int[] coor = obtenerCoordenadasPorId(serial, adb, selector);
+                if (coor != null) {
+                    adb.ejecutarComandoSincrono(serial, "shell input tap " + coor[0] + " " + coor[1]);
+                    return;
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
         }
 
-        // Fallback físico
+        // Fallback físico por si no encuentra ningún selector
         adb.ejecutarComandoSincrono(serial, "shell input keyevent KEYCODE_ESCAPE");
         try {
             Thread.sleep(400);
@@ -4897,64 +4905,22 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     }
 
     private void simularClickBotonAdjuntar(String serial, ADBService adb) {
-        try {
-            adb.ejecutarComandoSincrono(serial, "shell uiautomator dump /data/local/tmp/window_dump.xml");
-            String xml = adb.ejecutarComandoSincrono(serial, "shell cat /data/local/tmp/window_dump.xml");
-
-            if (xml == null || xml.isBlank()) {
-                System.out.println("[DEBUG-ADJUNTAR] ERROR: El XML de la pantalla está vacío.");
+        String[] selectores = {
+                "ComposeRowIcon:Gallery",
+                "com.google.android.apps.messaging:id/attach_media_button",
+                "com.google.android.apps.messaging:id/attachment_menu_button",
+                "content-desc=\"Mostrar pantalla para adjuntar archivos multimedia\"",
+                "content-desc=\"Compartir contenido multimedia\"",
+                "content-desc=\"Attach\""
+        };
+        for (String selector : selectores) {
+            int[] coor = obtenerCoordenadasPorId(serial, adb, selector);
+            if (coor != null) {
+                adb.ejecutarComandoSincrono(serial, "shell input tap " + coor[0] + " " + coor[1]);
                 return;
             }
-
-            String[] selectores = {
-                    "ComposeRowIcon:Gallery",
-                    "com.google.android.apps.messaging:id/attach_media_button",
-                    "com.google.android.apps.messaging:id/attachment_menu_button",
-                    "content-desc=\"Mostrar pantalla para adjuntar archivos multimedia\"", // Basado en tu primer
-                                                                                           // volcado
-                    "content-desc=\"Compartir contenido multimedia\"",
-                    "content-desc=\"Attach\""
-            };
-
-            String targetLine = null;
-            for (String selector : selectores) {
-                if (xml.contains(selector)) {
-                    System.out.println("[DEBUG-ADJUNTAR] Selector encontrado en XML: " + selector);
-                    for (String linea : xml.split(">")) {
-                        if (linea.contains(selector) && linea.contains("bounds=")) {
-                            targetLine = linea;
-                            break;
-                        }
-                    }
-                }
-                if (targetLine != null)
-                    break;
-            }
-
-            if (targetLine != null) {
-                System.out.println("[DEBUG-ADJUNTAR] Línea del nodo: " + targetLine.trim());
-                int idx = targetLine.indexOf("bounds=\"");
-                if (idx != -1) {
-                    String bounds = targetLine.substring(idx + 8, targetLine.indexOf("\"", idx + 8));
-                    String[] pts = bounds.replaceAll("[\\[\\]]", " ").trim().split("\\s+");
-                    String[] p1 = pts[0].split(",");
-                    String[] p2 = pts[1].split(",");
-                    int xCentro = (Integer.parseInt(p1[0]) + Integer.parseInt(p2[0])) / 2;
-                    int yCentro = (Integer.parseInt(p1[1]) + Integer.parseInt(p2[1])) / 2;
-
-                    System.out.println("[DEBUG-ADJUNTAR] Coordenadas calculadas: X=" + xCentro + ", Y=" + yCentro);
-                    adb.ejecutarComandoSincrono(serial, "shell input tap " + xCentro + " " + yCentro);
-                    System.out.println("[DEBUG-ADJUNTAR] Comando tap ejecutado.");
-                }
-            } else {
-                System.out.println("[DEBUG-ADJUNTAR] FAILED: Ningún selector coincidió.");
-                System.out.println("\n--- XML DIAGNÓSTICO DE EMERGENCIA ---");
-                System.out.println(xml.replace("><", ">\n<"));
-                System.out.println("--- FIN XML DIAGNÓSTICO ---\n");
-            }
-        } catch (Exception e) {
-            System.out.println("[DEBUG-ADJUNTAR] EXCEPCIÓN: " + e.getMessage());
         }
+        System.out.println("[DEBUG-ADJUNTAR] FAILED: Ningún selector de adjuntos coincidió en la pantalla.");
     }
 
     private void simularClickPrimeraImagenGaleria(String serial, ADBService adb) {
@@ -4964,69 +4930,126 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
             if (xml == null || xml.isBlank())
                 return;
 
-            // Selectores específicos del botón de captura de fotos (no de vídeo)
-            String[] selectoresCamara = {
-                    "com.google.android.apps.messaging:id/camera_button",
-                    "content-desc=\"Cámara\"",
-                    "content-desc=\"Camera\""
-            };
+            for (String linea : xml.split(">")) {
+                boolean esPrimeraImagen = false;
 
-            for (String selector : selectoresCamara) {
-                if (xml.contains(selector)) {
-                    for (String linea : xml.split(">")) {
-                        // FILTRO: Debe contener el selector, las coordenadas, y NO ser el botón de
-                        // vídeo o rcs_video
-                        if (linea.contains(selector) && linea.contains("bounds=") && !linea.contains("video")) {
+                if (linea.contains("com.google.android.photopicker") && linea.contains("bounds=")
+                        && linea.contains("clickable=\"true\"")) {
+                    if (linea.contains("android.widget.ImageView") || linea.contains("android.widget.FrameLayout")) {
+                        esPrimeraImagen = true;
+                    }
+                }
 
-                            int idx = linea.indexOf("bounds=\"");
-                            if (idx != -1) {
-                                String bounds = linea.substring(idx + 8, linea.indexOf("\"", idx + 8));
-                                String[] pts = bounds.replaceAll("[\\[\\]]", " ").trim().split("\\s+");
-                                String[] p1 = pts[0].split(",");
-                                String[] p2 = pts[1].split(",");
+                if (!esPrimeraImagen && linea.contains("class=\"android.widget.FrameLayout\"")
+                        && linea.contains("clickable=\"true\"")) {
+                    if (linea.contains("package=\"com.google.android.apps.messaging\"") && linea.contains("bounds=")) {
+                        esPrimeraImagen = true;
+                    }
+                }
 
-                                int x1 = Integer.parseInt(p1[0]);
-                                int y1 = Integer.parseInt(p1[1]);
-                                int x2 = Integer.parseInt(p2[0]);
-                                int y2 = Integer.parseInt(p2[1]);
+                // Si entra en cualquiera de las dos condiciones, extraemos las coordenadas
+                if (esPrimeraImagen) {
+                    int idx = linea.indexOf("bounds=\"");
+                    if (idx != -1) {
+                        String bounds = linea.substring(idx + 8, linea.indexOf("\"", idx + 8));
+                        String[] pts = bounds.replaceAll("[\\[\\]]", " ").trim().split("\\s+");
+                        String[] p1 = pts[0].split(",");
+                        String[] p2 = pts[1].split(",");
 
-                                // Calculamos las proporciones de la cuadrícula
-                                int anchoBoton = x2 - x1;
+                        int x1 = Integer.parseInt(p1[0]);
+                        int y1 = Integer.parseInt(p1[1]);
+                        int x2 = Integer.parseInt(p2[0]);
+                        int y2 = Integer.parseInt(p2[1]);
 
-                                // Calculamos el centro de la primera miniatura (Fila superior)
-                                int xImagenNueva = ((x1 + x2) / 2) + anchoBoton;
-                                int yImagenNueva = y1 + (y2 - y1) / 2;
+                        int xCentro = (x1 + x2) / 2;
+                        int yCentro = (y1 + y2) / 2;
 
-                                System.out.println(
-                                        "[DEBUG-GALERIA] Cámara localizada. Disparando tap único a la derecha: X="
-                                                + xImagenNueva + " Y=" + yImagenNueva);
-
-                                // Ejecutamos el tap y salimos INMEDIATAMENTE del método completo
-                                adb.ejecutarComandoSincrono(serial,
-                                        "shell input tap " + xImagenNueva + " " + yImagenNueva);
-                                return;
-                            }
-                        }
+                        adb.ejecutarComandoSincrono(serial, "shell input tap " + xCentro + " " + yCentro);
+                        return;
                     }
                 }
             }
 
-            // Si los bucles terminan sin hacer return, aplicamos el tiro de emergencia
-            System.out.println("[DEBUG-GALERIA] No se aisló el nodo de forma limpia. Usando cuadrícula estática...");
-            adb.ejecutarComandoSincrono(serial, "shell input tap 240 640");
+            // Si ningún patrón coincide, fallback general de seguridad
+            adb.ejecutarComandoSincrono(serial, "shell input tap 180 1800");
 
         } catch (Exception e) {
-            System.out.println("[DEBUG-GALERIA] Error en cálculo: " + e.getMessage());
-            adb.ejecutarComandoSincrono(serial, "shell input tap 240 640");
+            System.out.println("[DEBUG-GALERIA] Error crítico parseando XML: " + e.getMessage());
+        }
+    }
+
+    private boolean asegurarFocoCajaTexto(String serial, ADBService adb) {
+        int[] coor = obtenerCoordenadasPorId(serial, adb, "com.google.android.apps.messaging:id/compose_message_text");
+        if (coor != null) {
+            adb.ejecutarComandoSincrono(serial, "shell input tap " + coor[0] + " " + coor[1]);
+            try {
+                Thread.sleep(600);
+            } catch (Exception ignored) {
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private boolean verificarYConfigurar7Bits(String serial, ADBService adb, boolean estadoDeseado) {
+        try {
+            adb.ejecutarComandoSincrono(serial,
+                    "shell am start -n com.google.android.apps.messaging/.ui.appsettings.PerSubscriptionSettingsActivity");
+            Thread.sleep(200);
+
+            // Volcar pantalla actual
+            String rutaDump = "/data/local/tmp/dump_7bit_unico.xml";
+            adb.ejecutarComandoSincrono(serial, "shell uiautomator dump " + rutaDump);
+            String xml = adb.ejecutarComandoSincrono(serial, "shell cat " + rutaDump);
+            adb.ejecutarComandoSincrono(serial, "shell rm -f " + rutaDump);
+
+            if (xml == null || xml.isBlank()) {
+                return false;
+            }
+
+            for (String nodo : xml.split(">")) {
+
+                if (nodo.contains("class=\"android.view.ViewGroup\"")
+                        && nodo.contains("package=\"com.google.android.apps.messaging\"")
+                        && nodo.contains("index=\"3\"")) {
+
+                    boolean estadoActual = nodo.contains("checked=\"true\"");
+                    if (estadoActual == estadoDeseado) {
+                        return true;
+                    }
+
+                    int idxBounds = nodo.indexOf("bounds=\"[");
+                    if (idxBounds != -1) {
+                        String bounds = nodo.substring(idxBounds + 8, nodo.indexOf("\"", idxBounds + 8));
+
+                        String[] coorStr = bounds.replace("[", "").replace("]", ",").split(",");
+                        int x = (Integer.parseInt(coorStr[0]) + Integer.parseInt(coorStr[2])) / 2;
+                        int y = (Integer.parseInt(coorStr[1]) + Integer.parseInt(coorStr[3])) / 2;
+
+                        adb.ejecutarComandoSincrono(serial, "shell input tap " + x + " " + y);
+
+                        Thread.sleep(800);
+                        adb.ejecutarComandoSincrono(serial,
+                                "shell am start -n com.google.android.apps.messaging/.ui.ConversationListActivity");
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            System.out.println("[ERROR-7BIT] Error procesando el toggle: " + e.getMessage());
+            return false;
         }
     }
 
     // MSG ── SMS ──────────────────────────────────────────────────────────────
 
     private boolean enviarSMSNumero(String serial, ADBService adb) {
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+
         String r = adb.ejecutarComandoSincrono(serial, "shell am start -a android.intent.action.SENDTO " +
                 "-d sms:" + contactoTestTelefono + " " +
-                "--es sms_body 'Test_SMS_ADB' " +
+                "--es sms_body 'Test_SMS_" + timestamp + "' " +
                 "--ez exit_on_sent true");
         if (r == null || r.toLowerCase().contains("error")) {
             return false;
@@ -5060,7 +5083,7 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
         // Identificador único por fecha y hora exacta
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String textoMensajeUnico = "Test_SMS_" + timestamp;
+        String textoMensajeUnico = "Test_SMS_Recibido_" + timestamp;
 
         System.out.println("[DEBUG-RECIBIR] DUT: " + serial + " | Emisor Físico: " + contactoSerialReceptor);
         System.out.println("[DEBUG-RECIBIR] Buscando ID único de esta prueba: " + textoMensajeUnico);
@@ -5113,59 +5136,58 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
     private boolean enviarMMSNumero(String serial, ADBService adb) {
         String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
-        String asuntoUnico = "MMS_" + timestamp;
+        String asuntoUnico = "Test_MMS_" + timestamp;
         String numeroLimpio = contactoTestTelefono.trim().replaceAll("[^0-9+]", "");
         String rutaImagen = "/sdcard/Pictures/micro_valid.gif";
 
-        System.out.println("[DEBUG-MMS] Terminal: " + serial);
-        System.out.println("[DEBUG-MMS] Asunto Único: " + asuntoUnico);
-
         try {
-            // 1. Inyectar imagen GIF real de 1x1px (43 bytes)
+            // imagen GIF (43 bytes)
             String gifHex = "47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b";
             adb.ejecutarComandoSincrono(serial, "shell \"echo '" + gifHex + "' | xxd -r -p > " + rutaImagen + "\"");
 
-            // CORRECCIÓN REFRESCO: Tal cual lo ejecutaste en PowerShell
             adb.ejecutarComandoSincrono(serial,
                     "shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://" + rutaImagen);
-            Thread.sleep(2000); // Le damos 2 segundos completos para que aparezca en el carrete
+            Thread.sleep(1000);
 
-            // 2. Abrir conversación vacía
+            // Abrir conversación vacía
             adb.ejecutarComandoSincrono(serial, "shell am start -a android.intent.action.SENDTO -d smsto:"
                     + numeroLimpio + " com.google.android.apps.messaging");
-            Thread.sleep(4000);
+            Thread.sleep(3000);
 
-            // 3. Tu método de adjuntar (el que funciona bien)
-            System.out.println("[DEBUG-MMS] Desplegando menú multimedia...");
+            // Desplegar menú multimedia
             simularClickBotonAdjuntar(serial, adb);
-            Thread.sleep(2500);
-
-            // 4. Seleccionar la primera imagen (Método nuevo ultra-preciso abajo)
-            System.out.println("[DEBUG-MMS] Seleccionando el GIF...");
-            simularClickPrimeraImagenGaleria(serial, adb);
-            Thread.sleep(2500);
-
-            // 5. Escribir texto post-adjuntar
-            System.out.println("[DEBUG-MMS] Introduciendo el asunto del mensaje...");
-            Thread.sleep(500);
-            adb.ejecutarComandoSincrono(serial, "shell input text '" + asuntoUnico + "'");
             Thread.sleep(1500);
 
-            // 6. Disparar envío
-            System.out.println("[DEBUG-MMS] Pulsando enviar...");
+            // Seleccionar la primera imagen
+            simularClickPrimeraImagenGaleria(serial, adb);
+            Thread.sleep(2000);
+
+            // Forzar foco en el campo de texto antes de escribir
+            boolean focoEstablecido = asegurarFocoCajaTexto(serial, adb);
+            if (!focoEstablecido) {
+                adb.ejecutarComandoSincrono(serial, "shell input tap 300 1500");
+                Thread.sleep(800);
+            }
+
+            // Escribir texto
+            adb.ejecutarComandoSincrono(serial, "shell input text '" + asuntoUnico + "'");
+            Thread.sleep(1000);
+
+            // Disparar envío
             simularClickEnviar(serial, adb);
             Thread.sleep(4000);
 
-            // 7. Verificación en Base de Datos
+            // Verificación en Base de Datos
             String check = adb.ejecutarComandoSincrono(serial,
                     "shell content query --uri content://mms --projection _id --where \"sub='" + asuntoUnico + "'\"");
 
-            return (check != null && check.contains("Row:"));
+            boolean exito = (check != null && check.contains("Row:"));
+            return exito;
 
         } catch (Exception e) {
             return false;
         } finally {
-            // Limpieza
+            // Limpieza de entorno
             adb.ejecutarComandoSincrono(serial, "shell rm -f " + rutaImagen);
             adb.ejecutarComandoSincrono(serial,
                     "shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://" + rutaImagen);
@@ -5182,65 +5204,200 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
             return false;
         }
 
-        adb.ejecutarComandoSincrono(contactoSerialReceptor, "shell am start -a android.intent.action.SENDTO " +
-                "-d mmsto:" + contactoTestTelefonoDUT + " " +
-                "--es subject 'Test_MMS_recv' " +
-                "--es sms_body 'MMS_recibido_ADB'");
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-        }
-        adb.ejecutarComandoSincrono(contactoSerialReceptor,
-                "shell input keyevent KEYCODE_ENTER");
-        try {
-            Thread.sleep(8000);
-        } catch (InterruptedException e) {
-        }
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String asunto = "Test_MMS_Recibido_" + timestamp;
+        String rutaImagenEmisor = "/sdcard/Pictures/micro_recv.gif";
 
-        String check = adb.ejecutarComandoSincrono(serial, "shell content query --uri content://mms/inbox " +
-                "--projection _id --sort \"date DESC\"");
-        return check != null && !check.isBlank() && !check.contains("No result found");
+        try {
+            // Preparar Imagen en el emisor
+            String gifHex = "47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b";
+            adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                    "shell \"echo '" + gifHex + "' | xxd -r -p > " + rutaImagenEmisor + "\"");
+            adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                    "shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://"
+                            + rutaImagenEmisor);
+            Thread.sleep(2000);
+
+            // Abrir la conversación del emisor
+            adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                    "shell am start -a android.intent.action.SENDTO -d smsto:"
+                            + contactoTestTelefonoDUT + " com.google.android.apps.messaging");
+            Thread.sleep(3000);
+
+            // Emisor despliega menú multimedia
+            simularClickBotonAdjuntar(contactoSerialReceptor, adb);
+            Thread.sleep(1500);
+
+            // Emisor selecciona la imagen
+            simularClickPrimeraImagenGaleria(contactoSerialReceptor, adb);
+            Thread.sleep(2000);
+
+            // Emisor asegura el foco de la caja de texto
+            boolean focoEstablecido = asegurarFocoCajaTexto(contactoSerialReceptor, adb);
+            if (!focoEstablecido) {
+                adb.ejecutarComandoSincrono(contactoSerialReceptor, "shell input tap 300 1500");
+                Thread.sleep(800);
+            }
+
+            // Emisor manda el mensaje
+            adb.ejecutarComandoSincrono(contactoSerialReceptor, "shell input text '" + asunto + "'");
+            Thread.sleep(1000);
+
+            simularClickEnviar(contactoSerialReceptor, adb);
+            Thread.sleep(10000);
+
+            // Verificación base de datos del RECEPTOR (DUT)
+            String check = adb.ejecutarComandoSincrono(serial,
+                    "shell content query --uri content://mms/part --projection _id --where \"text='" + asunto + "'\"");
+
+            System.out.println("check///" + check);
+            boolean recibido = (check != null && check.contains("Row:"));
+            System.out.println("recibido///" + recibido);
+            return recibido;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            // Limpieza imagen
+            adb.ejecutarComandoSincrono(contactoSerialReceptor, "shell rm -f " + rutaImagenEmisor);
+            adb.ejecutarComandoSincrono(contactoSerialReceptor,
+                    "shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://"
+                            + rutaImagenEmisor);
+        }
     }
 
     // MSG ── Borrar conversaciones ────────────────────────────────────────────
 
     private boolean borrarUnaConversacion(String serial, ADBService adb) {
-        // Obtener el thread_id más reciente
-        String threadStr = adb.ejecutarComandoSincrono(serial, "shell content query --uri content://sms " +
-                "--projection thread_id --sort \"date DESC\"");
-        if (threadStr == null || threadStr.isBlank()) {
-            return false;
-        }
+        System.out.println("[INFO-MMS] Iniciando borrado real por interfaz (Mínimo impacto)...");
 
-        String threadId = "";
-        for (String linea : threadStr.split("\n")) {
-            if (linea.contains("thread_id")) {
-                threadId = linea.replaceAll("[^0-9]", "").trim();
-                if (!threadId.isEmpty()) {
+        try {
+            // 1. Forzar apertura de la pantalla principal de Google Mensajes
+            String[] selectoresBandejaEntrada = {
+                    "com.google.android.apps.messaging:id/swipeableContainer",
+                    "com.google.android.apps.messaging:id/conversation_list_item_view",
+                    "com.google.android.apps.messaging:id/conversation_row",
+                    "com.google.android.apps.messaging:id/conversation_item_layout"
+            };
+
+            int[] coorChat = null;
+            for (String selector : selectoresBandejaEntrada) {
+                coorChat = obtenerCoordenadasPorId(serial, adb, selector);
+                if (coorChat != null) {
+                    System.out.println("[INFO-MMS] Chat localizado usando el selector: " + selector);
                     break;
                 }
             }
-        }
-        if (threadId.isEmpty()) {
+            if (coorChat == null) {
+                System.out.println(
+                        "[WARN-MMS] No se detectó ninguna celda de chat con los selectores conocidos. ¿Bandeja vacía?");
+                return false;
+            }
+
+            System.out.println("[INFO-MMS] Seleccionando conversación (Long Press - Swipe Estático)...");
+
+            adb.ejecutarComandoSincrono(serial,
+                    "shell input draganddrop " + coorChat[0] + " " + coorChat[1] + " " + coorChat[0] + " " + coorChat[1]
+                            + " 1500");
+
+            Thread.sleep(3000);
+
+            // PASO 2: Buscar el icono de la Papelera en la barra superior y pulsar
+            String[] selectoresPapelera = {
+                    "com.google.android.apps.messaging:id/action_delete",
+                    "com.google.android.apps.messaging:id/delete",
+                    "com.google.android.apps.messaging:id/menu_delete"
+            };
+            int[] coorPapelera = null;
+            for (String selector : selectoresPapelera) {
+                coorPapelera = obtenerCoordenadasPorId(serial, adb, selector);
+                if (coorPapelera != null) {
+                    System.out.println("[INFO-MMS] Botón Papelera localizado usando: " + selector);
+                    break;
+                }
+            }
+
+            if (coorPapelera == null) {
+                System.out.println("[WARN-MMS] No se localizó el botón de la papelera en la barra de herramientas.");
+                return false;
+            }
+            System.out.println("[INFO-MMS] Pulsando icono de eliminación (Papelera)...");
+            adb.ejecutarComandoSincrono(serial, "shell input tap " + coorPapelera[0] + " " + coorPapelera[1]);
+            Thread.sleep(1200);
+
+            // PASO 3: Buscar el botón "Eliminar/Aceptar" en el diálogo emergente y
+            // confirmar
+            String[] selectoresConfirmar = {
+                    "android:id/button1",
+                    "com.google.android.apps.messaging:id/positive_button",
+                    "com.google.android.apps.messaging:id/confirm_delete_button"
+            };
+
+            int[] coorConfirmar = null;
+            for (String selector : selectoresConfirmar) {
+                coorConfirmar = obtenerCoordenadasPorId(serial, adb, selector);
+                if (coorConfirmar != null) {
+                    System.out.println("[INFO-MMS] Botón de confirmación localizado usando: " + selector);
+                    break;
+                }
+            }
+
+            if (coorConfirmar == null) {
+                System.out.println("[WARN-MMS] No se encontró el botón de confirmación en el cuadro de diálogo.");
+                return false;
+            }
+
+            System.out.println("[INFO-MMS] Confirmando eliminación en el cuadro de diálogo...");
+            adb.ejecutarComandoSincrono(serial, "shell input tap " + coorConfirmar[0] + " " + coorConfirmar[1]);
+            Thread.sleep(1500);
+
+            return true;
+
+        } catch (Exception e) {
+            System.out.println("[ERROR-MMS] Error durante el proceso de borrado: " + e.getMessage());
             return false;
         }
-
-        String r = adb.ejecutarComandoSincrono(serial, "shell content delete --uri content://sms " +
-                "--where \"thread_id=" + threadId + "\"");
-        return r != null && !r.toLowerCase().contains("error");
     }
 
     private boolean borrarTodasConversaciones(String serial, ADBService adb) {
-        adb.ejecutarComandoSincrono(serial, "shell content delete --uri content://sms");
+        int maxIntentos = 20;
+        int intento = 1;
+        boolean sigoBorrando = true;
 
-        // Verificar que se borraron
-        String check = adb.ejecutarComandoSincrono(serial, "shell content query --uri content://sms --projection _id");
-        return check == null || check.contains("No result found") || check.isBlank();
+        adb.ejecutarComandoSincrono(serial,
+                "shell am start -n com.google.android.apps.messaging/.ui.ConversationListActivity");
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+        }
+
+        while (sigoBorrando && intento <= maxIntentos) {
+            boolean borradoExitoso = borrarUnaConversacion(serial, adb);
+
+            if (!borradoExitoso) {
+                sigoBorrando = false;
+            } else {
+                intento++;
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+        if (intento > maxIntentos) {
+            return false;
+        }
+        return true;
     }
 
     // MSG ── SMSC y configuración ─────────────────────────────────────────────
 
     private boolean enviarSMSCaracteresEspeciales(String serial, ADBService adb) {
+        verificarYConfigurar7Bits(serial, adb, false);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ignored) {
+        }
+
         String r = adb.ejecutarComandoSincrono(serial, "shell am start -a android.intent.action.SENDTO " +
                 "-d sms:" + contactoTestTelefono + " " +
                 "--es sms_body 'ÁÉÍÓÚáéíóú' " +
@@ -5258,6 +5415,12 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     }
 
     private boolean enviarSMSLargo(String serial, ADBService adb) {
+        verificarYConfigurar7Bits(serial, adb, true);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ignored) {
+        }
+
         // 159 caracteres que poder comprobar el popup de los 160
         String textoLargo = "A".repeat(159);
         String r = adb.ejecutarComandoSincrono(serial,
@@ -5279,11 +5442,20 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
     private boolean enviarSMSSinOptimizacion(String serial, ADBService adb) {
         // Desactivar optimización
-        adb.ejecutarComandoSincrono(serial, "shell settings put global sms_encoding_type 1");
+        verificarYConfigurar7Bits(serial, adb, false);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ignored) {
+        }
+
         boolean ok = enviarSMSCaracteresEspeciales(serial, adb);
 
         // Restaurar
-        adb.ejecutarComandoSincrono(serial, "shell settings put global sms_encoding_type 0");
+        verificarYConfigurar7Bits(serial, adb, true);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ignored) {
+        }
         return ok;
     }
 
@@ -5291,12 +5463,15 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
         // Desactivar datos móviles
         adb.ejecutarComandoSincrono(serial, "shell svc data disable");
         try {
-            Thread.sleep(2000);
+            Thread.sleep(3500);
         } catch (InterruptedException e) {
         }
 
         boolean ok = enviarMMSNumero(serial, adb);
-
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+        }
         // Restaurar datos
         adb.ejecutarComandoSincrono(serial, "shell svc data enable");
         return ok;
@@ -5416,6 +5591,39 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
             }
         }
         return false;
+    }
+
+    private int[] obtenerCoordenadasPorId(String serial, ADBService adb, String resourceId) {
+        try {
+            String rutaDump = "/data/local/tmp/dump_" + System.currentTimeMillis() + ".xml";
+            adb.ejecutarComandoSincrono(serial, "shell uiautomator dump " + rutaDump);
+            String xml = adb.ejecutarComandoSincrono(serial, "shell cat " + rutaDump);
+            adb.ejecutarComandoSincrono(serial, "shell rm -f " + rutaDump); // Mantener el dispositivo limpio
+
+            if (xml == null || xml.isBlank() || !xml.contains(resourceId)) {
+                return null;
+            }
+
+            for (String linea : xml.split(">")) {
+                if (linea.contains(resourceId) && linea.contains("bounds=")) {
+                    int idx = linea.indexOf("bounds=\"");
+                    if (idx != -1) {
+                        String bounds = linea.substring(idx + 8, linea.indexOf("\"", idx + 8));
+                        String[] pts = bounds.replaceAll("[\\[\\]]", " ").trim().split("\\s+");
+
+                        int x1 = Integer.parseInt(pts[0].split(",")[0]);
+                        int y1 = Integer.parseInt(pts[0].split(",")[1]);
+                        int x2 = Integer.parseInt(pts[1].split(",")[0]);
+                        int y2 = Integer.parseInt(pts[1].split(",")[1]);
+
+                        return new int[] { (x1 + x2) / 2, (y1 + y2) / 2 };
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("[WARN-MMS] Error parseando ID " + resourceId + ": " + e.getMessage());
+        }
+        return null;
     }
 
     public File obtenerApkDeResources(String nombreApk) {

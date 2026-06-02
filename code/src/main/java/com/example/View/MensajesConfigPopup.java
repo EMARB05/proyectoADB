@@ -77,8 +77,7 @@ public class MensajesConfigPopup {
         lblTelDUT.setFont(Font.font(11));
 
         TextField txtTelDUT = new TextField(resultadoTelefonoDUT[0]);
-        // txtTelDUT.setPromptText("Ej: +34698765432");
-        txtTelDUT.setText("615055709");
+        txtTelDUT.setPromptText("Ej: +34698765432");
         txtTelDUT.setStyle(
                 "-fx-background-color: #313244;" +
                 "-fx-text-fill: #cdd6f4;" +
@@ -95,8 +94,8 @@ public class MensajesConfigPopup {
         lblTelReceptor.setFont(Font.font(11));
 
         TextField txtTelReceptor = new TextField(resultadoTelefono[0]);
-        // txtTelReceptor.setPromptText("Ej: +34612345678");
-        txtTelReceptor.setText("673645178");
+        txtTelReceptor.setPromptText("Ej: +34612345678");
+
         txtTelReceptor.setStyle(
                 "-fx-background-color: #313244;" +
                 "-fx-text-fill: #cdd6f4;" +
