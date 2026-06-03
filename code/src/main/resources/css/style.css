@@ -64,7 +64,7 @@
     -fx-text-fill: #11111b;
     -fx-background-radius: 5;
     -fx-font-weight: bold;
-    
+    -fx-cursor: hand;
 }
 #btnEjecutar:hover{
  -fx-background-color: #2882e9;
@@ -75,6 +75,7 @@
     -fx-background-color:#cba6f7; /* Gris oscuro para acción secundaria */
     -fx-text-fill: #1e1d3a;
     -fx-background-radius: 5;
+    -fx-cursor: hand;
 }
 
 

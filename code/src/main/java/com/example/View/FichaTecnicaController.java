@@ -314,7 +314,7 @@ public class FichaTecnicaController implements DispositivoAware {
             stage.setTitle("Gestión de Dispositivo - " + lblNombreModelo.getText());
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setScene(new Scene(root));
-            stage.setMinWidth(400);
+            stage.setMinWidth(485);
             stage.setMinHeight(300);
             stage.show();
 
@@ -465,8 +465,4 @@ public class FichaTecnicaController implements DispositivoAware {
         fadeOut.setOnFinished(e -> rootPane.getChildren().remove(toast));
         new javafx.animation.SequentialTransition(fadeIn, pausa, fadeOut).play();
     }
-
- 
-
-
 }
