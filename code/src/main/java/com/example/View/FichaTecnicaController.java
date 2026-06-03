@@ -465,8 +465,4 @@ public class FichaTecnicaController implements DispositivoAware {
         fadeOut.setOnFinished(e -> rootPane.getChildren().remove(toast));
         new javafx.animation.SequentialTransition(fadeIn, pausa, fadeOut).play();
     }
-
- 
-
-
 }

@@ -5651,7 +5651,7 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 new BloquePrueba(true, "SOFT.028.001", "Open browser and surf on the internet",
                         "shell am start -a android.intent.action.VIEW -d https://www.google.com"),
                 new BloquePrueba(true, "SOFT.028.002", "See an online video",
-                        "shell am start -a android.intent.action.VIEW -d https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+                        "shell am start -a android.intent.action.VIEW -d https://www.youtube.com/watch?v=dQw4w9WgXcQ", true),
                 new BloquePrueba("SOFT.028.003", "Download an image",
                         "shell am start -a android.intent.action.VIEW -d https://www.gstatic.com/webp/gallery/1.jpg",
                         true),
