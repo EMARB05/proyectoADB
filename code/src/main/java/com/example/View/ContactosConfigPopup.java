@@ -119,7 +119,7 @@ public class ContactosConfigPopup {
 
                         // Si ya existía un receptor guardado previamente, lo buscamos y
                         // pre-seleccionamos
-                        if (resultadoSerialReceptor[0] != null && !resultadoSerialReceptor[0].isEmpty()) {
+                        if (resultadoSerialReceptor[0] != null && !resultadoSerialReceptor[0].isBlank()) {
                                 for (DispositivoCombo dc : otrosDispositivos) {
                                         if (dc.getSerial().equals(resultadoSerialReceptor[0])) {
                                                 cmbReceptor.getSelectionModel().select(dc);
