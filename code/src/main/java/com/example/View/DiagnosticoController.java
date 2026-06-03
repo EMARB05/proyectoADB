@@ -5338,12 +5338,24 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
         }
 
         // Obtener otros dispositivos
-        List<String> otrosSeriales = new ArrayList<>();
+        List<DispositivoCombo> otrosDispositivos = new ArrayList<>();
         try {
             Map<String, String> todos = adb.obtenerDispositivosConectados();
             for (Map.Entry<String, String> entry : todos.entrySet()) {
-                if (!entry.getValue().equals(serial)) {
-                    otrosSeriales.add(entry.getValue());
+                String serialDispositivo = entry.getValue();
+
+                if (!serialDispositivo.equals(serial)) {
+                    try {
+                        Dispositivo disp = adb.obtenerProps(serialDispositivo);
+                        String nombreModeloDispositivo = disp.getModelo().getNombreModelo();
+                        String androidIdDispositivo = disp.getAndroid_id();
+                        otrosDispositivos.add(
+                                new DispositivoCombo(nombreModeloDispositivo, serialDispositivo, androidIdDispositivo));
+                    } catch (IOException e) {
+                        String androidIdFallback = entry.getKey();
+                        otrosDispositivos.add(new DispositivoCombo("Dispositivo (" + serialDispositivo + ")",
+                                serialDispositivo, androidIdFallback));
+                    }
                 }
             }
         } catch (IOException e) {
@@ -5356,7 +5368,8 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
         Stage owner = (Stage) btnEjecutar.getScene().getWindow();
 
-        boolean confirmado = MensajesConfigPopup.mostrar(otrosSeriales, telefono, telefonoDUT, serialReceptor, owner);
+        boolean confirmado = MensajesConfigPopup.mostrar(otrosDispositivos, telefono, telefonoDUT, serialReceptor,
+                owner);
 
         if (!confirmado) {
             return;
@@ -5689,8 +5702,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
             String check = adb.ejecutarComandoSincrono(serial,
                     "shell content query --uri content://sms --projection address:body");
 
-            System.out.println("[DEBUG-RECIBIR] Intento " + (i + 1) + " - VOLCADO COMPLETO DE SMS:\n" + check);
-
             if (check == null || check.contains("not found") || check.contains("Exception")
                     || check.contains("Error")) {
                 continue;
@@ -5698,8 +5709,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
             // Validamos si nuestro código único aparece en algún rincón del volcado total
             if (check.contains(textoMensajeUnico)) {
-                System.out
-                        .println("[DEBUG-RECIBIR] ¡ÉXITO! Mensaje de la conversación actual detectado en el volcado.");
                 return true;
             }
         }
