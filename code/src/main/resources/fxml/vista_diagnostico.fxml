@@ -114,7 +114,7 @@
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">
                                 <FontIcon iconLiteral="fas-info-circle" iconSize="24" iconColor="#517fff"/>
-                                <Label text="Info" style="-fx-font-size: 9px;"/>
+                                <Label text="INFO" style="-fx-font-size: 9px;"/>
                             </VBox>
                         </graphic>
                     </Button>
@@ -142,7 +142,7 @@
                            </VBox>
                       </graphic>
                     </Button>
-                    <Button onAction="#addMusicTest" styleClass="btn-hw,btn-modern">
+                    <Button fx:id="btnMusic" onAction="#addMusicTest" styleClass="btn-hw,btn-modern">
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">
                                  <FontIcon iconLiteral="fas-music" iconSize="24" iconColor="#94e2d5"/>
@@ -151,7 +151,7 @@
                         </graphic>
                     </Button>
 
-                    <Button onAction="#addAdditionalSettingsTest" styleClass="btn-hw,btn-modern">
+                    <Button fx:id="btnAdditionalSettings" onAction="#addAdditionalSettingsTest" styleClass="btn-hw,btn-modern">
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">
                                 <FontIcon iconLiteral="fas-sliders-h" iconSize="24" iconColor="#89eb91"/>
@@ -164,7 +164,7 @@
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">
                                 <FontIcon iconLiteral="fas-users" iconSize="24" iconColor="#e9753f"/>
-                                <Label text="Contacts" style="-fx-font-size: 9px;"/>
+                                <Label text="CONTACTS" style="-fx-font-size: 9px;"/>
                             </VBox>
                         </graphic>
                     </Button>
@@ -172,7 +172,7 @@
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">
                                 <FontIcon iconLiteral="far-calendar-alt" iconSize="24" iconColor="#21d188"/>
-                                <Label text="Calendar" style="-fx-font-size: 9px;"/>
+                                <Label text="CALENDAR" style="-fx-font-size: 9px;"/>
                             </VBox>
                         </graphic>
                     </Button>
@@ -180,7 +180,7 @@
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">
                                 <FontIcon iconLiteral="fas-envelope" iconSize="24" iconColor="#b65ca2"/>
-                                <Label text="Messages" style="-fx-font-size: 9px;"/>
+                                <Label text="MESSAGES" style="-fx-font-size: 9px;"/>
                             </VBox>
                         </graphic>
                     </Button>
@@ -231,7 +231,7 @@
                                 </VBox>
                             </graphic>
                         </Button>
-                        <Button onAction="#addTouchScreenTest" styleClass="btn-hw,btn-modern">
+                        <Button fx:id="btnTouchScreen" onAction="#addTouchScreenTest" styleClass="btn-hw,btn-modern">
                             <graphic>
                                 <VBox alignment="CENTER" spacing="5">
                                     <FontIcon iconLiteral="fas-fingerprint" iconSize="24" iconColor="#dcfbff"/>
@@ -243,7 +243,7 @@
                             <graphic>
                                 <VBox alignment="CENTER" spacing="5">
                                     <FontIcon iconLiteral="fas-expand" iconSize="24" iconColor="#36fc61"/>
-                                    <Label text="Display" style="-fx-font-size: 9px;"/>
+                                    <Label text="DISPLAY" style="-fx-font-size: 9px;"/>
                                 </VBox>
                             </graphic>
                         </Button>
@@ -259,7 +259,7 @@
                     <graphic>
                         <VBox alignment="CENTER" spacing="5">
                              <FontIcon iconLiteral="fab-bluetooth" iconSize="24" iconColor="#2979FF"/>
-                             <Label text="Bluetooth" style="-fx-font-size: 9px;"/>
+                             <Label text="BLUETOOTH" style="-fx-font-size: 9px;"/>
                         </VBox>
                     </graphic>
                 </Button>
@@ -319,7 +319,7 @@
                     styleClass="btnEjecutar" style="-fx-padding: 10"/>
             <Button fx:id="btnInforme" text="INFORME" onAction="#generarInformePDF"
                     disable="true" styleClass="#btnInforme" style="-fx-padding: 10"/>
-            <Button fx:id="btnLimpiar" text="Limpiar" onAction="#limpiarPasos" styleClass="btn-footer">
+            <Button fx:id="btnLimpiar" text="LIMPIAR" onAction="#limpiarPasos" styleClass="btn-footer">
                 <graphic>
                     <ImageView fitHeight="18" fitWidth="18" preserveRatio="true">
                         <image><Image url="@../img/borrar.png"/></image>

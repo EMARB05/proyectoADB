@@ -82,10 +82,17 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private ToggleButton btnIotCompleta;
     @FXML
     private ToggleButton btnIotExpress;
+    
     @FXML
     private Button btnHotDial;
     @FXML
     private Button btnCallTimer;
+    @FXML
+    private Button btnAdditionalSettings;
+    @FXML
+    private Button btnTouchScreen;
+    @FXML
+    private Button btnMusic;
 
     @FXML
     private ScrollPane scrollCategorias;
@@ -268,11 +275,22 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                                     "-fx-padding: 10; " +
                                     "-fx-cursor: hand;");
 
+                    
+
                     btnHotDial.setVisible(true);
                     btnHotDial.setManaged(true);
 
                     btnCallTimer.setVisible(true);
                     btnCallTimer.setManaged(true);
+
+                    btnAdditionalSettings.setVisible(true);
+                    btnAdditionalSettings.setManaged(true);
+
+                    btnTouchScreen.setVisible(true);
+                    btnTouchScreen.setManaged(true);
+
+                    btnMusic.setVisible(true);
+                    btnMusic.setManaged(true);
                 } else {
                     btnIotExpress
                             .setStyle("-fx-background-color: #a6e3a1; -fx-text-fill: #1e1e2e; -fx-font-weight: bold;");
@@ -293,6 +311,15 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                     btnCallTimer.setVisible(false);
                     btnCallTimer.setManaged(false);
+
+                    btnAdditionalSettings.setVisible(false);
+                    btnAdditionalSettings.setManaged(false);
+
+                    btnTouchScreen.setVisible(false);
+                    btnTouchScreen.setManaged(false);
+
+                    btnMusic.setVisible(false);
+                    btnMusic.setManaged(false);
                 }
             }
         });
@@ -2062,10 +2089,10 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
     private void addBluetoothTest() {
         List<BloquePrueba> bloqueBluetooth = List.of(
                 // SOFT.023.001 usa nuestro método customizado para el nombre
-                new BloquePrueba("SOFT.023.001", "Check name of bluetooth device",
+                new BloquePrueba(true,"SOFT.023.001", "Check name of bluetooth device",
                         "shell settings get secure bluetooth_name"),
 
-                new BloquePrueba("SOFT.023.002", "Pair new device via bluetooth",
+                new BloquePrueba(true,"SOFT.023.002", "Pair new device via bluetooth",
                         "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
 
                 new BloquePrueba("SOFT.023.003", "Send a file to paired device",
@@ -2074,7 +2101,7 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 new BloquePrueba("SOFT.023.004", "Receive a file from paired device",
                         "__OPP_RECEIVE_FILE_MANUAL__", true),
 
-                new BloquePrueba("SOFT.023.005", "Forget paired device",
+                new BloquePrueba(true, "SOFT.023.005", "Forget paired device",
                         "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
 
                 new BloquePrueba("SOFT.023.006", "Connect DUT to several bluetooth headsets",
@@ -2104,15 +2131,22 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 new BloquePrueba("SOFT.023.013", "Reboot DUT and check if bluetooth headsets connect again",
                         "reboot", true));
 
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueBluetooth.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueBluetooth;
+
         Stage owner = (Stage) btnEjecutar.getScene().getWindow();
         SelectorPruebasPopup.mostrar(
                 "SOFT.023 — Bluetooth Functions",
-                bloqueBluetooth,
+                bloquesAFiltrar,
                 owner,
                 seleccionadas -> seleccionadas.stream()
                         .map(BloquePrueba::toPasoPrueba)
                         .forEach(pasos::add));
     }
+
     // =========================================================================
     // METODOS DE SOPORTE PARA LAS PRUEBAS DE BLUETOOTH
     // =========================================================================
