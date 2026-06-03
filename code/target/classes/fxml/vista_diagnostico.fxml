@@ -151,6 +151,15 @@
                         </graphic>
                     </Button>
 
+                    <Button onAction="#addAdditionalSettingsTest" styleClass="btn-hw,btn-modern">
+                        <graphic>
+                            <VBox alignment="CENTER" spacing="5">
+                                <FontIcon iconLiteral="fas-sliders-h" iconSize="24" iconColor="#89eb91"/>
+                                <Label text="ADDITIONAL SETTINGS" style="-fx-font-size: 9px;"/>
+                            </VBox>
+                        </graphic>
+                    </Button>
+
                     <Button onAction="#addContactsTest" styleClass="btn-hw,btn-modern">
                         <graphic>
                             <VBox alignment="CENTER" spacing="5">

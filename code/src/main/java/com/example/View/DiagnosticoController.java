@@ -27,6 +27,7 @@ import com.example.Model.Entradas;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
+import com.example.Model.SC04;
 import com.example.Model.PasoPrueba;
 import com.example.Model.PerfilDialer;
 import com.example.View.ContactosConfigPopup.DispositivoCombo;
@@ -1017,7 +1018,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 serialActivo = adb.getSerialActivo(dispositivoActual.getAndroid_id());
             } catch (IOException e) {
                 serialActivo = dispositivoActual.getSerialNumber();
-                System.out.println("[DIAG] Fallback serial: " + serialActivo);
             }
             final String serial = serialActivo;
 
@@ -1057,9 +1057,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                         ref.getComandos().get(0).contains("mAudioRoutes")) {
 
                     if (!adb.tieneAuricularConectado(serial)) {
-
-                        System.out.println("[FM] ✖ Auricular no conectado — prueba saltada");
-
                         final PasoPrueba refFinal = ref;
 
                         Platform.runLater(() -> {
@@ -1070,8 +1067,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
 
                         continue;
                     }
-
-                    System.out.println("[FM] ✔ Auricular detectado — continuando prueba");
                 }
 
                 if ("__MO_CALL_DURATION_CHECK__".equals(ref.getComando())) {
@@ -1081,6 +1076,345 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 } else if ("__MO_CALL_AUTO_HANGUP_CHECK__".equals(ref.getComando())) {
                     ok = ejecutarCallAutoHangupCheck(serial, paso);
 
+                } else if ("__SC04_CALLER_ID_NETWORK_DEFAULT__".equals(ref.getComando())) {
+                    LlamadasD17 llamadas = new LlamadasD17(serial);
+                    try {
+                        actualizarEstadoPaso(paso, "Abriendo ajustes de Caller ID...");
+                        ejecutarAccionHilo(serial, Entradas.secuencia(
+                                "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                                "sleep 2",
+                                Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.ok(),
+                                Entradas.unSegundo(),
+                                Entradas.ok()));
+                        Thread.sleep(1_500L);
+
+                        String numero = solicitarNumeroLlamada(owner, "Caller ID - Network default",
+                                "Introduce el número al que quieres llamar:");
+                        if (numero == null || numero.isBlank()) {
+                            actualizarEstadoPaso(paso, "Cancelado por el usuario");
+                            ok = false;
+                        } else {
+                            String numeroLimpio = numero.replaceAll("\\s+", "").trim();
+                            actualizarEstadoPaso(paso, "Llamando a " + numeroLimpio + "...");
+                            ejecutarShellEnSerial(serial,
+                                    "am start -a android.intent.action.CALL -d tel:" + numeroLimpio);
+
+                            boolean llamadaActiva = false;
+                            for (int intento = 0; intento < 10; intento++) {
+                                Thread.sleep(1_000L);
+                                if (llamadaActiva(serial)) {
+                                    llamadaActiva = true;
+                                    break;
+                                }
+                            }
+
+                            if (!llamadaActiva) {
+                                ejecutarShellEnSerial(serial,
+                                        "am start -a android.intent.action.CALL -d tel:" + numeroLimpio);
+                                for (int intento = 0; intento < 5; intento++) {
+                                    Thread.sleep(1_000L);
+                                    if (llamadaActiva(serial)) {
+                                        llamadaActiva = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            ok = llamadaActiva;
+                            if (ok) {
+                                ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
+                            } else {
+                                outputDetalle = "No se pudo iniciar la llamada";
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        ok = false;
+                        outputDetalle = "Interrumpido durante la preparación de la llamada";
+                    }
+
+                } else if ("__SC04_CALLER_ID_HIDE_NUMBER__".equals(ref.getComando())) {
+                    try {
+                        actualizarEstadoPaso(paso, "Abriendo menú y configurando Hide Number...");
+
+                        // 1. Aseguramos que el diálogo se abra (Misma navegación base que el paso 1)
+                        ejecutarAccionHilo(serial, Entradas.secuencia(
+                                "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                                "sleep 2",
+                                Entradas.abajo(), Entradas.abajo(), Entradas.abajo(), Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.ok(), "sleep 2", Entradas.ok(),
+                                "sleep 1",
+                                Entradas.abajo(),
+                                Entradas.ok() // Abre el diálogo flotante
+                        ));
+                        Thread.sleep(2500L); // Esperamos a que el diálogo aparezca en pantalla
+                        // 3. Realizar llamada de prueba
+                        owner = (Stage) btnEjecutar.getScene().getWindow();
+                        String numero = solicitarNumeroLlamada(owner, "Caller ID - Hide number",
+                                "Introduce el número al que quieres llamar:");
+
+                        if (numero == null || numero.isBlank()) {
+                            actualizarEstadoPaso(paso, "Cancelado por el usuario");
+                            ok = false;
+                        } else {
+                            String numeroLimpio = numero.replaceAll("\\s+", "").trim();
+                            actualizarEstadoPaso(paso, "Llamando a " + numeroLimpio + " (Oculto)...");
+                            ejecutarShellEnSerial(serial,
+                                    "am start -a android.intent.action.CALL -d tel:" + numeroLimpio);
+
+                            boolean llamadaActiva = false;
+                            for (int intento = 0; intento < 10; intento++) {
+                                Thread.sleep(1000L);
+                                if (llamadaActiva(serial)) {
+                                    llamadaActiva = true;
+                                    break;
+                                }
+                            }
+
+                            ok = llamadaActiva;
+                            if (ok) {
+                                ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
+                            } else {
+                                outputDetalle = "No se pudo iniciar la llamada";
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        ok = false;
+                    }
+                } else if ("__SC04_CALLER_ID_SHOW_NUMBER__".equals(ref.getComando())) {
+                    try {
+                        actualizarEstadoPaso(paso, "Abriendo menú y configurando Show Number...");
+
+                        // Unificamos la secuencia completa para Show Number
+                        ejecutarAccionHilo(serial, Entradas.secuencia(
+                                "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                                "sleep 2",
+                                Entradas.ok(),
+                                "sleep 2",
+                                Entradas.abajo(), // 2. Baja a la opción "Show number"
+                                "sleep 1",
+                                Entradas.ok() // 3. Confirma con OK
+                        ));
+
+                        // Damos margen a que el teléfono responda antes de lanzar la interfaz de
+                        // llamada
+                        Thread.sleep(4000L);
+
+                        // 3. Realizar llamada de prueba
+                        owner = (Stage) btnEjecutar.getScene().getWindow();
+                        String numero = solicitarNumeroLlamada(owner, "Caller ID - Show number",
+                                "Introduce el número al que quieres llamar:");
+
+                        if (numero == null || numero.isBlank()) {
+                            actualizarEstadoPaso(paso, "Cancelado por el usuario");
+                            ok = false;
+                        } else {
+                            String numeroLimpio = numero.replaceAll("\\s+", "").trim();
+                            actualizarEstadoPaso(paso, "Llamando a " + numeroLimpio + " (Mostrando número)...");
+                            ejecutarShellEnSerial(serial,
+                                    "am start -a android.intent.action.CALL -d tel:" + numeroLimpio);
+
+                            boolean llamadaActiva = false;
+                            for (int intento = 0; intento < 10; intento++) {
+                                Thread.sleep(1000L);
+                                if (llamadaActiva(serial)) {
+                                    llamadaActiva = true;
+                                    break;
+                                }
+                            }
+
+                            ok = llamadaActiva;
+                            if (ok) {
+                                ok = ConfirmacionManualPopup.mostrarYEsperar(ref.getNombre(), owner);
+                            } else {
+                                outputDetalle = "No se pudo iniciar la llamada";
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        ok = false;
+                    }
+                } else if ("__SC04_USSD_PRIVATE_APN_CHECK__".equals(ref.getComando())) {
+                    try {
+                        actualizarEstadoPaso(paso, "Probando código USSD *31# (Ocultar)...");
+
+                        // 1. Marcamos el código USSD automáticamente
+                        // Usamos dialer para que el usuario vea el resultado del código en pantalla
+                        ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:*31%23");
+                        // Nota: %23 es el escape para el símbolo # en URIs
+
+                        Thread.sleep(3000L); // Esperamos a que aparezca el mensaje de red "Caller ID enabled"
+
+                        // 2. Realizamos la llamada de verificación
+                        owner = (Stage) btnEjecutar.getScene().getWindow();
+                        String numero = solicitarNumeroLlamada(owner, "Prueba USSD *31#",
+                                "El código *31# ha sido enviado. Introduce número para verificar:");
+
+                        if (numero != null && !numero.isBlank()) {
+                            ejecutarShellEnSerial(serial,
+                                    "am start -a android.intent.action.CALL -d tel:" + numero.trim());
+
+                            // 3. Confirmación doble: Número oculto + Datos funcionando
+                            ok = ConfirmacionManualPopup.mostrarYEsperar(
+                                    "¿La llamada fue oculta Y el icono de datos (4G/5G) sigue activo?", owner);
+
+                            // 4. Limpieza: Desactivamos el oculto para no dejar el terminal "tocado"
+                            actualizarEstadoPaso(paso, "Restaurando configuración con #31#...");
+                            ejecutarShellEnSerial(serial, "am start -a android.intent.action.CALL -d tel:%2331%23");
+                        }
+
+                    } catch (Exception e) {
+                        outputDetalle = "Error en prueba USSD: " + e.getMessage();
+                        ok = false;
+                    }
+                } else if ("__SC04_CALL_WAITING_ACTIVATE__".equals(ref.getComando())) {
+                    try {
+                        actualizarEstadoPaso(paso, "Limpiando pantalla y abriendo menú Call Waiting...");
+
+                        // 1. Forzamos un inicio limpio para quitar popups residuales del USSD
+                        ejecutarAccionHilo(serial, Entradas.secuencia(
+                                "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                                "sleep 2",
+                                // Navegamos al menú "Additional settings" de forma segura
+                                Entradas.abajo(), Entradas.abajo(), Entradas.abajo(), Entradas.abajo(),
+                                Entradas.abajo(),
+                                Entradas.ok(),
+                                "sleep 2", // Esperamos que cargue la pantalla interna
+
+                                // 2. Ejecuta tu secuencia: una flecha abajo para situarse sobre Call Waiting y
+                                // OK
+                                Entradas.abajo(),
+                                Entradas.ok()));
+
+                        // Damos un margen generoso para que Android aplique el cambio de red
+                        Thread.sleep(4000L);
+
+                        owner = (Stage) btnEjecutar.getScene().getWindow();
+
+                        // Validamos visualmente que se haya activado correctamente
+                        ok = ConfirmacionManualPopup.mostrarYEsperar(
+                                "¿Se activó correctamente el interruptor de 'Call waiting'?", owner);
+
+                        if (!ok) {
+                            outputDetalle = "El usuario indicó que Call Waiting no se activó.";
+                        }
+
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        ok = false;
+                    }
+                } else if ("__SC04_CALL_WAITING_CHECK_DURING__".equals(ref.getComando())) {
+                    try {
+                        actualizarEstadoPaso(paso, "Preparando prueba de llamada en espera activa...");
+                        owner = (Stage) btnEjecutar.getScene().getWindow();
+
+                        // 1. Solicitamos el primer número para establecer la llamada base
+                        String numeroA = solicitarNumeroLlamada(owner, "Call Waiting - Primera Línea",
+                                "Introduce el primer número para iniciar la llamada base (debe atenderla):");
+
+                        if (numeroA == null || numeroA.isBlank()) {
+                            actualizarEstadoPaso(paso, "Cancelado por el usuario");
+                            ok = false;
+                        } else {
+                            String numALimpio = numeroA.replaceAll("\\s+", "").trim();
+                            actualizarEstadoPaso(paso, "Llamando a " + numALimpio + "...");
+                            ejecutarShellEnSerial(serial,
+                                    "am start -a android.intent.action.CALL -d tel:" + numALimpio);
+
+                            // 2. Esperamos a que la primera llamada se conecte y se estabilice
+                            boolean llamadaBaseActiva = false;
+                            for (int intento = 0; intento < 12; intento++) {
+                                Thread.sleep(1000L);
+                                if (llamadaActiva(serial)) {
+                                    llamadaBaseActiva = true;
+                                    break;
+                                }
+                            }
+
+                            if (!llamadaBaseActiva) {
+                                outputDetalle = "No se detectó una llamada activa en el canal base.";
+                                ok = false;
+                            } else {
+                                // 3. El canal está ocupado. Instruimos al usuario para generar la llamada
+                                // entrante.
+                                actualizarEstadoPaso(paso, "Esperando llamada entrante secundaria...");
+
+                                ok = ConfirmacionManualPopup.mostrarYEsperar(
+                                        "INSTRUCCIONES:\n\n" +
+                                                "1. Mantén la llamada actual abierta.\n" +
+                                                "2. Realiza una llamada HACIA este móvil usando un SEGUNDO teléfono externo.\n"
+                                                +
+                                                "3. Verifica si en la pantalla del móvil aparece la notificación de 'Llamada en espera' (Call waiting).\n\n"
+                                                +
+                                                "¿El terminal notificó la segunda llamada correctamente?",
+                                        owner);
+
+                                if (!ok) {
+                                    outputDetalle = "El usuario reportó que la llamada en espera no se visualizó o falló.";
+                                }
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        ok = false;
+                    }
+                }  else if ("__SC04_CALL_WAITING_DEACTIVATE__".equals(ref.getComando())) {
+                    try {
+                        actualizarEstadoPaso(paso, "Abriendo menú para desactivar Call Waiting...");
+
+                        // 1. Forzamos apertura limpia desde CERO para asegurar que estamos en el menú correcto
+                        ejecutarAccionHilo(serial, Entradas.secuencia(
+                                "shell am start -a android.telecom.action.SHOW_CALL_SETTINGS",
+                                "sleep 4",
+                                
+                                Entradas.ok(),
+                                "sleep 3", // Esperamos que la red procese la desactivación
+
+                                // Regresamos a la opción de "Caller ID" (subiendo una posición)
+                                Entradas.arriba(),
+                                "sleep 1",
+
+                                // Abrimos el diálogo de Caller ID para restaurarlo
+                                Entradas.ok(),
+                                "sleep 2",
+                                
+                                // Nos aseguramos de subir arriba del todo en el diálogo flotante (Network default)
+                                Entradas.arriba(),
+                                Entradas.arriba(),
+
+                                // Confirmamos la selección de 'Network default'
+                                Entradas.ok()
+                             ));
+
+                        // Damos un margen para que el teléfono guarde los cambios en la SIM
+                        Thread.sleep(4500L);
+
+                        owner = (Stage) btnEjecutar.getScene().getWindow();
+
+                        // 2. Validamos con el operador que todo volvió a la normalidad
+                        ok = ConfirmacionManualPopup.mostrarYEsperar(
+                                "¿Se desactivó Call Waiting Y el Caller ID volvió a 'Network default'?", owner);
+
+                        if (!ok) {
+                            outputDetalle = "La restauración de los ajustes de llamada falló o no se completó.";
+                        }
+
+                        // 3. Cierre limpio de la aplicación para que no quede nada en pantalla
+                        actualizarEstadoPaso(paso, "Limpiando interfaz del sistema...");
+                        ejecutarShellEnSerial(serial, "am force-stop com.android.phone");
+                        Thread.sleep(1000L);
+
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        ok = false;
+                    }
                 } else if ("__HOT_DIAL_CHECK_SERVICE__".equals(ref.getComando())) {
                     LlamadasD17 llamadas = new LlamadasD17(serial);
                     if (hotDialNumero == null || hotDialNumero.isBlank()) {
@@ -1173,22 +1507,21 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                     if (!ref.getComando().isBlank()) {
                         if ("__MUSIC_OPEN_INTERNAL__".equals(ref.getComando())) {
                             // Try preview (small popup) via ACTION_VIEW and autoplay only
-                                if (musicaUriInterna == null
+                            if (musicaUriInterna == null
                                     && !copiarAudioMusica(serial, "/sdcard/Music/Gone_blue_lyrics_Internal.mp3")) {
                                 accionOk = false;
                             } else {
                                 String uri = resolverUriMusicaInternaPara(serial);
                                 String pkg = resolverPaqueteMusicaPreferido(serial);
                                 String startCmd = pkg != null
-                                    ? "am start -a android.intent.action.VIEW -d '" + uri + "' -t audio/* -p "
-                                        + pkg
+                                        ? "am start -a android.intent.action.VIEW -d '" + uri + "' -t audio/* -p "
+                                                + pkg
                                         : null;
                                 if (startCmd == null) {
                                     accionOk = false;
                                     break;
                                 }
                                 String outStart = ejecutarShellEnSerial(serial, startCmd);
-                                System.out.println("[MUSIC] ACTION_VIEW startCmd=" + startCmd + "\n[out]=" + outStart);
                                 boolean launched = outStart != null && !outStart.toLowerCase().contains("error")
                                         && !outStart.toLowerCase().contains("unable");
                                 if (launched) {
@@ -1208,11 +1541,8 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                                             Thread.sleep(65000); // wait ~65s for 60s audio to finish
                                             if (finalPkg != null && !finalPkg.isBlank()) {
                                                 ejecutarAccionHilo(serial, "am force-stop " + finalPkg);
-                                                System.out.println(
-                                                        "[MUSIC] Closed preview app " + finalPkg + " after playback");
                                             } else {
                                                 ejecutarAccionHilo(serial, "input keyevent KEYCODE_BACK");
-                                                System.out.println("[MUSIC] Sent BACK to close preview after playback");
                                             }
                                         } catch (InterruptedException e) {
                                             Thread.currentThread().interrupt();
@@ -1223,22 +1553,22 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                             }
                         } else if ("__MUSIC_OPEN_EXTERNAL__".equals(ref.getComando())) {
                             // Try preview (small popup) via ACTION_VIEW and autoplay only
-                                if (musicaUriExterna == null
-                                    && !copiarAudioMusica(serial, "/storage/self/primary/Music/Gone_blue_lyrics_External.mp3")) {
+                            if (musicaUriExterna == null
+                                    && !copiarAudioMusica(serial,
+                                            "/storage/self/primary/Music/Gone_blue_lyrics_External.mp3")) {
                                 accionOk = false;
                             } else {
                                 String uri = resolverUriMusicaExternaPara(serial);
                                 String pkg = resolverPaqueteMusicaPreferido(serial);
                                 String startCmd = pkg != null
-                                    ? "am start -a android.intent.action.VIEW -d '" + uri + "' -t audio/* -p "
-                                        + pkg
+                                        ? "am start -a android.intent.action.VIEW -d '" + uri + "' -t audio/* -p "
+                                                + pkg
                                         : null;
                                 if (startCmd == null) {
                                     accionOk = false;
                                     break;
                                 }
                                 String outStart = ejecutarShellEnSerial(serial, startCmd);
-                                System.out.println("[MUSIC] ACTION_VIEW startCmd=" + startCmd + "\n[out]=" + outStart);
                                 boolean launched = outStart != null && !outStart.toLowerCase().contains("error")
                                         && !outStart.toLowerCase().contains("unable");
                                 if (launched) {
@@ -1506,7 +1836,6 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                         }
                     }
 
-                    System.out.println("[CAMERA] startCamera result: " + outputDetalle);
                 } else if ("__MANUAL_PHOTO_QUALITY_CHECK__".equals(paso.getComando())) {
                     String mensaje = """
                             Verifique la calidad de la última foto tomada:
@@ -1682,131 +2011,135 @@ public class DiagnosticoController extends com.example.Model.AdbCallSupport impl
                 btnInforme.setDisable(false);
                 btnEjecutar.setDisable(false);
                 btnLimpiar.setDisable(false);
-                System.out.println("[DIAG] Secuencia completada.");
             });
         }).start();
     }
 
-   @FXML
-private void addBluetoothTest() {
-    List<BloquePrueba> bloqueBluetooth = List.of(
-        // SOFT.023.001 usa nuestro método customizado para el nombre
-        new BloquePrueba("SOFT.023.001", "Check name of bluetooth device", 
-            "shell settings get secure bluetooth_name"),
-            
-        new BloquePrueba("SOFT.023.002", "Pair new device via bluetooth", 
-            "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
-            
-        new BloquePrueba("SOFT.023.003", "Send a file to paired device", 
-            "__OPP_SEND_FILE_MANUAL__", true),
-            
-        new BloquePrueba("SOFT.023.004", "Receive a file from paired device", 
-            "__OPP_RECEIVE_FILE_MANUAL__", true),
-            
-        new BloquePrueba("SOFT.023.005", "Forget paired device", 
-            "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
-            
-        new BloquePrueba("SOFT.023.006", "Connect DUT to several bluetooth headsets", 
-            "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
-            
-        new BloquePrueba("SOFT.023.007", "Receive several calls using bluetooth headsets", 
-            "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
-            
-        new BloquePrueba("SOFT.023.008", "Make several calls using the bluetooth headsets", 
-            "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
-            
-        new BloquePrueba("SOFT.023.009", "Check audio quality on the other side using bluetooth headset in DUT", 
-            "__BT_AUDIO_QUALITY_CHECK__", true),
-            
-        new BloquePrueba("SOFT.023.010", "Turn off bluetooth headset and check if it connects to DUT when turn on", 
-            "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
-            
-        new BloquePrueba("SOFT.023.011", "Check if bluetooth headset auto connects after lose signal due distance", 
-            "__BT_DISTANCE_TEST__", true),
-            
-        new BloquePrueba("SOFT.023.012", "Check that the DUT is able to connect and be used with the bluetooth system of a car", 
-            "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
+    @FXML
+    private void addBluetoothTest() {
+        List<BloquePrueba> bloqueBluetooth = List.of(
+                // SOFT.023.001 usa nuestro método customizado para el nombre
+                new BloquePrueba("SOFT.023.001", "Check name of bluetooth device",
+                        "shell settings get secure bluetooth_name"),
 
-        new BloquePrueba("SOFT.023.013", "Reboot DUT and check if bluetooth headsets connect again", 
-            "reboot", true)
-    );
+                new BloquePrueba("SOFT.023.002", "Pair new device via bluetooth",
+                        "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
 
-    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-    SelectorPruebasPopup.mostrar(
-        "SOFT.023 — Bluetooth Functions",
-        bloqueBluetooth,
-        owner,
-        seleccionadas -> seleccionadas.stream()
-            .map(BloquePrueba::toPasoPrueba)
-            .forEach(pasos::add));
-}
-    // =========================================================================
-// METODOS DE SOPORTE PARA LAS PRUEBAS DE BLUETOOTH
-// =========================================================================
+                new BloquePrueba("SOFT.023.003", "Send a file to paired device",
+                        "__OPP_SEND_FILE_MANUAL__", true),
 
+                new BloquePrueba("SOFT.023.004", "Receive a file from paired device",
+                        "__OPP_RECEIVE_FILE_MANUAL__", true),
 
-private boolean ejecutarBluetoothDiscoverableTest(String serial, PasoPrueba paso) {
-    System.out.println("[BT] Iniciando prueba de visibilidad...");
-    ADBService adb = new ADBService();
-    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-    
-    adb.ejecutarComandoSincrono(serial, "shell am start -a android.settings.BLUETOOTH_SETTINGS");
-    
-    try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
-    
-    String mensaje = """
-                     Se ha abierto la configuración de Bluetooth en el dispositivo.
-                     
-                     1. Confirme que el Bluetooth está encendido.
-                     2. Verifique si el dispositivo es visible para otros equipos cercanos.
-                     
-                     Haga clic en 'OK' si es correcto, o 'Cancelar' si falló.""";
-                     
-    boolean verificado = ConfirmacionManualPopup.mostrarYEsperar("Verificación Visibilidad BT", owner, mensaje);
-    
-    paso.setOutputDetalle(verificado ? "Visibilidad verificada por el usuario" : "El usuario canceló la prueba");
-    return verificado;
-}
+                new BloquePrueba("SOFT.023.005", "Forget paired device",
+                        "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
 
-private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) {
-    System.out.println("[BT] Iniciando prueba de cambio de nombre de Bluetooth...");
-    ADBService adb = new ADBService();
-    Stage owner = (Stage) btnEjecutar.getScene().getWindow();
-    
-    // Intentamos obtener el nombre actual antes de cambiarlo
-    String nombreOriginal = adb.ejecutarComandoSincrono(serial, "shell settings get secure bluetooth_name");
-    if (nombreOriginal == null || nombreOriginal.trim().isEmpty() || nombreOriginal.contains("null")) {
-        nombreOriginal = "Android_Device"; // Fallback por si acaso
-    } else {
-        nombreOriginal = nombreOriginal.trim();
+                new BloquePrueba("SOFT.023.006", "Connect DUT to several bluetooth headsets",
+                        "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
+
+                new BloquePrueba("SOFT.023.007", "Receive several calls using bluetooth headsets",
+                        "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
+
+                new BloquePrueba("SOFT.023.008", "Make several calls using the bluetooth headsets",
+                        "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
+
+                new BloquePrueba("SOFT.023.009", "Check audio quality on the other side using bluetooth headset in DUT",
+                        "__BT_AUDIO_QUALITY_CHECK__", true),
+
+                new BloquePrueba("SOFT.023.010",
+                        "Turn off bluetooth headset and check if it connects to DUT when turn on",
+                        "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
+
+                new BloquePrueba("SOFT.023.011",
+                        "Check if bluetooth headset auto connects after lose signal due distance",
+                        "__BT_DISTANCE_TEST__", true),
+
+                new BloquePrueba("SOFT.023.012",
+                        "Check that the DUT is able to connect and be used with the bluetooth system of a car",
+                        "shell am start -a android.settings.BLUETOOTH_SETTINGS", true),
+
+                new BloquePrueba("SOFT.023.013", "Reboot DUT and check if bluetooth headsets connect again",
+                        "reboot", true));
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar(
+                "SOFT.023 — Bluetooth Functions",
+                bloqueBluetooth,
+                owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
     }
-    
-    String nombrePrueba = "TEST_BT_AUTOMATION";
-    System.out.println("[BT] Nombre original: " + nombreOriginal + " -> Cambiando a: " + nombrePrueba);
-    
-    // Cambiar nombre mediante settings
-    adb.ejecutarComandoSincrono(serial, "shell settings put secure bluetooth_name " + nombrePrueba);
-    adb.ejecutarComandoSincrono(serial, "shell setprop persist.bluetooth.name " + nombrePrueba);
-    
-    // Abrimos los ajustes para que el operador compruebe el cambio
-    adb.ejecutarComandoSincrono(serial, "shell am start -a android.settings.BLUETOOTH_SETTINGS");
-    
-    try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
-    
-    String mensaje = "Verifique en la pantalla del dispositivo si el nombre del Bluetooth ha cambiado a:\n\n"
-                     + "👉 " + nombrePrueba + "\n\n"
-                     + "¿El nombre se actualizó correctamente?";
-                     
-    boolean ok = ConfirmacionManualPopup.mostrarYEsperar("Cambio de Nombre BT", owner, mensaje);
-    
-    // Restauramos el nombre original para no dejar el teléfono "sucio"
-    System.out.println("[BT] Restaurando nombre original: " + nombreOriginal);
-    adb.ejecutarComandoSincrono(serial, "shell settings put secure bluetooth_name " + nombreOriginal);
-    adb.ejecutarComandoSincrono(serial, "shell setprop persist.bluetooth.name " + nombreOriginal);
-    
-    paso.setOutputDetalle(ok ? "Cambio de nombre exitoso y restaurado." : "El nombre no cambió según el reporte del usuario.");
-    return ok;
-}
+    // =========================================================================
+    // METODOS DE SOPORTE PARA LAS PRUEBAS DE BLUETOOTH
+    // =========================================================================
+
+    private boolean ejecutarBluetoothDiscoverableTest(String serial, PasoPrueba paso) {
+        ADBService adb = new ADBService();
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+
+        adb.ejecutarComandoSincrono(serial, "shell am start -a android.settings.BLUETOOTH_SETTINGS");
+
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException ignored) {
+        }
+
+        String mensaje = """
+                Se ha abierto la configuración de Bluetooth en el dispositivo.
+
+                1. Confirme que el Bluetooth está encendido.
+                2. Verifique si el dispositivo es visible para otros equipos cercanos.
+
+                Haga clic en 'OK' si es correcto, o 'Cancelar' si falló.""";
+
+        boolean verificado = ConfirmacionManualPopup.mostrarYEsperar("Verificación Visibilidad BT", owner, mensaje);
+
+        paso.setOutputDetalle(verificado ? "Visibilidad verificada por el usuario" : "El usuario canceló la prueba");
+        return verificado;
+    }
+
+    private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) {
+        ADBService adb = new ADBService();
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+
+        // Intentamos obtener el nombre actual antes de cambiarlo
+        String nombreOriginal = adb.ejecutarComandoSincrono(serial, "shell settings get secure bluetooth_name");
+        if (nombreOriginal == null || nombreOriginal.trim().isEmpty() || nombreOriginal.contains("null")) {
+            nombreOriginal = "Android_Device"; // Fallback por si acaso
+        } else {
+            nombreOriginal = nombreOriginal.trim();
+        }
+
+        String nombrePrueba = "TEST_BT_AUTOMATION";
+
+        // Cambiar nombre mediante settings
+        adb.ejecutarComandoSincrono(serial, "shell settings put secure bluetooth_name " + nombrePrueba);
+        adb.ejecutarComandoSincrono(serial, "shell setprop persist.bluetooth.name " + nombrePrueba);
+
+        // Abrimos los ajustes para que el operador compruebe el cambio
+        adb.ejecutarComandoSincrono(serial, "shell am start -a android.settings.BLUETOOTH_SETTINGS");
+
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException ignored) {
+        }
+
+        String mensaje = "Verifique en la pantalla del dispositivo si el nombre del Bluetooth ha cambiado a:\n\n"
+                + "👉 " + nombrePrueba + "\n\n"
+                + "¿El nombre se actualizó correctamente?";
+
+        boolean ok = ConfirmacionManualPopup.mostrarYEsperar("Cambio de Nombre BT", owner, mensaje);
+
+        // Restauramos el nombre original para no dejar el teléfono "sucio"
+        adb.ejecutarComandoSincrono(serial, "shell settings put secure bluetooth_name " + nombreOriginal);
+        adb.ejecutarComandoSincrono(serial, "shell setprop persist.bluetooth.name " + nombreOriginal);
+
+        paso.setOutputDetalle(
+                ok ? "Cambio de nombre exitoso y restaurado." : "El nombre no cambió según el reporte del usuario.");
+        return ok;
+    }
+
     @FXML
     private void addCallTimerTest() {
         Stage owner = (Stage) btnEjecutar.getScene().getWindow();
@@ -1896,7 +2229,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             }
 
             String numeroLimpio = numeroPrueba.trim();
-            System.out.println("[EMERGENCIA] Marcando número de prueba...");
             actualizarEstadoPaso(paso, "Marcando número de prueba...");
             ejecutarShellEnSerial(serial,
                     "am start -a android.intent.action.CALL -d tel:" + numeroLimpio);
@@ -1905,7 +2237,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             Thread.sleep(3_000);
 
             ejecutarAccionHilo(serial, "input keyevent KEYCODE_ENDCALL");
-            System.out.println("[EMERGENCIA] ✔ Llamada colgada antes de contestar");
+       
             return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -1947,10 +2279,10 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
 
                 // SOFT.031.004: Grabar video automático 5s
                 new BloquePrueba(
-                    "SOFT.031.004",
-                    "Make a video (5 seconds)",
-                    List.of(
-                        "shell am start -a android.media.action.VIDEO_CAPTURE && sleep 2 && input keyevent 27 && sleep 2 && input keyevent KEYCODE_DPAD_CENTER && sleep 5 && input keyevent KEYCODE_BACK && sleep 1")),
+                        "SOFT.031.004",
+                        "Make a video (5 seconds)",
+                        List.of(
+                                "shell am start -a android.media.action.VIDEO_CAPTURE && sleep 2 && input keyevent 27 && sleep 2 && input keyevent KEYCODE_DPAD_CENTER && sleep 5 && input keyevent KEYCODE_BACK && sleep 1")),
 
                 // SOFT.031.005: Verificar calidad de video (MANUAL)
                 new BloquePrueba(
@@ -2040,7 +2372,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                     return false;
                 }
 
-                System.out.println("[DTMF] Abriendo teclado...");
+             
                 ejecutarAccionHilo(serial, "input tap " + perfil.getXTeclado() + " " + perfil.getYTeclado());
                 Thread.sleep(1500);
 
@@ -2057,11 +2389,11 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 boolean usoCoordsManual = false;
                 if (coordsRun.size() >= 10) {
                     usoCoordsManual = true;
-                    System.out.println("[DTMF] Usando coordenadas detectadas en tiempo real");
+                    
                 } else if (perfil.getCoordNumeros() != null && perfil.getCoordNumeros().size() >= 10) {
                     usoCoordsManual = true;
                     coordsRun = perfil.getCoordNumeros();
-                    System.out.println("[DTMF] Usando coordenadas guardadas de perfil");
+                  
                 }
 
                 if (usoCoordsManual) {
@@ -2078,7 +2410,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                             break;
                         }
 
-                        System.out.println("[DTMF] TAP manual " + numero + " -> " + c[0] + "," + c[1]);
+                       
                         ejecutarAccionHilo(serial, "input tap " + c[0] + " " + c[1]);
                         Thread.sleep(600);
                     }
@@ -2090,7 +2422,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 }
 
                 Thread.sleep(800);
-                System.out.println("[DTMF] Cerrando teclado...");
+              
                 ejecutarShellEnSerial(serial, "input keyevent KEYCODE_BACK");
                 Thread.sleep(500);
             } else {
@@ -2098,7 +2430,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 enviarDtmfPorKeyevents(serial);
             }
 
-            System.out.println("[DTMF] ✔ Tonos enviados");
+           
             return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -2113,7 +2445,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 System.out.println("[DTMF] Llamada terminada");
                 break;
             }
-            System.out.println("[DTMF] Enviando tecla " + (i + 1) + " (keyevent " + keycodes[i] + ")");
+            
             ejecutarShellEnSerial(serial, "input keyevent " + keycodes[i]);
             Thread.sleep(600);
         }
@@ -2128,9 +2460,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             // El receptor es el dispositivo actual de la prueba
             String serialReceptor = obtenerSerialADBActual();
 
-            System.out.println("[ENTRANTE] " + llamadaEntranteSerial +
-                    " llamando a " + llamadaEntranteNumero);
-            System.out.println("[ENTRANTE] Receptor esperado: " + serialReceptor);
+           
             actualizarEstadoPaso(paso, "Llamando...");
 
             // El dispositivo externo llama al receptor
@@ -2149,7 +2479,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             ejecutarShellEnSerial(serialReceptor,
                     "input keyevent KEYCODE_ENDCALL");
 
-            System.out.println("[ENTRANTE] Resultado: " + (sono ? "SONÓ ✔" : "NO SONÓ ✖"));
+           
             return sono;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -2249,12 +2579,15 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 System.out.println("[MUSIC] No se encontró el archivo de audio local");
                 return false;
             }
-            // Build destination path with suffix _Internal/_External and keep directory logic
+            // Build destination path with suffix _Internal/_External and keep directory
+            // logic
             String nombreLocal = new File(rutaLocal).getName();
-            String base = nombreLocal.contains(".") ? nombreLocal.substring(0, nombreLocal.lastIndexOf('.')) : nombreLocal;
+            String base = nombreLocal.contains(".") ? nombreLocal.substring(0, nombreLocal.lastIndexOf('.'))
+                    : nombreLocal;
             String ext = nombreLocal.contains(".") ? nombreLocal.substring(nombreLocal.lastIndexOf('.') + 1) : "mp3";
 
-            boolean esExternal = destinoRemoto.contains("storage/self/primary") || destinoRemoto.toLowerCase().contains("external");
+            boolean esExternal = destinoRemoto.contains("storage/self/primary")
+                    || destinoRemoto.toLowerCase().contains("external");
 
             String destinoDir = new File(destinoRemoto).getParent();
 
@@ -2271,7 +2604,8 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
 
             if (destinoDir == null || destinoDir.isBlank()) {
                 destinoDir = new File(destinoRemoto).getParent();
-                if (destinoDir == null) destinoDir = "/sdcard/Music";
+                if (destinoDir == null)
+                    destinoDir = "/sdcard/Music";
             }
 
             String nombreDestino = base + (esExternal ? "_External." : "_Internal.") + ext;
@@ -2287,7 +2621,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             int exit = push.waitFor();
             long tPushEnd = System.nanoTime();
             long durMs = TimeUnit.NANOSECONDS.toMillis(tPushEnd - tPushStart);
-            System.out.println("[MUSIC] push " + destino + " exit=" + exit + " duration_ms=" + durMs);
             if (!salida.isBlank()) {
                 System.out.println("[MUSIC] push stdout:\n" + salida);
             }
@@ -2296,11 +2629,9 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             }
 
             if (exit != 0) {
-                System.out.println("[MUSIC] push exited non-zero, failing copy to " + destino);
                 // Try fallback to /sdcard/Music/<file> for broader compatibility
                 String baseFile = new File(destino).getName();
                 String alt = "/sdcard/Music/" + baseFile;
-                System.out.println("[MUSIC] Intentando fallback a " + alt);
                 long tPush2Start = System.nanoTime();
                 Process push2 = new ProcessBuilder("adb", "-s", serial, "push", rutaLocal, alt).start();
                 String out2 = new String(push2.getInputStream().readAllBytes());
@@ -2308,7 +2639,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 int exit2 = push2.waitFor();
                 long tPush2End = System.nanoTime();
                 long dur2Ms = TimeUnit.NANOSECONDS.toMillis(tPush2End - tPush2Start);
-                System.out.println("[MUSIC] push fallback " + alt + " exit=" + exit2 + " duration_ms=" + dur2Ms);
                 if (!out2.isBlank())
                     System.out.println("[MUSIC] push fallback stdout:\n" + out2);
                 if (!err2.isBlank())
@@ -2322,16 +2652,16 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             // Verify file existence on device; if missing and was external, try fallback
             String ls = ejecutarShellEnSerial(serial, "ls -l " + destino);
             if (ls == null || ls.toLowerCase().contains("no such file") || !ls.contains(new File(destino).getName())) {
-                System.out.println("[MUSIC] ls check failed for " + destino + " -> " + ls);
+         
                 String baseFile2 = new File(destino).getName();
                 String alt2 = "/sdcard/Music/" + baseFile2;
-                System.out.println("[MUSIC] Intentando push alternativo a " + alt2);
+               
                 long tPush3Start = System.nanoTime();
                 Process push3 = new ProcessBuilder("adb", "-s", serial, "push", rutaLocal, alt2).start();
                 push3.waitFor();
                 long tPush3End = System.nanoTime();
                 long dur3Ms = TimeUnit.NANOSECONDS.toMillis(tPush3End - tPush3Start);
-                System.out.println("[MUSIC] push alt fallback duration_ms=" + dur3Ms);
+                
                 destino = alt2;
             }
 
@@ -2340,8 +2670,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                     MUSIC_TITLE, MUSIC_ARTIST, MUSIC_ALBUM);
             long tRegEnd = System.nanoTime();
             long durRegMs = TimeUnit.NANOSECONDS.toMillis(tRegEnd - tRegStart);
-            System.out.println("[MUSIC] registered mediaUri=" + mediaUri + " (destino=" + destino
-                    + ") register_duration_ms=" + durRegMs);
 
             if (destino.contains("/sdcard/Music/")) {
                 musicaUriInterna = mediaUri;
@@ -2365,21 +2693,20 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                     "am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d " + fileUri);
             String mime = rutaRemota.toLowerCase().endsWith(".mp3") ? "audio/mpeg" : "audio/wav";
             ejecutarShellEnSerial(serial,
-                "content insert --uri content://media/external/audio/media " +
-                    "--bind _data:s:" + rutaRemota + " " +
-                    "--bind title:s:'" + titulo + "' " +
-                    "--bind artist:s:'" + artista + "' " +
-                    "--bind album:s:'" + album + "' " +
-                    "--bind mime_type:s:" + mime + " " +
-                    "--bind is_music:i:1");
+                    "content insert --uri content://media/external/audio/media " +
+                            "--bind _data:s:" + rutaRemota + " " +
+                            "--bind title:s:'" + titulo + "' " +
+                            "--bind artist:s:'" + artista + "' " +
+                            "--bind album:s:'" + album + "' " +
+                            "--bind mime_type:s:" + mime + " " +
+                            "--bind is_music:i:1");
 
             String query = ejecutarShellEnSerial(serial,
                     "content query --uri content://media/external/audio/media " +
                             "--where \"_data='" + rutaRemota + "'\" --projection _id --sort \"date_added DESC\"");
             long tScanEnd = System.nanoTime();
             long durScanMs = TimeUnit.NANOSECONDS.toMillis(tScanEnd - tScanStart);
-            System.out.println("[MUSIC] mediastore insert+query duration_ms=" + durScanMs + " query="
-                    + (query == null ? "<null>" : (query.length() > 200 ? query.substring(0, 200) + "..." : query)));
+            
 
             if (query != null) {
                 java.util.regex.Matcher m = java.util.regex.Pattern.compile("_id=(\\d+)").matcher(query);
@@ -2416,7 +2743,8 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
         if (musicaUriInterna != null && musicaUriInterna.startsWith("content://"))
             return musicaUriInterna;
         // if we have a file:// path, try to resolve to content://
-        String posible = musicaUriInterna != null ? musicaUriInterna : "file:///sdcard/Music/Gone_blue_lyrics_Internal.mp3";
+        String posible = musicaUriInterna != null ? musicaUriInterna
+                : "file:///sdcard/Music/Gone_blue_lyrics_Internal.mp3";
         if (posible.startsWith("file://")) {
             String ruta = posible.substring("file://".length());
             String content = obtenerContentUriParaRuta(serial, ruta);
@@ -2432,7 +2760,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
         if (musicaUriExterna != null && musicaUriExterna.startsWith("content://"))
             return musicaUriExterna;
         String posible = musicaUriExterna != null ? musicaUriExterna
-            : "file:///storage/self/primary/Music/Gone_blue_lyrics_External.mp3";
+                : "file:///storage/self/primary/Music/Gone_blue_lyrics_External.mp3";
         if (posible.startsWith("file://")) {
             String ruta = posible.substring("file://".length());
             String content = obtenerContentUriParaRuta(serial, ruta);
@@ -2589,7 +2917,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
 
         return false;
     }
-    
 
     private void dormirSilencioso(long millis) {
         try {
@@ -2667,7 +2994,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
 
     private boolean ejecutarMusicConLlamadaSaliente(String serial, PasoPrueba paso) {
         if (!audioMusicaExisteEnDispositivo(serial, "/storage/self/primary/Music/Gone_blue_lyrics_External.mp3")
-            && !audioMusicaExisteEnDispositivo(serial, "/sdcard/Music/Gone_blue_lyrics_External.mp3")) {
+                && !audioMusicaExisteEnDispositivo(serial, "/sdcard/Music/Gone_blue_lyrics_External.mp3")) {
             actualizarEstadoPaso(paso, "El audio de prueba no está preparado. Ejecuta primero la copia de música.");
             return false;
         }
@@ -2737,7 +3064,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 red = "5G";
         }
 
-        System.out.println("[RED] Red activa detectada: " + red);
         actualizarEstadoPaso(paso, "Red: " + red);
 
         // PASS si está en alguna red conocida
@@ -2898,16 +3224,12 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             return false;
         }
 
-        System.out.printf("[MASIVA] Llamando a %s desde %d dispositivos%n",
-                llamadaMasivaNumero, seriales.size());
-
         // Lanzar llamada en todos en paralelo
         List<java.lang.Thread> hilos = new ArrayList<>();
         for (String s : seriales) {
             java.lang.Thread t = new java.lang.Thread(() -> {
                 ejecutarShellEnSerial(s,
                         "am start -a android.intent.action.CALL -d tel:" + llamadaMasivaNumero);
-                System.out.println("[MASIVA] Llamada iniciada en: " + s);
             });
             t.start();
             hilos.add(t);
@@ -2931,7 +3253,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
         for (String s : seriales) {
             java.lang.Thread t = new java.lang.Thread(() -> {
                 ejecutarShellEnSerial(s, "input keyevent KEYCODE_ENDCALL");
-                System.out.println("[MASIVA] Llamada colgada en: " + s);
             });
             t.start();
             hilosCuelga.add(t);
@@ -2943,7 +3264,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             }
         });
 
-        System.out.println("[MASIVA] ✔ Prueba completada");
         return true;
     }
 
@@ -3018,8 +3338,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             return false;
         }
 
-        System.out.printf("[ENTRE2] Iniciando prueba: %s (%s) ↔ %s (%s)%n",
-                s1, numero1, s2, numero2);
 
         boolean ronda1Ok = false;
         boolean ronda2Ok = false;
@@ -3031,7 +3349,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             despertarDispositivo(s2);
             Thread.sleep(1_500);
 
-            System.out.println("[ENTRE2] Ronda 1: Tel.1 llama a Tel.2...");
             actualizarEstadoPaso(paso, "Ronda 1: Tel.1 → Tel.2");
             ejecutarShellEnSerial(s1, "am start -a android.intent.action.CALL -d tel:" + numero2);
 
@@ -3040,7 +3357,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             boolean sono1 = esperarHastaQueSuene(s2, 15);
 
             if (!sono1 || !llamadaActiva(s1)) {
-                System.out.println("[ENTRE2] Ronda 1 FAIL — no sonó en Tel.2 o Tel.1 no estableció llamada");
                 ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
                 ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
                 ronda1Ok = false;
@@ -3048,14 +3364,12 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 despertarDispositivo(s2);
                 Thread.sleep(500);
                 ejecutarShellEnSerial(s2, "input keyevent KEYCODE_CALL");
-                System.out.println("[ENTRE2] Tel.2 contestó");
 
                 actualizarEstadoPaso(paso, "Ronda 1 activa 10s...");
                 Thread.sleep(10_000);
 
                 ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
                 ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
-                System.out.println("[ENTRE2] Ronda 1 finalizada ✔");
                 ronda1Ok = true;
             }
 
@@ -3068,7 +3382,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             despertarDispositivo(s2);
             Thread.sleep(1_500);
 
-            System.out.println("[ENTRE2] Ronda 2: Tel.2 llama a Tel.1...");
             actualizarEstadoPaso(paso, "Ronda 2: Tel.2 → Tel.1");
             ejecutarShellEnSerial(s2, "am start -a android.intent.action.CALL -d tel:" + numero1);
 
@@ -3077,7 +3390,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             boolean sono2 = esperarHastaQueSuene(s1, 15);
 
             if (!sono2 || !llamadaActiva(s2)) {
-                System.out.println("[ENTRE2] Ronda 2 FAIL — no sonó en Tel.1 o Tel.2 no estableció llamada");
                 ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
                 ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
                 ronda2Ok = false;
@@ -3085,14 +3397,12 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 despertarDispositivo(s1);
                 Thread.sleep(500);
                 ejecutarShellEnSerial(s1, "input keyevent KEYCODE_CALL");
-                System.out.println("[ENTRE2] Tel.1 contestó");
 
                 actualizarEstadoPaso(paso, "Ronda 2 activa 10s...");
                 Thread.sleep(10_000);
 
                 ejecutarShellEnSerial(s2, "input keyevent KEYCODE_ENDCALL");
                 ejecutarShellEnSerial(s1, "input keyevent KEYCODE_ENDCALL");
-                System.out.println("[ENTRE2] Ronda 2 finalizada ✔");
                 ronda2Ok = true;
             }
 
@@ -3102,10 +3412,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
         }
 
         boolean exito = ronda1Ok && ronda2Ok;
-        System.out.printf("[ENTRE2] Resultado: Ronda1=%s | Ronda2=%s → %s%n",
-                ronda1Ok ? "OK" : "FAIL",
-                ronda2Ok ? "OK" : "FAIL",
-                exito ? "PASS ✔" : "FAIL ✖");
         return exito;
     }
 
@@ -3136,7 +3442,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                     System.out.println("[TOUCH] Error parseando resolución, usando valores por defecto");
                 }
             }
-            System.out.println("[TOUCH] Centro calculado: " + centroX + "x" + centroY);
 
             // Coordenadas derivadas del centro
             int margenX = centroX / 2;
@@ -4201,7 +4506,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
 
     // Motor común de llamada
     private boolean hacerLlamada(String serial, ADBService adb) {
-        System.out.println("CONTACTO = " + contactoTestTelefono);
         adb.ejecutarComandoSincrono(serial,
                 "shell am start -a android.intent.action.CALL -d tel:" + contactoTestTelefono);
 
@@ -5271,9 +5575,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                                 int xImagenNueva = ((x1 + x2) / 2) + anchoBoton;
                                 int yImagenNueva = y1 + (y2 - y1) / 2;
 
-                                System.out.println(
-                                        "[DEBUG-GALERIA] Cámara localizada. Disparando tap único a la derecha: X="
-                                                + xImagenNueva + " Y=" + yImagenNueva);
+                             
 
                                 // Ejecutamos el tap y salimos INMEDIATAMENTE del método completo
                                 adb.ejecutarComandoSincrono(serial,
@@ -5336,9 +5638,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String textoMensajeUnico = "Test_SMS_" + timestamp;
 
-        System.out.println("[DEBUG-RECIBIR] DUT: " + serial + " | Emisor Físico: " + contactoSerialReceptor);
-        System.out.println("[DEBUG-RECIBIR] Buscando ID único de esta prueba: " + textoMensajeUnico);
-
+     
         // El receptor prepara el SMS en su interfaz gráfica
         adb.ejecutarComandoSincrono(contactoSerialReceptor,
                 "shell am start -a android.intent.action.SENDTO " +
@@ -5379,7 +5679,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             }
         }
 
-        System.out.println("[DEBUG-RECIBIR] FAILED: El mensaje no apareció en la Query.");
+       
         return false;
     }
 
@@ -5391,8 +5691,7 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
         String numeroLimpio = contactoTestTelefono.trim().replaceAll("[^0-9+]", "");
         String rutaImagen = "/sdcard/Pictures/micro_valid.gif";
 
-        System.out.println("[DEBUG-MMS] Terminal: " + serial);
-        System.out.println("[DEBUG-MMS] Asunto Único: " + asuntoUnico);
+      
 
         try {
             // 1. Inyectar imagen GIF real de 1x1px (43 bytes)
@@ -5410,23 +5709,19 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             Thread.sleep(4000);
 
             // 3. Tu método de adjuntar (el que funciona bien)
-            System.out.println("[DEBUG-MMS] Desplegando menú multimedia...");
             simularClickBotonAdjuntar(serial, adb);
             Thread.sleep(2500);
 
             // 4. Seleccionar la primera imagen (Método nuevo ultra-preciso abajo)
-            System.out.println("[DEBUG-MMS] Seleccionando el GIF...");
             simularClickPrimeraImagenGaleria(serial, adb);
             Thread.sleep(2500);
 
             // 5. Escribir texto post-adjuntar
-            System.out.println("[DEBUG-MMS] Introduciendo el asunto del mensaje...");
             Thread.sleep(500);
             adb.ejecutarComandoSincrono(serial, "shell input text '" + asuntoUnico + "'");
             Thread.sleep(1500);
 
             // 6. Disparar envío
-            System.out.println("[DEBUG-MMS] Pulsando enviar...");
             simularClickEnviar(serial, adb);
             Thread.sleep(4000);
 
@@ -5613,7 +5908,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
         } catch (Exception e) {
             System.out.println("[ADB] Error listando dispositivos: " + e.getMessage());
         }
-        System.out.println("[ADB] Dispositivos detectados: " + lista);
         return lista;
     }
 
@@ -5717,8 +6011,8 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 new BloquePrueba(true, "SOFT.028.001", "Open browser and surf on the internet",
                         "shell am start -a android.intent.action.VIEW -d https://www.google.com"),
                 new BloquePrueba(true, "SOFT.028.002", "See an online video",
-                    "shell am start -W -a android.intent.action.VIEW -d https://www.youtube.com/watch?v=dQw4w9WgXcQ && sleep 10",
-                    true),
+                        "shell am start -W -a android.intent.action.VIEW -d https://www.youtube.com/watch?v=dQw4w9WgXcQ && sleep 10",
+                        true),
                 new BloquePrueba("SOFT.028.003", "Download an image",
                         "shell am start -a android.intent.action.VIEW -d https://www.gstatic.com/webp/gallery/1.jpg",
                         true),
@@ -5752,6 +6046,38 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                 seleccionadas -> seleccionadas.stream()
                         .map(BloquePrueba::toPasoPrueba)
                         .forEach(pasos::add));
+    }
+
+    @FXML
+    private void addAdditionalSettingsTest() {
+        String modelo = obtenerModeloDispositivoActual();
+        List<BloquePrueba> bloqueAdditionalSettings = SC04.crearBloquesAdditionalSettings(modelo);
+
+        boolean modoExpressActivo = btnIotExpress.isSelected();
+        List<BloquePrueba> bloquesAFiltrar = modoExpressActivo
+                ? bloqueAdditionalSettings.stream().filter(BloquePrueba::isIotExpress).toList()
+                : bloqueAdditionalSettings;
+
+        Stage owner = (Stage) btnEjecutar.getScene().getWindow();
+        SelectorPruebasPopup.mostrar(
+                "SOFT.035 — Additional settings",
+                bloquesAFiltrar,
+                owner,
+                seleccionadas -> seleccionadas.stream()
+                        .map(BloquePrueba::toPasoPrueba)
+                        .forEach(pasos::add));
+    }
+
+    private String obtenerModeloDispositivoActual() {
+        if (dispositivoActual == null) {
+            return "";
+        }
+
+        try {
+            return ejecutarShellEnSerial(obtenerSerialADBActual(), "getprop ro.product.model");
+        } catch (Exception e) {
+            return dispositivoActual.getAndroid_id();
+        }
     }
 
     private boolean ejecutarFMBackground(String serial, PasoPrueba paso) {
@@ -6064,8 +6390,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
     // Thread.currentThread().interrupt();
     // break;
     // }
-
-    // long restanteMs = WIFI_TIMEOUT_MS - (System.currentTimeMillis() - inicio);
     // int min = (int) (restanteMs / 60_000);
     // ESTE ES PARA LA PRUEBA DEL CALL TIMER , ¿Se mostró la advertencia del
     // temporizador de llamada durante la llamada?
@@ -6142,7 +6466,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
     // return conectado;
     // }
     private boolean ejecutarPasoWifiConEspera(ADBService adb, String serial, PasoPrueba paso) {
-        System.out.println("[WIFI] Activando interfaz WiFi...");
         adb.ejecutarPasoSync(serial, paso.getComando());
 
         if (tieneIpWifi(serial)) {
@@ -6151,7 +6474,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             return true;
         }
 
-        System.out.println("[WIFI] Sin red — abriendo ajustes WiFi...");
         ejecutarShellEnSerial(serial, "am start -a android.settings.WIFI_SETTINGS");
 
         long inicio = System.currentTimeMillis();
@@ -6653,7 +6975,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
 
     private boolean ejecutarFmConLlamadaEntrante(String serial, PasoPrueba paso, Stage owner) {
         if (llamadaEntranteSerial == null || llamadaEntranteNumero == null) {
-            System.out.println("[FM-ENTRANTE] Sin configurar llamante o número");
             return false;
         }
 
@@ -6677,7 +6998,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
             actualizarEstadoPaso(paso, "Esperando que suene...");
             boolean sono = esperarHastaQueSuene(serial, 15);
             if (!sono) {
-                System.out.println("[FM-ENTRANTE] No sonó en el receptor");
                 // Intentar colgar por si acaso
                 ejecutarShellEnSerial(llamadaEntranteSerial, "input keyevent KEYCODE_ENDCALL");
                 return false;
@@ -6706,7 +7026,6 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
                         fmOk ? "Confirmado manualmente: FM se recupera" : "Confirmado manualmente: FM no se recupera");
                 listaPasos.refresh();
             });
-            System.out.println("[FM-ENTRANTE] Resultado confirmación manual FM: " + (fmOk ? "OK" : "FAIL"));
             return fmOk;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -6714,29 +7033,29 @@ private boolean ejecutarBluetoothChangeNameTest(String serial, PasoPrueba paso) 
         }
     }
 
-private boolean ejecutarBluetoothLlamadasSalientes(String serial, PasoPrueba paso, Stage owner) {
-    String numero = solicitarNumeroLlamada(
-            owner,
-            "SOFT.023.008 — Bluetooth",
-            "Ingresa el número de prueba para llamar directamente desde el headset Bluetooth.");
+    private boolean ejecutarBluetoothLlamadasSalientes(String serial, PasoPrueba paso, Stage owner) {
+        String numero = solicitarNumeroLlamada(
+                owner,
+                "SOFT.023.008 — Bluetooth",
+                "Ingresa el número de prueba para llamar directamente desde el headset Bluetooth.");
 
-    if (numero == null || numero.isBlank()) {
-        actualizarEstadoPaso(paso, "Cancelado por el usuario");
-        return false;
+        if (numero == null || numero.isBlank()) {
+            actualizarEstadoPaso(paso, "Cancelado por el usuario");
+            return false;
+        }
+
+        String numeroLimpio = numero.replaceAll("\\s+", "").trim();
+        LlamadasD17 llamadas = new LlamadasD17(serial);
+
+        actualizarEstadoPaso(paso, "Llamando a " + numeroLimpio + "...");
+        boolean lanzada = llamadas.llamarSinVerificar(numeroLimpio, 4_000L);
+        if (!lanzada) {
+            return false;
+        }
+
+        return ConfirmacionManualPopup.mostrarYEsperar(
+                "SOFT.023.008 — Bluetooth",
+                owner,
+                "Confirma si la llamada se inició directamente al número indicado y si pudiste gestionarla desde el headset Bluetooth.");
     }
-
-    String numeroLimpio = numero.replaceAll("\\s+", "").trim();
-    LlamadasD17 llamadas = new LlamadasD17(serial);
-
-    actualizarEstadoPaso(paso, "Llamando a " + numeroLimpio + "...");
-    boolean lanzada = llamadas.llamarSinVerificar(numeroLimpio, 4_000L);
-    if (!lanzada) {
-        return false;
-    }
-
-    return ConfirmacionManualPopup.mostrarYEsperar(
-            "SOFT.023.008 — Bluetooth",
-            owner,
-            "Confirma si la llamada se inició directamente al número indicado y si pudiste gestionarla desde el headset Bluetooth.");
-}
 }
